@@ -2,6 +2,5 @@
   "type": "vanguard-spirits:guarded_ruins",
   "biomes": "#vanguard-spirits:has_structure/guarded_ruins",
   "spawn_overrides": {},
-  "step": "surface_structures",
-  "terrain_adaptation": "beard_thin"
+  "step": "underground_structures"
 }

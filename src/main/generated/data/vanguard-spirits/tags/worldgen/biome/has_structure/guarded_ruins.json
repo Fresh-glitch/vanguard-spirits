@@ -1,42 +1,8 @@
 {
   "values": [
     {
-      "id": "#minecraft:is_forest",
+      "id": "#minecraft:is_overworld",
       "required": false
-    },
-    {
-      "id": "#minecraft:is_taiga",
-      "required": false
-    },
-    {
-      "id": "#minecraft:is_jungle",
-      "required": false
-    },
-    {
-      "id": "#minecraft:is_savanna",
-      "required": false
-    },
-    {
-      "id": "#minecraft:is_badlands",
-      "required": false
-    },
-    {
-      "id": "#minecraft:is_hill",
-      "required": false
-    },
-    {
-      "id": "#minecraft:is_mountain",
-      "required": false
-    },
-    "minecraft:plains",
-    "minecraft:sunflower_plains",
-    "minecraft:snowy_plains",
-    "minecraft:desert",
-    "minecraft:swamp",
-    "minecraft:meadow",
-    "minecraft:grove",
-    "minecraft:snowy_slopes",
-    "minecraft:cherry_grove",
-    "minecraft:stony_peaks"
+    }
   ]
 }

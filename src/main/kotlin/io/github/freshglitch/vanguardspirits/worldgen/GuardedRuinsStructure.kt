@@ -3,14 +3,13 @@ package io.github.freshglitch.vanguardspirits.worldgen
 import com.mojang.serialization.MapCodec
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
 import net.minecraft.core.BlockPos
-import net.minecraft.world.level.levelgen.Heightmap
+import net.minecraft.world.level.NoiseColumn
 import net.minecraft.world.level.levelgen.structure.Structure
 import net.minecraft.world.level.levelgen.structure.StructureType
 import java.util.Optional
 
 /**
- * A Guarded Ruin: a single procedurally built piece anchored to the surface at
- * the centre of its chunk.
+ * A Guarded Ruin: a deepslate sanctum buried in a cavern of its own making.
  *
  * There is no NBT template and no jigsaw pool -- [GuardedRuinsPiece] lays the
  * blocks itself, so the shape is varied by the world seed rather than authored.
@@ -19,63 +18,66 @@ class GuardedRuinsStructure(settings: StructureSettings) : Structure(settings) {
 
 	override fun findGenerationPoint(context: GenerationContext): Optional<GenerationStub> {
 		val chunkPos = context.chunkPos()
-		val centreX = chunkPos.middleBlockX
-		val centreZ = chunkPos.middleBlockZ
-		val half = GuardedRuinsPiece.WIDTH / 2
+		val x = chunkPos.middleBlockX
+		val z = chunkPos.middleBlockZ
 
-		// Probe the footprint corners rather than just the centre: one sample
-		// cannot tell a flat clearing from a cliff edge or a lake shore.
-		var lowest = Int.MAX_VALUE
-		var highest = Int.MIN_VALUE
+		val y = MIN_FLOOR + context.random().nextInt(MAX_FLOOR - MIN_FLOOR + 1)
 
-		for (dx in intArrayOf(-half, half)) {
-			for (dz in intArrayOf(-half, half)) {
-				val x = centreX + dx
-				val z = centreZ + dz
+		// Require solid rock through the whole vertical span. The cavern is dug
+		// out by the piece, so starting inside an existing void would leave the
+		// sanctum floating in it, and starting below the world would leave it in
+		// bedrock.
+		val column = context.chunkGenerator().getBaseColumn(
+			x,
+			z,
+			context.heightAccessor(),
+			context.randomState(),
+		)
+		if (!isEncased(column, y, context.heightAccessor().minY)) return Optional.empty()
 
-				val floor = heightAt(context, x, z, Heightmap.Types.OCEAN_FLOOR_WG)
-				val surface = heightAt(context, x, z, Heightmap.Types.WORLD_SURFACE_WG)
-
-				// WORLD_SURFACE counts fluids, OCEAN_FLOOR does not. A gap between
-				// them means standing water -- ocean, lake or river -- above the
-				// spot we would build on.
-				if (surface > floor) return Optional.empty()
-
-				if (floor < lowest) lowest = floor
-				if (floor > highest) highest = floor
-			}
-		}
-
-		// Refuse hillsides, which would leave the ruin half buried and half stilted.
-		if (highest - lowest > MAX_RELIEF) return Optional.empty()
-
-		// Anchor the platform to the lowest corner so it settles into the ground
-		// rather than perching on top of it. The crypt is dug out below this.
-		val centre = BlockPos(centreX, lowest - 1, centreZ)
+		val centre = BlockPos(x, y, z)
 
 		return Optional.of(
 			GenerationStub(centre) { builder -> builder.addPiece(GuardedRuinsPiece(centre)) },
 		)
 	}
 
-	private fun heightAt(
-		context: GenerationContext,
-		x: Int,
-		z: Int,
-		type: Heightmap.Types,
-	): Int = context.chunkGenerator().getFirstOccupiedHeight(
-		x,
-		z,
-		type,
-		context.heightAccessor(),
-		context.randomState(),
-	)
+	/** True when the column is solid across the piece's full height at [floorY]. */
+	private fun isEncased(column: NoiseColumn, floorY: Int, worldMinY: Int): Boolean {
+		val lowest = floorY - GuardedRuinsPiece.CRYPT_DEPTH - 2
+		val highest = floorY + GuardedRuinsPiece.ABOVE
+
+		if (lowest <= worldMinY + BEDROCK_CLEARANCE) return false
+
+		// Sampling every block is wasted work; a few rungs catch the cases that
+		// matter -- an open cave, a ravine, or the underside of the surface.
+		var y = lowest
+		while (y <= highest) {
+			if (column.getBlock(y).isAir) return false
+			y += SAMPLE_STRIDE
+		}
+		return true
+	}
 
 	override fun type(): StructureType<*> = ModStructures.GUARDED_RUINS
 
 	companion object {
-		/** Largest corner-to-corner height difference we will still build on. */
-		private const val MAX_RELIEF = 4
+		/**
+		 * Y band for the sanctum floor. Deepslate runs from roughly y=0 down to
+		 * bedrock, so this keeps the whole piece -- crypt below, cavern dome above
+		 * -- inside the deepslate layer.
+		 */
+		private const val MIN_FLOOR = -44
+		private const val MAX_FLOOR = -30
+
+		/** Blocks of margin kept above the bedrock floor. */
+		private const val BEDROCK_CLEARANCE = 6
+
+		/**
+		 * Rungs of the column check. Two catches mineshaft corridors and thin
+		 * caves that a coarser stride steps straight over.
+		 */
+		private const val SAMPLE_STRIDE = 2
 
 		val CODEC: MapCodec<GuardedRuinsStructure> = simpleCodec(::GuardedRuinsStructure)
 	}
