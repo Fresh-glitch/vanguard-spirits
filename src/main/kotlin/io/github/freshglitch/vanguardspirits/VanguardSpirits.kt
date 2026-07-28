@@ -4,6 +4,7 @@ import io.github.freshglitch.vanguardspirits.charm.Attunement
 import io.github.freshglitch.vanguardspirits.charm.CharmTicker
 import io.github.freshglitch.vanguardspirits.registry.ModItemGroups
 import io.github.freshglitch.vanguardspirits.registry.ModItems
+import io.github.freshglitch.vanguardspirits.registry.ModStructures
 import net.fabricmc.api.ModInitializer
 import net.minecraft.resources.Identifier
 import org.slf4j.LoggerFactory
@@ -16,6 +17,7 @@ object VanguardSpirits : ModInitializer {
 	override fun onInitialize() {
 		ModItems.register()
 		ModItemGroups.register()
+		ModStructures.register()
 		Attunement.register()
 		CharmTicker.register()
 
