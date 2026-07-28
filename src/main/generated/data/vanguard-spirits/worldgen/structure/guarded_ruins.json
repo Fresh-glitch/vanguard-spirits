@@ -1,6 +1,6 @@
 {
   "type": "vanguard-spirits:guarded_ruins",
-  "biomes": "#minecraft:is_overworld",
+  "biomes": "#vanguard-spirits:has_structure/guarded_ruins",
   "spawn_overrides": {},
   "step": "surface_structures",
   "terrain_adaptation": "beard_thin"
