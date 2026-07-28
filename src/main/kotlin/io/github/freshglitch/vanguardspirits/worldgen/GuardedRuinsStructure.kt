@@ -49,12 +49,12 @@ class GuardedRuinsStructure(settings: StructureSettings) : Structure(settings) {
 		// Refuse hillsides, which would leave the ruin half buried and half stilted.
 		if (highest - lowest > MAX_RELIEF) return Optional.empty()
 
-		// Anchor to the lowest corner so the floor settles into the ground rather
-		// than perching on top of it.
-		val origin = BlockPos(centreX, lowest - 1, centreZ)
+		// Anchor the platform to the lowest corner so it settles into the ground
+		// rather than perching on top of it. The crypt is dug out below this.
+		val centre = BlockPos(centreX, lowest - 1, centreZ)
 
 		return Optional.of(
-			GenerationStub(origin) { builder -> builder.addPiece(GuardedRuinsPiece(origin)) },
+			GenerationStub(centre) { builder -> builder.addPiece(GuardedRuinsPiece(centre)) },
 		)
 	}
 
