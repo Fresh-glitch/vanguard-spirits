@@ -1,0 +1,43 @@
+{
+  // NOTE: `gradlew vscode` overwrites this file with `type: java` / `request: launch`
+  // configs. Those cannot work for this mod -- see the comment at the bottom.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Minecraft Client",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 5005,
+      "preLaunchTask": "Gradle: runClient (suspended on 5005)"
+    },
+    {
+      "type": "java",
+      "name": "Minecraft Server",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 5005,
+      "preLaunchTask": "Gradle: runServer (suspended on 5005)"
+    },
+    {
+      "type": "java",
+      "name": "Attach to running Minecraft (5005)",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 5005
+    }
+  ]
+
+  // Why attach instead of launch:
+  //
+  // The entrypoints in fabric.mod.json are Kotlin classes. VS Code's Java
+  // extension (JDT) does not compile .kt files -- it copies them into bin/ as
+  // plain resources. A `request: launch` config therefore starts the game with
+  // no VanguardSpirits.class on the classpath and Fabric Loader fails to load
+  // the mod. Gradle's compileKotlin/compileClientKotlin produce the real classes
+  // in build/classes/kotlin/, and Loom's launch.cfg (fabric.classPathGroups)
+  // already points there, so the game must be started through Gradle.
+  //
+  // Data generation has no debug config on purpose; run the "Gradle: runDatagen"
+  // task instead (Terminal > Run Task, or `gradlew runDatagen`).
+}
