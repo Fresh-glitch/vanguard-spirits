@@ -153,6 +153,38 @@ needed a screenshot to diagnose.
 - **`sounds.json` treats every top-level key as a sound event.** A `_comment`
   string there fails the whole file and silences the mod.
 
+## Blocks, menus and screens
+
+- Blocks register through `Blocks.register(key, factory, properties)`, which
+  assigns the id internally — `BlockBehaviour.Properties` has no `setId`. The
+  matching `BlockItem` is registered separately, like any other item.
+- **Declaring a `FACING` property does nothing on its own.** Without
+  `getStateForPlacement`, the state keeps its default forever and every block
+  faces the same way no matter how it was placed.
+- **Screens register per `MenuType`.** Styling a screen for a *vanilla* menu type
+  restyles every vanilla block using it — reusing `GENERIC_3x3` would have given
+  the Reliquary's panel to every dispenser in the game. Custom interface means a
+  custom menu type, menu and screen.
+- Owning the menu also lets `ContainerOpenersCounter.isOwnContainer` ask which
+  container is open; vanilla's `DispenserMenu` exposes no accessor for its own.
+- 26.2 screens draw in **`extractBackground(GuiGraphicsExtractor, ...)`** with
+  `extractor.blit(RenderPipelines.GUI_TEXTURED, ...)`. There is no `renderBg` and
+  no `GuiGraphics.blit`.
+- Container panels are **176x166 in the top-left of a 256x256 sheet**. Player
+  inventory at `(8, 84)`, hotbar at `(8, 142)`. Match those or the artwork and
+  the real slots disagree.
+- Ornament competes with text: a centred title lands on a centred keystone, and
+  a left title lands on a top-left corner boss. Decide which owns the space.
+- Slot bevels belong on the 18x18 outer ring, not inside the 16x16 well. Inside,
+  every slot's weight shifts up-left and the grid reads as if it were misaligned.
+
+## Animation and sound
+
+Match the **audible movement**, not the file's length. `block/vault/open_shutter`
+runs 2.041 s but most of that is decay tail, so a lid stretched to span it crawls
+long after anything sounds like it is moving. Measure a `.ogg` by dividing its
+last page's granule position by the sample rate when the duration matters.
+
 ## Design invariant: charms and attunement
 
 Charms apply their aura **from anywhere in the inventory**, but only the first N
