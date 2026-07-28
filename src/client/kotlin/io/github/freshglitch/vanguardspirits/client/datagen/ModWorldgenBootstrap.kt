@@ -2,11 +2,11 @@ package io.github.freshglitch.vanguardspirits.client.datagen
 
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
+import io.github.freshglitch.vanguardspirits.registry.ModTags
 import io.github.freshglitch.vanguardspirits.worldgen.GuardedRuinsStructure
 import net.minecraft.core.registries.Registries
 import net.minecraft.data.worldgen.BootstrapContext
 import net.minecraft.resources.ResourceKey
-import net.minecraft.tags.BiomeTags
 import net.minecraft.world.level.levelgen.GenerationStep
 import net.minecraft.world.level.levelgen.structure.Structure
 import net.minecraft.world.level.levelgen.structure.StructureSet
@@ -32,7 +32,7 @@ object ModWorldgenBootstrap {
 			ModStructures.GUARDED_RUINS_KEY,
 			GuardedRuinsStructure(
 				Structure.StructureSettings(
-					biomes.getOrThrow(BiomeTags.IS_OVERWORLD),
+					biomes.getOrThrow(ModTags.GUARDED_RUINS_BIOMES),
 					emptyMap(),
 					GenerationStep.Decoration.SURFACE_STRUCTURES,
 					// Blend the surrounding terrain into the footprint instead of

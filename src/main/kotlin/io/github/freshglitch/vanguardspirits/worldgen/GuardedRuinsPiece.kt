@@ -2,6 +2,7 @@ package io.github.freshglitch.vanguardspirits.worldgen
 
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
 import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.util.RandomSource
 import net.minecraft.world.level.ChunkPos
@@ -31,9 +32,13 @@ class GuardedRuinsPiece : StructurePiece {
 			origin.x, origin.y, origin.z,
 			origin.x + WIDTH - 1, origin.y + HEIGHT - 1, origin.z + WIDTH - 1,
 		),
-	)
+	) {
+		setOrientation(IDENTITY_FACING)
+	}
 
-	constructor(tag: CompoundTag) : super(ModStructures.GUARDED_RUINS_PIECE, tag)
+	constructor(tag: CompoundTag) : super(ModStructures.GUARDED_RUINS_PIECE, tag) {
+		setOrientation(IDENTITY_FACING)
+	}
 
 	/**
 	 * The layout is regenerated from the piece random and the bounding box, both
@@ -113,6 +118,19 @@ class GuardedRuinsPiece : StructurePiece {
 	}.defaultBlockState()
 
 	companion object {
+		/**
+		 * StructurePiece keeps its orientation in a private field that defaults to
+		 * null, and `getWorldX`/`getWorldZ` return the *relative* coordinate
+		 * unchanged in that case instead of offsetting by the bounding box. The
+		 * result is a piece that generates nothing at all: every block is aimed
+		 * near world origin and then dropped by placeBlock's chunk-box check.
+		 *
+		 * SOUTH is the identity transform (`minX + x`, `minZ + z`); NORTH mirrors
+		 * Z. Any non-null horizontal facing keeps blocks inside the box, but SOUTH
+		 * is the one that makes local coordinates mean what they read like.
+		 */
+		private val IDENTITY_FACING = Direction.SOUTH
+
 		const val WIDTH: Int = 11
 		const val HEIGHT: Int = 6
 

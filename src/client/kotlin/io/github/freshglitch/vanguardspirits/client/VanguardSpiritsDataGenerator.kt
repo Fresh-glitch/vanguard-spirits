@@ -1,5 +1,6 @@
 package io.github.freshglitch.vanguardspirits.client
 
+import io.github.freshglitch.vanguardspirits.client.datagen.ModBiomeTagProvider
 import io.github.freshglitch.vanguardspirits.client.datagen.ModEnglishProvider
 import io.github.freshglitch.vanguardspirits.client.datagen.ModModelProvider
 import io.github.freshglitch.vanguardspirits.client.datagen.ModRecipeProvider
@@ -18,6 +19,7 @@ object VanguardSpiritsDataGenerator : DataGeneratorEntrypoint {
 		pack.addProvider(::ModEnglishProvider)
 		pack.addProvider(::ModRecipeProvider)
 		pack.addProvider(::ModWorldgenProvider)
+		pack.addProvider(::ModBiomeTagProvider)
 	}
 
 	/**
