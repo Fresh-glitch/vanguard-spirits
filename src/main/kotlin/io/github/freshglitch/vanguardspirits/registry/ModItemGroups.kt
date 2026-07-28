@@ -22,7 +22,10 @@ object ModItemGroups {
 		val tab = FabricCreativeModeTab.builder()
 			.title(Component.translatable(TITLE_KEY))
 			.icon { ItemStack(ModItems.FRACTURED_MEMORY) }
-			.displayItems { _, output -> ModItems.ALL.forEach(output::accept) }
+			.displayItems { _, output ->
+				ModItems.ALL.forEach(output::accept)
+				ModBlocks.ALL.forEach(output::accept)
+			}
 			.build()
 
 		Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, VANGUARD_SPIRITS, tab)

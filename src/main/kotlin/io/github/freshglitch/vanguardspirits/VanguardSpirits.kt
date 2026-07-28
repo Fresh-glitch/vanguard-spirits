@@ -2,8 +2,11 @@ package io.github.freshglitch.vanguardspirits
 
 import io.github.freshglitch.vanguardspirits.charm.Attunement
 import io.github.freshglitch.vanguardspirits.charm.CharmTicker
+import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
+import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModItemGroups
 import io.github.freshglitch.vanguardspirits.registry.ModItems
+import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
 import net.fabricmc.api.ModInitializer
 import net.minecraft.resources.Identifier
@@ -15,6 +18,10 @@ object VanguardSpirits : ModInitializer {
 	private val LOGGER = LoggerFactory.getLogger(MOD_ID)
 
 	override fun onInitialize() {
+		// Blocks first: the block entity type needs its block to already exist.
+		ModBlocks.register()
+		ModBlockEntities.register()
+		ModSounds.register()
 		ModItems.register()
 		ModItemGroups.register()
 		ModStructures.register()

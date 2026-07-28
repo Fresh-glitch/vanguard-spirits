@@ -1,0 +1,22 @@
+{
+  "block.golden_chest.open": {
+    "subtitle": "subtitles.vanguard-spirits.golden_chest.open",
+    "sounds": [
+      {
+        "name": "minecraft:block/vault/open_shutter",
+        "volume": 1.0,
+        "pitch": 0.8
+      }
+    ]
+  },
+  "block.golden_chest.close": {
+    "subtitle": "subtitles.vanguard-spirits.golden_chest.close",
+    "sounds": [
+      {
+        "name": "minecraft:block/trial_spawner/close_shutter",
+        "volume": 1.0,
+        "pitch": 0.8
+      }
+    ]
+  }
+}
