@@ -34,10 +34,10 @@ object ModWorldgenBootstrap {
 				Structure.StructureSettings(
 					biomes.getOrThrow(ModTags.GUARDED_RUINS_BIOMES),
 					emptyMap(),
-					GenerationStep.Decoration.SURFACE_STRUCTURES,
-					// Blend the surrounding terrain into the footprint instead of
-					// leaving the ruin floating on a hillside.
-					TerrainAdjustment.BEARD_THIN,
+					GenerationStep.Decoration.UNDERGROUND_STRUCTURES,
+					// The piece hollows its own cavern out of solid rock, so there
+					// is no surrounding terrain to blend.
+					TerrainAdjustment.NONE,
 				),
 			),
 		)

@@ -14,17 +14,21 @@ import net.minecraft.world.level.chunk.ChunkGenerator
 import net.minecraft.world.level.levelgen.structure.BoundingBox
 import net.minecraft.world.level.levelgen.structure.StructurePiece
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext
+import kotlin.math.sqrt
 
 /**
- * One Guarded Ruin, generated block by block rather than from an NBT template.
+ * One Guarded Ruin: a deepslate sanctum standing in a cavern of its own making,
+ * buried deep in the deepslate layer.
  *
- * The silhouette is a deepslate sanctum: a broken colonnade around a stepped
- * altar, soul-fire braziers at the cardinal points, and a crypt sunk beneath it
- * reached by a stair cut through the platform. Everything is derived from the
- * piece random and the bounding box, so no extra state has to be persisted.
+ * The cavern is hollowed rather than found. Caves are carved *after* structures
+ * choose their position, so a structure cannot reliably detect an existing one
+ * at placement time -- vanilla's underground structures do not try either. The
+ * piece therefore digs its own dome and builds the sanctum inside it.
  *
- * Local coordinates run from the bounding box minimum, so [SURFACE] -- not zero
- * -- is ground level; everything below it is the crypt.
+ * Two coordinate systems are in play. Local coordinates run from the bounding
+ * box minimum and span the whole cavern; sanctum coordinates are offset by
+ * [MARGIN] on both horizontal axes and are what [put] and [fill] take, so the
+ * building code can stay in terms of the ruin itself.
  */
 class GuardedRuinsPiece : StructurePiece {
 
@@ -58,8 +62,9 @@ class GuardedRuinsPiece : StructurePiece {
 		chunkPos: ChunkPos,
 		pos: BlockPos,
 	) {
+		hollowCavern(level, box)
+		dressCavern(level, box, random)
 		carveCrypt(level, box, random)
-		clearSanctum(level, box)
 		layPlatform(level, box, random)
 		raiseColonnade(level, box, random)
 		buildAltar(level, box, random)
@@ -67,23 +72,111 @@ class GuardedRuinsPiece : StructurePiece {
 		cutStairwell(level, box, random)
 	}
 
+	// --------------------------------------------------------------- cavern
+
+	/**
+	 * Hollows a domed void around the sanctum.
+	 *
+	 * The roof falls away toward the rim so the chamber reads as a cavern rather
+	 * than a box. Nothing below the sanctum floor is touched -- that rock is the
+	 * cavern floor, and the crypt is cut into it separately.
+	 */
+	private fun hollowCavern(level: WorldGenLevel, box: BoundingBox) {
+		for (x in 0..LAST) {
+			for (z in 0..LAST) {
+				val dome = domeHeight(x, z)
+				if (dome < MIN_DOME) continue
+
+				generateBox(level, box, x, SURFACE + 1, z, x, SURFACE + dome, z, AIR, AIR, false)
+			}
+		}
+	}
+
+	/**
+	 * Height of the cavern roof above the floor at a column, or zero outside it.
+	 *
+	 * Deliberately a pure function of position rather than a draw from the piece
+	 * random. `postProcess` runs once per chunk the piece touches, each with its
+	 * own random, so a roof shaped from random draws would not agree with itself
+	 * across a chunk border -- and [dressCavern] needs to ask where the roof is
+	 * long after it was carved.
+	 */
+	private fun domeHeight(x: Int, z: Int): Int {
+		val centre = LAST / 2.0
+		val nx = (x - centre) / centre
+		val nz = (z - centre) / centre
+		val spread = sqrt(nx * nx + nz * nz)
+		if (spread > 1.0) return 0
+
+		val base = (ROOF_LIFT * (1.0 - spread * spread)).toInt()
+		// Cheap positional hash: enough waviness to break the curve, identical
+		// every time it is asked.
+		val jitter = (((x * 73_856_093) xor (z * 19_349_663)) ushr 4) and 3
+		return base + jitter - 1
+	}
+
+	/**
+	 * Scatters the cavern floor with rubble, rock columns and the stumps of an
+	 * outer colonnade that did not survive, so the ruin looks like the centre of
+	 * something larger rather than a building dropped into a bubble.
+	 */
+	private fun dressCavern(level: WorldGenLevel, box: BoundingBox, random: RandomSource) {
+		for (x in 0..LAST) {
+			for (z in 0..LAST) {
+				if (inSanctum(x, z)) continue
+
+				val dome = domeHeight(x, z)
+				if (dome < MIN_DOME) continue
+
+				// Rock columns joining floor to roof. Only where there is real
+				// height, or they read as pillars in a crawlspace.
+				if (dome >= COLUMN_MIN_DOME && random.nextFloat() < COLUMN_CHANCE) {
+					for (y in 1..dome) {
+						placeBlock(level, native(random), x, SURFACE + y, z, box)
+					}
+					continue
+				}
+
+				// Stumps of the outer colonnade, in brick rather than raw stone so
+				// they read as built and not as cave litter.
+				if (random.nextFloat() < STUMP_CHANCE) {
+					val height = 1 + random.nextInt(4)
+					for (y in 1..height) {
+						placeBlock(level, deepslate(random), x, SURFACE + y, z, box)
+					}
+					continue
+				}
+
+				if (random.nextFloat() < RUBBLE_CHANCE) {
+					placeBlock(level, native(random), x, SURFACE + 1, z, box)
+				} else if (random.nextFloat() < CAVERN_SCULK_CHANCE) {
+					placeBlock(level, Blocks.SCULK.defaultBlockState(), x, SURFACE + 1, z, box)
+				}
+			}
+		}
+	}
+
+	/** True for columns the sanctum itself occupies. */
+	private fun inSanctum(x: Int, z: Int): Boolean =
+		x >= MARGIN && x <= MARGIN + SANCTUM_LAST && z >= MARGIN && z <= MARGIN + SANCTUM_LAST
+
 	// ---------------------------------------------------------------- crypt
 
 	/** Hollows the buried chamber and lines it, sculk creeping across the floor. */
 	private fun carveCrypt(level: WorldGenLevel, box: BoundingBox, random: RandomSource) {
-		val lo = CRYPT_MARGIN
-		val hi = LAST - CRYPT_MARGIN
+		val lo = CRYPT_INSET
+		val hi = SANCTUM_LAST - CRYPT_INSET
 
 		// Shell first, then hollow it out -- simpler than tracking wall faces.
-		generateBox(level, box, lo, 0, lo, hi, SURFACE - 1, hi, deepslate(random), deepslate(random), false)
-		generateBox(level, box, lo + 1, 1, lo + 1, hi - 1, SURFACE - 1, hi - 1, AIR, AIR, false)
+		fill(level, box, lo, CRYPT_FLOOR, lo, hi, SURFACE - 1, hi, deepslate(random))
+		fill(level, box, lo + 1, CRYPT_FLOOR + 1, lo + 1, hi - 1, SURFACE - 1, hi - 1, AIR)
 
 		for (x in (lo + 1)..(hi - 1)) {
 			for (z in (lo + 1)..(hi - 1)) {
 				// Relay the floor so it is not a flat sheet of one texture.
-				placeBlock(level, deepslate(random), x, 0, z, box)
+				put(level, box, deepslate(random), x, CRYPT_FLOOR, z)
 				if (random.nextFloat() < SCULK_CHANCE) {
-					placeBlock(level, Blocks.SCULK.defaultBlockState(), x, 1, z, box)
+					put(level, box, Blocks.SCULK.defaultBlockState(), x, CRYPT_FLOOR + 1, z)
 				}
 			}
 		}
@@ -91,31 +184,18 @@ class GuardedRuinsPiece : StructurePiece {
 		// Four lanterns at the chamber corners: the only light down here.
 		for (x in intArrayOf(lo + 1, hi - 1)) {
 			for (z in intArrayOf(lo + 1, hi - 1)) {
-				placeBlock(level, Blocks.SOUL_LANTERN.defaultBlockState(), x, 1, z, box)
+				put(level, box, Blocks.SOUL_LANTERN.defaultBlockState(), x, CRYPT_FLOOR + 1, z)
 			}
 		}
 	}
 
 	// ------------------------------------------------------------- platform
 
-	/**
-	 * Empties the volume the sanctum stands in.
-	 *
-	 * Structure placement anchors to the *noise-predicted* terrain height, which
-	 * does not include snow layers, topsoil or anything the surface rules add
-	 * afterwards. Without this the platform ends up sealed under the finished
-	 * ground and only the pillars show. Clearing also removes trees and overburden
-	 * so the ruin reads as a clearing rather than a shape pushed into a hillside.
-	 */
-	private fun clearSanctum(level: WorldGenLevel, box: BoundingBox) {
-		generateBox(level, box, 0, SURFACE + 1, 0, LAST, SURFACE + ABOVE, LAST, AIR, AIR, false)
-	}
-
-	/** The ground-level slab, which doubles as the crypt ceiling. */
+	/** The sanctum floor, which doubles as the crypt ceiling. */
 	private fun layPlatform(level: WorldGenLevel, box: BoundingBox, random: RandomSource) {
-		for (x in 0..LAST) {
-			for (z in 0..LAST) {
-				placeBlock(level, deepslate(random), x, SURFACE, z, box)
+		for (x in 0..SANCTUM_LAST) {
+			for (z in 0..SANCTUM_LAST) {
+				put(level, box, deepslate(random), x, SURFACE, z)
 			}
 		}
 	}
@@ -124,51 +204,45 @@ class GuardedRuinsPiece : StructurePiece {
 
 	/** Pillars at the corners and cardinal midpoints, plus the broken wall between. */
 	private fun raiseColonnade(level: WorldGenLevel, box: BoundingBox, random: RandomSource) {
-		for (i in 0..LAST) {
+		for (i in 0..SANCTUM_LAST) {
 			ruinedWall(level, box, random, i, 0)
-			ruinedWall(level, box, random, i, LAST)
+			ruinedWall(level, box, random, i, SANCTUM_LAST)
 			ruinedWall(level, box, random, 0, i)
-			ruinedWall(level, box, random, LAST, i)
+			ruinedWall(level, box, random, SANCTUM_LAST, i)
 		}
 
-		val mid = LAST / 2
-		val inner = LAST - 1
+		val mid = SANCTUM_LAST / 2
+		val inner = SANCTUM_LAST - 1
 
 		// Corners are 2x2 shafts. A one-block column at this height reads as a
-		// fence post, not a pillar -- the extra thickness is what makes the ruin
-		// look built rather than scattered.
+		// fence post, not a pillar.
 		for ((cx, cz) in listOf(0 to 0, 0 to inner, inner to 0, inner to inner)) {
 			val top = PILLAR_TALL - random.nextInt(3)
 			for (dx in 0..1) {
 				for (dz in 0..1) {
 					for (y in 1..top) {
-						placeBlock(level, deepslate(random), cx + dx, SURFACE + y, cz + dz, box)
+						put(level, box, deepslate(random), cx + dx, SURFACE + y, cz + dz)
 					}
-					placeBlock(
-						level,
-						Blocks.CHISELED_DEEPSLATE.defaultBlockState(),
-						cx + dx, SURFACE + top + 1, cz + dz, box,
+					put(
+						level, box, Blocks.CHISELED_DEEPSLATE.defaultBlockState(),
+						cx + dx, SURFACE + top + 1, cz + dz,
 					)
 				}
 			}
 		}
 
-		// Cardinal posts stay single and snap off lower, so the ring is uneven.
-		for ((x, z) in listOf(mid to 0, mid to LAST, 0 to mid, LAST to mid)) {
+		for ((x, z) in listOf(mid to 0, mid to SANCTUM_LAST, 0 to mid, SANCTUM_LAST to mid)) {
 			val top = PILLAR_SHORT - random.nextInt(3)
 			for (y in 1..top) {
-				placeBlock(level, deepslate(random), x, SURFACE + y, z, box)
+				put(level, box, deepslate(random), x, SURFACE + y, z)
 			}
-			placeBlock(level, Blocks.CHISELED_DEEPSLATE.defaultBlockState(), x, SURFACE + top + 1, z, box)
+			put(level, box, Blocks.CHISELED_DEEPSLATE.defaultBlockState(), x, SURFACE + top + 1, z)
 		}
 	}
 
 	/**
-	 * One wall column.
-	 *
-	 * The foundation course is never skipped -- an unbroken base is what makes
-	 * the perimeter read as a collapsed wall instead of a row of loose stones.
-	 * Only the courses above it are allowed to be missing.
+	 * One wall column. The bottom [SOLID_COURSES] are never skipped, so the
+	 * perimeter reads as a collapsed wall rather than a row of loose stones.
 	 */
 	private fun ruinedWall(
 		level: WorldGenLevel,
@@ -177,13 +251,15 @@ class GuardedRuinsPiece : StructurePiece {
 		x: Int,
 		z: Int,
 	) {
-		placeBlock(level, deepslate(random), x, SURFACE + 1, z, box)
+		for (y in 1..SOLID_COURSES) {
+			put(level, box, deepslate(random), x, SURFACE + y, z)
+		}
 
 		if (random.nextFloat() < GAP_CHANCE) return
 
-		val height = 2 + random.nextInt(WALL_MAX)
-		for (y in 2..height) {
-			placeBlock(level, deepslate(random), x, SURFACE + y, z, box)
+		val height = SOLID_COURSES + 1 + random.nextInt(WALL_MAX)
+		for (y in (SOLID_COURSES + 1)..height) {
+			put(level, box, deepslate(random), x, SURFACE + y, z)
 		}
 	}
 
@@ -191,40 +267,40 @@ class GuardedRuinsPiece : StructurePiece {
 
 	/** Stepped plinth at the centre -- where the memory will eventually rest. */
 	private fun buildAltar(level: WorldGenLevel, box: BoundingBox, random: RandomSource) {
-		val mid = LAST / 2
+		val mid = SANCTUM_LAST / 2
 
 		for (x in (mid - 2)..(mid + 2)) {
 			for (z in (mid - 2)..(mid + 2)) {
-				placeBlock(level, Blocks.POLISHED_DEEPSLATE.defaultBlockState(), x, SURFACE + 1, z, box)
+				put(level, box, Blocks.POLISHED_DEEPSLATE.defaultBlockState(), x, SURFACE + 1, z)
 			}
 		}
 		for (x in (mid - 1)..(mid + 1)) {
 			for (z in (mid - 1)..(mid + 1)) {
-				placeBlock(level, tiles(random), x, SURFACE + 2, z, box)
+				put(level, box, tiles(random), x, SURFACE + 2, z)
 			}
 		}
-		placeBlock(level, Blocks.CHISELED_DEEPSLATE.defaultBlockState(), mid, SURFACE + 3, mid, box)
+		put(level, box, Blocks.CHISELED_DEEPSLATE.defaultBlockState(), mid, SURFACE + 3, mid)
 
 		for (x in intArrayOf(mid - 2, mid + 2)) {
 			for (z in intArrayOf(mid - 2, mid + 2)) {
-				placeBlock(level, Blocks.SOUL_LANTERN.defaultBlockState(), x, SURFACE + 2, z, box)
+				put(level, box, Blocks.SOUL_LANTERN.defaultBlockState(), x, SURFACE + 2, z)
 			}
 		}
 	}
 
 	/**
-	 * Soul campfires on low plinths. They light the sanctum blue, throw a
-	 * particle column, and burn anything that walks into them -- the ruin's only
-	 * standing defence until the guardians arrive.
+	 * Soul campfires on low plinths. They light the cavern blue, throw a particle
+	 * column, and burn anything that walks into them -- the ruin's only standing
+	 * defence until the guardians arrive.
 	 */
 	private fun placeBraziers(level: WorldGenLevel, box: BoundingBox) {
-		val near = CRYPT_MARGIN
-		val far = LAST - CRYPT_MARGIN
+		val near = CRYPT_INSET
+		val far = SANCTUM_LAST - CRYPT_INSET
 
 		for (x in intArrayOf(near, far)) {
 			for (z in intArrayOf(near, far)) {
-				placeBlock(level, Blocks.POLISHED_DEEPSLATE.defaultBlockState(), x, SURFACE + 1, z, box)
-				placeBlock(level, Blocks.SOUL_CAMPFIRE.defaultBlockState(), x, SURFACE + 2, z, box)
+				put(level, box, Blocks.POLISHED_DEEPSLATE.defaultBlockState(), x, SURFACE + 1, z)
+				put(level, box, Blocks.SOUL_CAMPFIRE.defaultBlockState(), x, SURFACE + 2, z)
 			}
 		}
 	}
@@ -232,46 +308,42 @@ class GuardedRuinsPiece : StructurePiece {
 	// ------------------------------------------------------------ stairwell
 
 	/**
-	 * Sinks the descent into the crypt as a stairwell mouth in the plaza.
+	 * Sinks the descent into the crypt as a stairwell mouth in the sanctum floor.
 	 *
-	 * It starts two blocks inside the platform edge rather than at it. Running
-	 * the stair out to the edge instead opens its head into untouched ground --
-	 * a wall of raw dirt at the top of the stairs -- and severs the perimeter
-	 * wall on the way past.
+	 * The buried run is cast as one solid block of masonry and the steps cut out
+	 * of it: facing a shaft after cutting it never covers everything, because the
+	 * back wall and the ground below the treads stay bare.
 	 *
-	 * Run last: it deliberately overwrites the platform laid above it.
+	 * Run last -- it deliberately overwrites the platform laid above it.
 	 */
 	private fun cutStairwell(level: WorldGenLevel, box: BoundingBox, random: RandomSource) {
-		val mid = LAST / 2
-		val zLo = mid - 1
-		val zHi = mid + 1
-		val headX = LAST - 2
+		val mid = SANCTUM_LAST / 2
+		val zLo = mid - 2
+		val zHi = mid + 2
+		val headX = SANCTUM_LAST - 1
+		val descent = SURFACE - CRYPT_FLOOR - 1
 
-		// Cast the buried run of the stair as one solid block of masonry, then cut
-		// the steps out of it. Facing the shaft afterwards never covers everything
-		// -- the back wall and the ground below the treads stay bare -- and the
-		// raw terrain shows through wherever the cut passes.
-		generateBox(
+		fill(
 			level, box,
-			CRYPT_OUTER + 1, 0, zLo - 1,
+			CRYPT_OUTER + 1, CRYPT_FLOOR, zLo - 1,
 			headX + 1, SURFACE, zHi + 1,
-			deepslate(random), deepslate(random), false,
+			deepslate(random),
 		)
 
-		for (step in 0 until SURFACE) {
+		for (step in 0..descent) {
 			val x = headX - step
 			val treadY = SURFACE - 1 - step
 			val buried = x > CRYPT_OUTER
 
-			// Outside the crypt the shaft has to be cut up through the platform to
-			// open the mouth. Once inside, the chamber is already hollow and the
+			// Outside the crypt the shaft is cut up through the platform to open
+			// the mouth. Once inside, the chamber is already hollow and the
 			// platform is its ceiling -- carrying the cut on would punch a hole in
-			// the plaza floor and daylight the crypt.
+			// the sanctum floor and open the crypt to the cavern.
 			val ceiling = if (buried) SURFACE else SURFACE - 1
-			generateBox(level, box, x, treadY + 1, zLo, x, ceiling, zHi, AIR, AIR, false)
+			fill(level, box, x, treadY + 1, zLo, x, ceiling, zHi, AIR)
 
 			for (z in zLo..zHi) {
-				placeBlock(level, deepslate(random), x, treadY, z, box)
+				put(level, box, deepslate(random), x, treadY, z)
 			}
 		}
 	}
@@ -287,12 +359,46 @@ class GuardedRuinsPiece : StructurePiece {
 		else -> Blocks.DEEPSLATE_BRICKS
 	}.defaultBlockState()
 
+	/** Unworked stone, for the cavern itself rather than the ruin standing in it. */
+	private fun native(random: RandomSource): BlockState = when (random.nextInt(8)) {
+		0, 1 -> Blocks.COBBLED_DEEPSLATE
+		2 -> Blocks.TUFF
+		3 -> Blocks.POLISHED_DEEPSLATE
+		else -> Blocks.DEEPSLATE
+	}.defaultBlockState()
+
 	private fun tiles(random: RandomSource): BlockState =
 		if (random.nextBoolean()) {
 			Blocks.DEEPSLATE_TILES.defaultBlockState()
 		} else {
 			Blocks.CRACKED_DEEPSLATE_TILES.defaultBlockState()
 		}
+
+	// ----------------------------------------------------- sanctum-relative
+
+	/** Places a block in sanctum coordinates. */
+	private fun put(
+		level: WorldGenLevel,
+		box: BoundingBox,
+		state: BlockState,
+		x: Int,
+		y: Int,
+		z: Int,
+	) = placeBlock(level, state, MARGIN + x, y, MARGIN + z, box)
+
+	/** Fills a solid box in sanctum coordinates. */
+	private fun fill(
+		level: WorldGenLevel,
+		box: BoundingBox,
+		x1: Int, y1: Int, z1: Int,
+		x2: Int, y2: Int, z2: Int,
+		state: BlockState,
+	) = generateBox(
+		level, box,
+		MARGIN + x1, y1, MARGIN + z1,
+		MARGIN + x2, y2, MARGIN + z2,
+		state, state, false,
+	)
 
 	companion object {
 		/**
@@ -310,29 +416,55 @@ class GuardedRuinsPiece : StructurePiece {
 
 		private val AIR: BlockState = Blocks.AIR.defaultBlockState()
 
-		/** Footprint, in blocks, on each horizontal axis. */
-		const val WIDTH: Int = 17
+		/** Footprint of the ruin itself. */
+		const val SANCTUM_WIDTH: Int = 17
 
-		/** Blocks of crypt below ground level. */
-		const val CRYPT_DEPTH: Int = 6
+		/** Rock left between the ruin and the cavern rim, on each side. */
+		private const val MARGIN = 9
 
-		/** Headroom reserved above ground level for the tallest pillar. */
-		const val ABOVE: Int = 13
+		/** Full cavern footprint. */
+		const val WIDTH: Int = SANCTUM_WIDTH + 2 * MARGIN
 
-		/** Local Y of ground level. Below it is crypt, above it is sanctum. */
-		private const val SURFACE = CRYPT_DEPTH
-
+		private const val SANCTUM_LAST = SANCTUM_WIDTH - 1
 		private const val LAST = WIDTH - 1
 
-		/** Inset of the crypt shell from the platform edge. */
-		private const val CRYPT_MARGIN = 4
+		/** Solid rock kept beneath the crypt floor. */
+		private const val FLOOR_PAD = 2
 
-		/** Local X of the crypt's far shell wall -- the boundary the stair pierces. */
-		private const val CRYPT_OUTER = WIDTH - 1 - CRYPT_MARGIN
+		/** Depth of the crypt below the sanctum floor. */
+		const val CRYPT_DEPTH: Int = 6
+
+		private const val CRYPT_FLOOR = FLOOR_PAD
+
+		/** Local Y of the sanctum floor. Crypt below, cavern above. */
+		private const val SURFACE = FLOOR_PAD + CRYPT_DEPTH
+
+		/** Headroom the cavern dome reaches at its centre. */
+		private const val ROOF_LIFT = 26
+
+		/** Below this the dome is too low to be worth carving at all. */
+		private const val MIN_DOME = 3
+
+		/** Total height of the piece above the sanctum floor. */
+		const val ABOVE: Int = ROOF_LIFT + 2
+
+		/** Inset of the crypt shell from the sanctum edge. */
+		private const val CRYPT_INSET = 4
+
+		/** Sanctum X of the crypt's far shell wall -- the boundary the stair pierces. */
+		private const val CRYPT_OUTER = SANCTUM_LAST - CRYPT_INSET
 
 		private const val GAP_CHANCE = 0.40f
 		private const val SCULK_CHANCE = 0.18f
+
+		/** Cavern dressing. Sparse on purpose -- clutter reads as noise, not scale. */
+		private const val COLUMN_CHANCE = 0.012f
+		private const val COLUMN_MIN_DOME = 8
+		private const val STUMP_CHANCE = 0.020f
+		private const val RUBBLE_CHANCE = 0.10f
+		private const val CAVERN_SCULK_CHANCE = 0.06f
 		private const val WALL_MAX = 4
+		private const val SOLID_COURSES = 2
 		private const val PILLAR_TALL = 10
 		private const val PILLAR_SHORT = 6
 
@@ -340,7 +472,7 @@ class GuardedRuinsPiece : StructurePiece {
 			val half = WIDTH / 2
 			return BoundingBox(
 				centre.x - half,
-				centre.y - CRYPT_DEPTH,
+				centre.y - SURFACE,
 				centre.z - half,
 				centre.x - half + LAST,
 				centre.y + ABOVE,
