@@ -92,6 +92,37 @@ Each of these cost a compile cycle or a wrong guess:
 - `MobEffects` constants are `SPEED` / `HASTE`, not `MOVEMENT_SPEED` / `DIG_SPEED`,
   and are `Holder<MobEffect>`, not raw `MobEffect`.
 
+## Worldgen gotchas
+
+Each of these produced a structure that looked broken in a way the logs could
+not explain. They are listed in the order they will bite.
+
+- **`StructurePiece` orientation defaults to null**, and `getWorldX`/`getWorldZ`
+  return the *relative* coordinate unchanged in that case instead of offsetting
+  by the bounding box. Every block is then aimed near world origin and dropped by
+  `placeBlock`'s chunk-box check — the piece runs and places **nothing**, which is
+  indistinguishable from never running. Always `setOrientation(...)` in the
+  constructors. `Direction.SOUTH` is the identity transform; NORTH mirrors Z.
+  (`getWorldY` has no null branch, so Y looks correct and only X/Z are wrong.)
+- **`postProcess` runs once per chunk the piece touches**, each call with its own
+  random. Geometry that must agree across a chunk border cannot be shaped by
+  random draws — make it a pure function of position (a positional hash gives
+  variation without the disagreement).
+- **Surface structures anchor to the noise-predicted terrain height**, which
+  excludes snow, topsoil and everything else the surface rules add afterwards. A
+  solid platform placed at that height ends up sealed under the finished ground.
+  Clear your own footprint before building.
+- **Caves are carved before features but after structures pick their position**,
+  so a structure cannot reliably detect an existing cavern. Vanilla's underground
+  structures do not try; carve your own space and sample the column to reject
+  spots that are already hollow.
+- **Face a shaft before cutting it, not after.** Patching the walls of a cut
+  never covers the back wall or the ground under the treads. Cast the volume as
+  solid masonry, then carve the passage out of it.
+- **`TagAppender.addTag` validates that the target is defined by the same
+  provider.** Referencing a vanilla tag needs `addOptionalTag`, or datagen fails
+  outright.
+
 ## Design invariant: charms and attunement
 
 Charms apply their aura **from anywhere in the inventory**, but only the first N
