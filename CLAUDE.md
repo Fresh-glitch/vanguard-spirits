@@ -123,6 +123,36 @@ not explain. They are listed in the order they will bite.
   provider.** Referencing a vanilla tag needs `addOptionalTag`, or datagen fails
   outright.
 
+## Block entity rendering gotchas
+
+From building the Gilded Reliquary. None of these are visible from logs — each
+needed a screenshot to diagnose.
+
+- **`ModelPart` divides by 16 internally.** Geometry arrives block-scaled, so an
+  extra `scale(1/16)` renders at 1/256 size.
+- **Block entities get no automatic Y inversion**, unlike entities. Boxes
+  authored Y-up render upright as they stand. `scale(1,-1,1)` then
+  `translate(0,-1,0)` composes to `y -> 1-y`, mirroring the model about the
+  middle of its own block.
+- **`ModelPart.Cube` emits `DOWN` before `UP`.** In an unwrapped net the first
+  region of the top row is the *underside*. Getting this backwards paints detail
+  on the face nobody sees and leaves the visible top blank.
+- **A block model can only reference textures stitched into the block atlas.**
+  A renderer loads any path directly, so a sheet under `textures/entity/` works
+  for the renderer but fails for the item's model — keep shared sheets in
+  `textures/block/`.
+- **An animated lid needs a `BlockEntityRenderer`**; static block models cannot
+  move. Render shape must then be `INVISIBLE` or the JSON model draws through it.
+- Lid state reaches clients as a **block event** (`Level.blockEvent` →
+  `Block.triggerEvent` → `BlockEntity.triggerEvent`), because the opener count
+  only exists server-side.
+- 26.2's renderer is **render-state based**: `createRenderState` /
+  `extractRenderState` / `submit`. Entity render types moved to `RenderTypes`,
+  and Fabric's `BlockEntityRendererRegistry` is deprecated in favour of vanilla
+  `BlockEntityRenderers.register`.
+- **`sounds.json` treats every top-level key as a sound event.** A `_comment`
+  string there fails the whole file and silences the mod.
+
 ## Design invariant: charms and attunement
 
 Charms apply their aura **from anywhere in the inventory**, but only the first N
