@@ -5,6 +5,7 @@ import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
 import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
 import net.minecraft.core.BlockPos
 import net.minecraft.world.InteractionResult
+import net.minecraft.world.item.context.BlockPlaceContext
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.BaseEntityBlock
@@ -38,6 +39,15 @@ class GoldenChestBlock(props: Properties) : BaseEntityBlock(props) {
 	override fun createBlockStateDefinition(builder: StateDefinition.Builder<net.minecraft.world.level.block.Block, BlockState>) {
 		builder.add(FACING)
 	}
+
+	/**
+	 * Faces the chest at whoever placed it.
+	 *
+	 * Without this the state keeps its default NORTH forever, so the lid always
+	 * hinges on the same world edge regardless of where the player stood.
+	 */
+	override fun getStateForPlacement(context: BlockPlaceContext): BlockState =
+		defaultBlockState().setValue(FACING, context.horizontalDirection.opposite)
 
 	/**
 	 * The chest is drawn entirely by its BlockEntityRenderer, which is the only

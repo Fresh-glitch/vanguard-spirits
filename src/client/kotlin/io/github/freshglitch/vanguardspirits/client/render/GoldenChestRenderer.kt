@@ -100,11 +100,13 @@ class GoldenChestRenderer(context: BlockEntityRendererProvider.Context) :
 		private const val HALF_TURN = 180.0f
 
 		/**
-		 * A quarter turn, matching vanilla. The lid is fourteen units deep, so
-		 * every extra degree past upright throws its front edge a long way back
-		 * -- at 100 degrees it leans off the block entirely.
+		 * About 26 degrees -- ajar rather than thrown wide.
+		 *
+		 * The lid is fourteen units deep, so its front edge sweeps a long arc:
+		 * even a quarter turn stands it upright and well clear of the block. A
+		 * shallow angle keeps the reliquary looking sealed and heavy.
 		 */
-		private const val MAX_LID_ANGLE = (Math.PI / 2.0).toFloat()
+		private const val MAX_LID_ANGLE = 0.45f
 
 		private val OVERLAY = OverlayTexture.NO_OVERLAY
 	}
