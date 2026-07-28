@@ -1,0 +1,49 @@
+# gradle
+
+.gradle/
+build/
+out/
+classes/
+
+# eclipse
+
+*.launch
+
+# idea
+
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# vscode
+
+.settings/
+bin/
+.classpath
+.project
+
+# Keep the run configs under version control -- `gradlew vscode` overwrites
+# launch.json with configs that cannot work for a Kotlin mod, so losing these
+# is a real risk. settings.json stays ignored: it holds machine-specific paths.
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# macos
+
+*.DS_Store
+
+# fabric
+
+run/
+
+# Generated data is committed, but its hash cache churns on every datagen run.
+src/main/generated/.cache/
+
+# java
+
+hs_err_*.log
+replay_*.log
+*.hprof
+*.jfr

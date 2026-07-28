@@ -1,0 +1,52 @@
+package io.github.freshglitch.vanguardspirits.client.datagen
+
+import io.github.freshglitch.vanguardspirits.item.EchoOfKinshipItem
+import io.github.freshglitch.vanguardspirits.registry.ModItemGroups
+import io.github.freshglitch.vanguardspirits.registry.ModItems
+import net.fabricmc.fabric.api.datagen.v1.FabricPackOutput
+import net.fabricmc.fabric.api.datagen.v1.provider.FabricLanguageProvider
+import net.minecraft.core.HolderLookup
+import java.util.concurrent.CompletableFuture
+
+class ModEnglishProvider(
+	output: FabricPackOutput,
+	registryLookup: CompletableFuture<HolderLookup.Provider>,
+) : FabricLanguageProvider(output, registryLookup) {
+
+	override fun generateTranslations(
+		lookup: HolderLookup.Provider,
+		builder: TranslationBuilder,
+	) {
+		builder.add(ModItemGroups.TITLE_KEY, "Vanguard Spirits")
+
+		builder.add(ModItems.FRACTURED_MEMORY, "Fractured Memory")
+		builder.add(ModItems.CHARM_OF_THE_SENTINEL, "Charm of the Sentinel")
+		builder.add(ModItems.CHARM_OF_THE_WANDERER, "Charm of the Wanderer")
+		builder.add(ModItems.CHARM_OF_THE_DELVER, "Charm of the Delver")
+		builder.add(ModItems.ECHO_OF_KINSHIP, "Echo of Kinship")
+
+		builder.add(
+			ModItems.loreKey("charm_of_the_sentinel"),
+			"The last watch never stood down.",
+		)
+		builder.add(
+			ModItems.loreKey("charm_of_the_wanderer"),
+			"Some roads are still being walked.",
+		)
+		builder.add(
+			ModItems.loreKey("charm_of_the_delver"),
+			"They dug deep, and something remembered them.",
+		)
+		builder.add(
+			ModItems.loreKey("echo_of_kinship"),
+			"Two spirits who never met, and remember each other anyway.",
+		)
+
+		builder.add("tooltip.vanguard-spirits.charm.attuned", "Attuned")
+		builder.add("tooltip.vanguard-spirits.charm.dormant", "Dormant — attunement %s in use")
+		builder.add("tooltip.vanguard-spirits.charm.generic", "Attunes while carried")
+
+		builder.add(EchoOfKinshipItem.RAISED_KEY, "Attunement deepens — %s of %s")
+		builder.add(EchoOfKinshipItem.MAXED_KEY, "You can hold no deeper echo.")
+	}
+}

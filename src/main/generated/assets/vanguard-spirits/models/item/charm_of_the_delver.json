@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "vanguard-spirits:item/charm_of_the_delver"
+  }
+}
