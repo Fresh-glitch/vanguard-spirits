@@ -15,7 +15,9 @@ import net.minecraft.world.inventory.AbstractContainerMenu
 import net.minecraft.world.inventory.DispenserMenu
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
+import net.minecraft.world.level.block.entity.ChestLidController
 import net.minecraft.world.level.block.entity.ContainerOpenersCounter
+import net.minecraft.world.level.block.entity.LidBlockEntity
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.storage.ValueInput
@@ -29,9 +31,15 @@ import net.minecraft.world.level.storage.ValueOutput
  * open, which is the whole point of putting these in ruins.
  */
 class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
-	RandomizableContainerBlockEntity(ModBlockEntities.GOLDEN_CHEST, pos, state) {
+	RandomizableContainerBlockEntity(ModBlockEntities.GOLDEN_CHEST, pos, state), LidBlockEntity {
 
 	private var items: NonNullList<ItemStack> = NonNullList.withSize(SIZE, ItemStack.EMPTY)
+
+	/**
+	 * Drives the lid angle on the client. It only ever eases toward a target,
+	 * so the server just has to say open or shut.
+	 */
+	private val lid = ChestLidController()
 
 	private val openers = object : ContainerOpenersCounter() {
 		override fun onOpen(level: Level, pos: BlockPos, state: BlockState) =
@@ -40,13 +48,21 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 		override fun onClose(level: Level, pos: BlockPos, state: BlockState) =
 			play(level, pos, ModSounds.GOLDEN_CHEST_CLOSE)
 
+		/**
+		 * Announces the lid state to everyone tracking the chunk.
+		 *
+		 * The opener count only exists on the server, so the animation cannot be
+		 * derived client-side -- it has to be pushed as a block event.
+		 */
 		override fun openerCountChanged(
 			level: Level,
 			pos: BlockPos,
 			state: BlockState,
 			previous: Int,
 			current: Int,
-		) = Unit
+		) {
+			level.blockEvent(pos, state.block, EVENT_LID, if (current > 0) 1 else 0)
+		}
 
 		/**
 		 * Approximate. [DispenserMenu] exposes no accessor for its backing
@@ -113,10 +129,34 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 		)
 	}
 
+	override fun getOpenNess(partialTick: Float): Float = lid.getOpenness(partialTick)
+
+	/** Receives the block event fired by [openerCountChanged] on the server. */
+	override fun triggerEvent(id: Int, value: Int): Boolean {
+		if (id == EVENT_LID) {
+			lid.shouldBeOpen(value > 0)
+			return true
+		}
+		return super.triggerEvent(id, value)
+	}
+
 	companion object {
 		/** Three by three, as a square. */
 		const val SIZE: Int = 9
 
 		const val NAME_KEY: String = "container.vanguard-spirits.golden_chest"
+
+		/** Block-event id carrying the lid's open/shut state to clients. */
+		const val EVENT_LID: Int = 1
+
+		/** Client-only: eases the lid toward whatever the last block event said. */
+		fun clientTick(
+			level: Level,
+			pos: BlockPos,
+			state: BlockState,
+			entity: GoldenChestBlockEntity,
+		) {
+			entity.lid.tickLid()
+		}
 	}
 }
