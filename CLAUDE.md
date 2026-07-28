@@ -178,6 +178,51 @@ needed a screenshot to diagnose.
 - Slot bevels belong on the 18x18 outer ring, not inside the 16x16 well. Inside,
   every slot's weight shifts up-left and the grid reads as if it were misaligned.
 
+## Particles
+
+26.2 rebuilt this area, so almost nothing remembered about particles is true.
+
+- **`TextureSheetParticle` no longer exists.** The base is `SingleQuadParticle`,
+  whose only abstract member is `getLayer(): SingleQuadParticle.Layer`.
+  `Layer.TRANSLUCENT` is the particle atlas paired with the translucent
+  pipeline — the one to use for anything glowing. `getGroup()` is already
+  implemented, so it does not need overriding.
+- **`Mth.cos`/`Mth.sin` take a `double` and return a `float`.** Passing a float
+  is a compile error, and `Mth.TWO_PI` *is* a float, so the obvious
+  `random.nextFloat() * Mth.TWO_PI` has to be widened before it can be used.
+- **The six-double `Particle` constructor does not set velocity.** It adds a
+  random vector, normalises, scales by 0.4 and adds 0.1 to `yd` — vanilla's
+  scatter behaviour. For controlled movement use the three-double constructor
+  and assign `xd`/`yd`/`zd` directly.
+- **`Particle.tick` applies friction after moving**, so a sway added *before*
+  `super.tick()` is damped flat within a second or two. Assign velocity after
+  the super call instead, which also makes gravity and friction irrelevant.
+- Fabric's `ParticleFactoryRegistry` is gone. Use
+  `net.fabricmc.fabric.api.client.particle.v1.**ParticleProviderRegistry**.getInstance()`.
+  Register with the *pending* overload, which hands back a `FabricSpriteSet` —
+  the sprite set does not exist until the atlas is stitched, long after mod
+  init. Types themselves come from `FabricParticleTypes.simple(alwaysShow)`;
+  `alwaysShow` overrides the limiter, which is worth setting for rare particles
+  that would otherwise be culled on low particle settings.
+- Sprites live in `assets/<ns>/textures/particle/`, listed by a definition at
+  `assets/<ns>/particles/<name>.json`. **No atlas file of our own is needed** —
+  vanilla's `particles.json` atlas has a directory source with an empty prefix,
+  which sweeps every namespace.
+- One sheet, two idioms: `setSpriteFromAge(sprites)` each tick animates a single
+  particle through the frames, while `sprites.get(random)` picks one sprite for
+  the particle's whole life. The first gives an envelope, the second gives
+  variety — using the wrong one makes six distinct glyphs read as one glyph
+  flickering between shapes.
+- **An even-sized sprite has no pixel at its centre.** The four innermost are
+  0.707 away, so a radial falloff measured from the true centre never reaches
+  full brightness and the sprite renders as a dim smudge. Subtract that offset
+  before the falloff. Related: at 8x8 a four-pointed glint has three pixels of
+  arm to work with and collapses into a blob — 16x16 is what makes the shape read.
+- `StructureManager.getStructureWithPieceAt` returns `StructureStart.INVALID_START`,
+  never null. Check `isValid`. The predicate overload takes
+  `Predicate<Holder<Structure>>`, so a structure that only exists in a dynamic
+  registry can be matched by `ResourceKey` without resolving it first.
+
 ## Animation and sound
 
 Match the **audible movement**, not the file's length. `block/vault/open_shutter`
