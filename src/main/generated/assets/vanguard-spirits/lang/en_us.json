@@ -1,4 +1,6 @@
 {
+  "block.vanguard-spirits.golden_chest": "Gilded Reliquary",
+  "container.vanguard-spirits.golden_chest": "Gilded Reliquary",
   "item.vanguard-spirits.charm_of_the_delver": "Charm of the Delver",
   "item.vanguard-spirits.charm_of_the_sentinel": "Charm of the Sentinel",
   "item.vanguard-spirits.charm_of_the_wanderer": "Charm of the Wanderer",
@@ -11,6 +13,8 @@
   "lore.vanguard-spirits.echo_of_kinship": "Two spirits who never met, and remember each other anyway.",
   "message.vanguard-spirits.attunement.maxed": "You can hold no deeper echo.",
   "message.vanguard-spirits.attunement.raised": "Attunement deepens — %s of %s",
+  "subtitles.vanguard-spirits.golden_chest.close": "Reliquary seals",
+  "subtitles.vanguard-spirits.golden_chest.open": "Reliquary creaks open",
   "tooltip.vanguard-spirits.charm.attuned": "Attuned",
   "tooltip.vanguard-spirits.charm.dormant": "Dormant — attunement %s in use",
   "tooltip.vanguard-spirits.charm.generic": "Attunes while carried"

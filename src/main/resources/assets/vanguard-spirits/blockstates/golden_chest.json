@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "vanguard-spirits:block/golden_chest"
+    },
+    "facing=east": {
+      "model": "vanguard-spirits:block/golden_chest",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "vanguard-spirits:block/golden_chest",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "vanguard-spirits:block/golden_chest",
+      "y": 270
+    }
+  }
+}
