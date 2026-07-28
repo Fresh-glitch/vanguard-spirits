@@ -1,5 +1,6 @@
 package io.github.freshglitch.vanguardspirits.block.entity
 
+import io.github.freshglitch.vanguardspirits.menu.GoldenChestMenu
 import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import net.minecraft.core.BlockPos
@@ -12,10 +13,8 @@ import net.minecraft.world.entity.ContainerUser
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.inventory.AbstractContainerMenu
-import net.minecraft.world.inventory.DispenserMenu
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
-import net.minecraft.world.level.block.entity.ChestLidController
 import net.minecraft.world.level.block.entity.ContainerOpenersCounter
 import net.minecraft.world.level.block.entity.LidBlockEntity
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity
@@ -39,7 +38,7 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 	 * Drives the lid angle on the client. It only ever eases toward a target,
 	 * so the server just has to say open or shut.
 	 */
-	private val lid = ChestLidController()
+	private val lid = ReliquaryLid()
 
 	private val openers = object : ContainerOpenersCounter() {
 		override fun onOpen(level: Level, pos: BlockPos, state: BlockState) =
@@ -64,15 +63,11 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 			level.blockEvent(pos, state.block, EVENT_LID, if (current > 0) 1 else 0)
 		}
 
-		/**
-		 * Approximate. [DispenserMenu] exposes no accessor for its backing
-		 * container, so this cannot verify the menu belongs to *this* chest --
-		 * it only confirms the player has some 3x3 container open. The cost is
-		 * a mis-timed close sound in the rare case a player closes this chest
-		 * while another 3x3 container is also open.
-		 */
-		override fun isOwnContainer(player: Player): Boolean =
-			player.containerMenu is DispenserMenu
+		/** Exact: the menu is ours, so it can be asked which chest it is showing. */
+		override fun isOwnContainer(player: Player): Boolean {
+			val menu = player.containerMenu
+			return menu is GoldenChestMenu && menu.isFor(this@GoldenChestBlockEntity)
+		}
 	}
 
 	override fun getContainerSize(): Int = SIZE
@@ -86,7 +81,7 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 	override fun getDefaultName(): Component = Component.translatable(NAME_KEY)
 
 	override fun createMenu(id: Int, inventory: Inventory): AbstractContainerMenu =
-		DispenserMenu(id, inventory, this)
+		GoldenChestMenu(id, inventory, this)
 
 	override fun startOpen(user: ContainerUser) {
 		val level = this.level ?: return
@@ -129,7 +124,7 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 		)
 	}
 
-	override fun getOpenNess(partialTick: Float): Float = lid.getOpenness(partialTick)
+	override fun getOpenNess(partialTick: Float): Float = lid.openness(partialTick)
 
 	/** Receives the block event fired by [openerCountChanged] on the server. */
 	override fun triggerEvent(id: Int, value: Int): Boolean {
@@ -156,7 +151,7 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 			state: BlockState,
 			entity: GoldenChestBlockEntity,
 		) {
-			entity.lid.tickLid()
+			entity.lid.tick()
 		}
 	}
 }

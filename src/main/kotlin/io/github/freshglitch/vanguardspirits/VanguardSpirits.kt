@@ -6,6 +6,7 @@ import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
 import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModItemGroups
 import io.github.freshglitch.vanguardspirits.registry.ModItems
+import io.github.freshglitch.vanguardspirits.registry.ModMenus
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
 import net.fabricmc.api.ModInitializer
@@ -21,6 +22,7 @@ object VanguardSpirits : ModInitializer {
 		// Blocks first: the block entity type needs its block to already exist.
 		ModBlocks.register()
 		ModBlockEntities.register()
+		ModMenus.register()
 		ModSounds.register()
 		ModItems.register()
 		ModItemGroups.register()
