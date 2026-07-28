@@ -89,7 +89,13 @@ class GoldenChestRenderer(context: BlockEntityRendererProvider.Context) :
 	}
 
 	companion object {
-		val TEXTURE = VanguardSpirits.id("textures/entity/golden_chest.png")
+		/**
+		 * Lives under textures/block, not textures/entity, because the item's
+		 * block model has to reference the same sheet -- and a block model can
+		 * only name textures that are stitched into the block atlas. The renderer
+		 * loads it by path either way, so block/ is the location that serves both.
+		 */
+		val TEXTURE = VanguardSpirits.id("textures/block/golden_chest.png")
 
 		private const val HALF_TURN = 180.0f
 
