@@ -78,8 +78,11 @@ Each of these cost a compile cycle or a wrong guess:
   `Item.Properties().setId(ResourceKey.create(Registries.ITEM, id))`, then
   `Registry.register(BuiltInRegistries.ITEM, key, item)`. There are **no**
   `Items.register*` helpers.
-- Creative tabs: `net.fabricmc.fabric.api.creativetab.v1.**FabricCreativeModeTab**.builder()`.
-  `FabricItemGroup` (in most tutorials) does not exist here.
+- Creative tabs: `net.fabricmc.fabric.api.creativetab.v1.**FabricCreativeModeTab**.builder()`
+  for a custom tab. `FabricItemGroup` (in most tutorials) does not exist here.
+  To also place items in *vanilla* tabs, use
+  `CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.INGREDIENTS)`.
+  This mod does both — see `ModItemGroups`.
 - `Item.appendHoverText` is **deprecated** — prefer a default `DataComponents.LORE`
   / `ItemLore` component. Vanilla renders LORE purple italic, which suits the theme.
 - `AttachmentRegistry.builder()` is **deprecated** — use
@@ -118,20 +121,27 @@ through `ModItems.loreKey(path)` and the provider, never hand-edited into JSON.
 
 ## Tooling status
 
-- **Java LSP** (`jdtls-win@fresh-local`) — **working** for `.java` (mixins).
-  `documentSymbol` and `hover` both resolve, and hover reaches into
-  `minecraft-common-*.jar`, so the server has the full dev classpath.
-  `workspaceSymbol` returns nothing for library types, so it does **not** replace
-  `javap` for discovering Minecraft/Fabric API.
-- **Kotlin LSP** — **not working.** Two independent causes: the official plugin's
-  manifest ships without its `lspServers` block (the same "config lost in transit"
-  bug worked around locally for jdtls), and no server binary is installed — its
-  README documents only `brew install`, which is macOS/Linux. Fixing it needs a
-  local marketplace entry plus a downloaded standalone release.
+Both language servers run from the local `fresh-local` marketplace, because the
+official plugins' installed `plugin.json` loses its `lspServers` block in transit.
+The marketplace listing has the config; the installed manifest does not.
 
-Until Kotlin LSP works, the fastest correctness check for Kotlin is the compiler
-itself — `./gradlew clientClasses` takes a few seconds and catches every wrong
-signature.
+- **Java** (`jdtls-win@fresh-local`) — working for `.java` (mixins). Needs a
+  native `.exe` shim because Claude Code refuses to spawn `.cmd`.
+- **Kotlin** (`kotlin-lsp-win@fresh-local`) — working for `.kt`/`.kts`. Points
+  straight at JetBrains' `intellij-server.exe --stdio`; **no shim needed**, since
+  the shipped `kotlin-lsp.cmd` is deprecated and only forwards to that exe.
+  Installed at `%LOCALAPPDATA%\kotlin-lsp\262.9593.0`, with `--system-path` set
+  so indexes persist instead of being rebuilt in `%TEMP%` every run.
+
+Both advertise hover, definition, references and documentSymbol. **Neither
+replaces `javap`**: `workspaceSymbol` does not reach library types, so it is for
+navigating *our* code, not discovering Minecraft/Fabric API.
+
+The fastest correctness check for Kotlin is still the compiler — `./gradlew
+clientClasses` takes a few seconds and catches every wrong signature.
+
+Changing a plugin manifest requires **restarting Claude Code**; LSP configs are
+read at session start.
 
 ## Conventions
 
