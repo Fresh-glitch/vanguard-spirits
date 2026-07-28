@@ -107,6 +107,32 @@ duplicate it in the ticker or the tooltip, or the UI will lie.
 
 Adding a charm should only require a new `CharmAura`. No per-charm slot logic.
 
+## Testing in-game with the player
+
+**The player is an available instrument — use them.** They are happy to be asked
+to test things, look things up, and report back.
+
+Launch the client as a **background** task, then attach a `Monitor` tailing that
+task's output file. The log is a live two-way channel:
+
+- `(vanguard-spirits)` — our own logger.
+- `<PlayerName> message` — **in-game chat appears in the log**, so the player can
+  talk to you without leaving the game. Ask them to report findings in chat.
+- Stack traces and crashes.
+
+Filter out the dev-environment noise, which is constant and harmless: Realms auth
+failures, `Failed to retrieve profile key pair` (401), oshi /
+`HkeyPerformanceData` Windows perf-counter warnings, and `Preparing spawn area`
+progress spam.
+
+**What you cannot see is the screen.** Anything visual or audible — whether a
+texture reads well at 16x16, whether a tooltip line is the right colour, whether
+a sound fired, whether an effect icon appears — must be *asked*. The other option
+is a temporary `LOGGER.info` the player can trigger.
+
+Good things to hand the player: `/give @s vanguard-spirits:<item>`, checking a
+creative tab, confirming a recipe shows in the recipe book.
+
 ## Datagen
 
 Providers are registered in `VanguardSpiritsDataGenerator`. After changing items,
@@ -133,9 +159,14 @@ The marketplace listing has the config; the installed manifest does not.
   Installed at `%LOCALAPPDATA%\kotlin-lsp\262.9593.0`, with `--system-path` set
   so indexes persist instead of being rebuilt in `%TEMP%` every run.
 
-Both advertise hover, definition, references and documentSymbol. **Neither
-replaces `javap`**: `workspaceSymbol` does not reach library types, so it is for
-navigating *our* code, not discovering Minecraft/Fabric API.
+Both advertise hover, definition, references and documentSymbol, and both resolve
+Minecraft types from the dev classpath. **Neither replaces `javap`**:
+`workspaceSymbol` does not reach library types, so they are for navigating *our*
+code, not discovering Minecraft/Fabric API.
+
+On a cold start the Kotlin server runs a Gradle import before semantics work —
+`documentSymbol` answers immediately, but `hover` and `goToDefinition` return
+nothing for the first minute or so. That is import lag, not breakage; retry.
 
 The fastest correctness check for Kotlin is still the compiler — `./gradlew
 clientClasses` takes a few seconds and catches every wrong signature.
