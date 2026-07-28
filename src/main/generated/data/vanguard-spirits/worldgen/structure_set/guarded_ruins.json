@@ -1,0 +1,14 @@
+{
+  "placement": {
+    "type": "minecraft:random_spread",
+    "salt": 851274913,
+    "separation": 12,
+    "spacing": 24
+  },
+  "structures": [
+    {
+      "structure": "vanguard-spirits:guarded_ruins",
+      "weight": 1
+    }
+  ]
+}
