@@ -3,7 +3,7 @@
 	"id": "vanguard-spirits",
 	"version": "${version}",
 	"name": "Vanguard Spirits",
-	"description": "Deep in the deepslate, Guarded Ruins remember what the world forgot. A Stone Sentinel keeps the stair down to the crypt, and a Gilded Reliquary keeps whatever was worth burying. Charms recovered from the dark work from anywhere in your pack — but only as many at once as your attunement allows.",
+	"description": "Under the deepslate lie ruins that were never abandoned. Something still keeps them. Bring back what you can carry, and find out how much that is.",
 	"authors": [
 		"Fresh-glitch"
 	],
@@ -12,7 +12,7 @@
 		"sources": "https://github.com/Fresh-glitch/vanguard-spirits",
 		"issues": "https://github.com/Fresh-glitch/vanguard-spirits/issues"
 	},
-	"license": "CC0-1.0",
+	"license": "MIT",
 	"icon": "assets/vanguard-spirits/icon.png",
 	"environment": "*",
 	"entrypoints": {
