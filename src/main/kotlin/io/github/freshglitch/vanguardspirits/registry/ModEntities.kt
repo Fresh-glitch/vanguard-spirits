@@ -25,7 +25,8 @@ object ModEntities {
 		EntityType.Builder.of(::StoneSentinel, MobCategory.MONSTER)
 			.sized(1.4f, 2.6f)
 			.eyeHeight(2.2f)
-			.clientTrackingRange(10)
+			.fireImmune()
+			.clientTrackingRange(12)
 			.build(key)
 	}
 

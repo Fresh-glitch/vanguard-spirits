@@ -18,5 +18,104 @@
         "pitch": 0.8
       }
     ]
+  },
+  "entity.stone_sentinel.stir": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.stir",
+    "sounds": [
+      {
+        "name": "minecraft:block.deepslate_bricks.break",
+        "type": "event",
+        "volume": 1.0,
+        "pitch": 0.5
+      }
+    ]
+  },
+  "entity.stone_sentinel.rumble": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.rumble",
+    "sounds": [
+      {
+        "name": "minecraft:entity.warden.heartbeat",
+        "type": "event",
+        "volume": 1.6,
+        "pitch": 0.5
+      }
+    ]
+  },
+  "entity.stone_sentinel.roar": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.roar",
+    "sounds": [
+      {
+        "name": "minecraft:entity.warden.emerge",
+        "type": "event",
+        "volume": 1.8,
+        "pitch": 0.7
+      }
+    ]
+  },
+  "entity.stone_sentinel.bellow": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.roar",
+    "sounds": [
+      {
+        "name": "minecraft:entity.ravager.roar",
+        "type": "event",
+        "volume": 1.4,
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.stone_sentinel.step": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.step",
+    "sounds": [
+      {
+        "name": "minecraft:entity.warden.step",
+        "type": "event",
+        "volume": 1.0,
+        "pitch": 0.75
+      }
+    ]
+  },
+  "entity.stone_sentinel.slam": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.slam",
+    "sounds": [
+      {
+        "name": "minecraft:entity.warden.attack_impact",
+        "type": "event",
+        "volume": 1.5,
+        "pitch": 0.7
+      }
+    ]
+  },
+  "entity.stone_sentinel.sweep": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.sweep",
+    "sounds": [
+      {
+        "name": "minecraft:entity.ravager.attack",
+        "type": "event",
+        "volume": 1.2,
+        "pitch": 0.7
+      }
+    ]
+  },
+  "entity.stone_sentinel.hurt": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.hurt",
+    "sounds": [
+      {
+        "name": "minecraft:entity.iron_golem.hurt",
+        "type": "event",
+        "volume": 1.0,
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.stone_sentinel.death": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.death",
+    "sounds": [
+      {
+        "name": "minecraft:entity.iron_golem.death",
+        "type": "event",
+        "volume": 1.2,
+        "pitch": 0.5
+      }
+    ]
   }
 }

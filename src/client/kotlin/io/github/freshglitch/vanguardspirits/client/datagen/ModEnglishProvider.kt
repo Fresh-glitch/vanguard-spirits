@@ -50,6 +50,15 @@ class ModEnglishProvider(
 		builder.add("subtitles.vanguard-spirits.golden_chest.open", "Reliquary creaks open")
 		builder.add("subtitles.vanguard-spirits.golden_chest.close", "Reliquary seals")
 
+		builder.add("subtitles.vanguard-spirits.stone_sentinel.stir", "Stone grinds")
+		builder.add("subtitles.vanguard-spirits.stone_sentinel.rumble", "The ground shudders")
+		builder.add("subtitles.vanguard-spirits.stone_sentinel.roar", "Stone Sentinel wakes")
+		builder.add("subtitles.vanguard-spirits.stone_sentinel.step", "Stone Sentinel steps")
+		builder.add("subtitles.vanguard-spirits.stone_sentinel.slam", "Stone Sentinel slams")
+		builder.add("subtitles.vanguard-spirits.stone_sentinel.sweep", "Stone Sentinel sweeps")
+		builder.add("subtitles.vanguard-spirits.stone_sentinel.hurt", "Stone Sentinel cracks")
+		builder.add("subtitles.vanguard-spirits.stone_sentinel.death", "Stone Sentinel crumbles")
+
 		builder.add(ModEntities.STONE_SENTINEL, "Stone Sentinel")
 
 		builder.add("tooltip.vanguard-spirits.charm.attuned", "Attuned")
