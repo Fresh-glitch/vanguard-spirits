@@ -25,6 +25,10 @@ object ModSounds {
 	val SENTINEL_STEP: SoundEvent = register("entity.stone_sentinel.step")
 	val SENTINEL_SLAM: SoundEvent = register("entity.stone_sentinel.slam")
 	val SENTINEL_SWEEP: SoundEvent = register("entity.stone_sentinel.sweep")
+	/** The answer to being shot at from somewhere it cannot climb. */
+	val SENTINEL_REACH: SoundEvent = register("entity.stone_sentinel.reach")
+	val SENTINEL_RECKONING: SoundEvent = register("entity.stone_sentinel.reckoning")
+
 	val SENTINEL_HURT: SoundEvent = register("entity.stone_sentinel.hurt")
 	val SENTINEL_DEATH: SoundEvent = register("entity.stone_sentinel.death")
 
