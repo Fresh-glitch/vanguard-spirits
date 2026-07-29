@@ -1,6 +1,7 @@
 package io.github.freshglitch.vanguardspirits.client.render
 
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
+import io.github.freshglitch.vanguardspirits.entity.StoneSentinel
 import net.minecraft.client.model.EntityModel
 import net.minecraft.client.model.geom.ModelLayerLocation
 import net.minecraft.client.model.geom.ModelPart
@@ -39,19 +40,84 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 		// Every rotation is assigned outright each frame. The parts are shared
 		// between all sentinels on screen, so anything left unset would carry
 		// over from whichever one was drawn last.
-		if (state.dormant) {
-			head.xRot = 0.0f
-			head.yRot = 0.0f
-			body.xRot = 0.0f
-			armRight.xRot = 0.0f
-			armLeft.xRot = 0.0f
-			armRight.zRot = 0.0f
-			armLeft.zRot = 0.0f
-			legRight.xRot = 0.0f
-			legLeft.xRot = 0.0f
+		rest()
+
+		when {
+			state.dormant -> return
+			state.wakeTick > 0 -> waking(state)
+			else -> {
+				hunting(state)
+				if (state.attackKind != StoneSentinel.NO_ATTACK) attacking(state)
+			}
+		}
+	}
+
+	/** The statue pose, and the base every other pose is written over. */
+	private fun rest() {
+		head.xRot = 0.0f; head.yRot = 0.0f; head.zRot = 0.0f
+		body.xRot = 0.0f
+		armRight.xRot = 0.0f; armRight.yRot = 0.0f; armRight.zRot = 0.0f
+		armLeft.xRot = 0.0f; armLeft.yRot = 0.0f; armLeft.zRot = 0.0f
+		legRight.xRot = 0.0f
+		legLeft.xRot = 0.0f
+	}
+
+	/**
+	 * The waking sequence, keyed off the same tick counter the server uses for
+	 * its sound cues, so movement and audio cannot drift apart.
+	 *
+	 * Three beats: a twitch of the head that says something is alive in there, a
+	 * long grinding straighten as it takes its own weight, then the head coming
+	 * up to find whoever woke it.
+	 */
+	private fun waking(state: StoneSentinelRenderState) {
+		val t = state.wakeTick.toFloat()
+
+		if (state.wakeTick < StoneSentinel.STIR_AT) {
+			// One sharp jerk that rings out. Nothing else moves yet -- the whole
+			// point is that the body is still stone at this moment.
+			val since = (t - StoneSentinel.TWITCH_AT).coerceAtLeast(0.0f)
+			val decay = (1.0f - since / (StoneSentinel.STIR_AT - StoneSentinel.TWITCH_AT)).coerceAtLeast(0.0f)
+			head.yRot = Mth.cos((since * TWITCH_RATE).toDouble()) * TWITCH * decay * decay
+			head.xRot = TWITCH_DIP * decay
 			return
 		}
 
+		if (state.wakeTick < StoneSentinel.ROAR_AT) {
+			// Taking its weight: shoulders roll out, knees give a little, and the
+			// head hangs before it lifts.
+			val p = ease(
+				(t - StoneSentinel.STIR_AT) / (StoneSentinel.ROAR_AT - StoneSentinel.STIR_AT).toFloat(),
+			)
+			val grind = Mth.cos((t * GRIND_RATE).toDouble()) * GRIND * (1.0f - p)
+
+			body.xRot = Mth.lerp(p, 0.0f, HUNCH) + grind
+			head.xRot = Mth.lerp(p, 0.0f, HEAD_HANG) - grind
+			armRight.zRot = Mth.lerp(p, 0.0f, -SHOULDER_ROLL) + grind
+			armLeft.zRot = Mth.lerp(p, 0.0f, SHOULDER_ROLL) - grind
+			armRight.xRot = Mth.lerp(p, 0.0f, -ARM_FLEX)
+			armLeft.xRot = Mth.lerp(p, 0.0f, -ARM_FLEX)
+			legRight.xRot = Mth.lerp(p, 0.0f, KNEE)
+			legLeft.xRot = Mth.lerp(p, 0.0f, -KNEE)
+			return
+		}
+
+		// The roar: head snaps up and back, arms thrown wide, then it settles.
+		val p = ease((t - StoneSentinel.ROAR_AT) / (StoneSentinel.WAKE_TICKS - StoneSentinel.ROAR_AT).toFloat())
+		val flare = Mth.sin((p * Mth.PI).toDouble())
+
+		body.xRot = Mth.lerp(p, HUNCH, 0.0f) - flare * ROAR_ARCH
+		head.xRot = Mth.lerp(p, HEAD_HANG, 0.0f) - flare * ROAR_LOOK
+		armRight.zRot = Mth.lerp(p, -SHOULDER_ROLL, 0.0f) - flare * ROAR_SPREAD
+		armLeft.zRot = Mth.lerp(p, SHOULDER_ROLL, 0.0f) + flare * ROAR_SPREAD
+		armRight.xRot = Mth.lerp(p, -ARM_FLEX, 0.0f)
+		armLeft.xRot = Mth.lerp(p, -ARM_FLEX, 0.0f)
+		legRight.xRot = Mth.lerp(p, KNEE, 0.0f)
+		legLeft.xRot = Mth.lerp(p, -KNEE, 0.0f)
+	}
+
+	/** Walking and looking around, once it is up. */
+	private fun hunting(state: StoneSentinelRenderState) {
 		head.xRot = state.xRot * Mth.DEG_TO_RAD
 		head.yRot = state.yRot * Mth.DEG_TO_RAD
 
@@ -64,11 +130,66 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 		armLeft.xRot = Mth.cos(swing.toDouble()) * ARM_SWING * amount
 
 		// A slow list from side to side, so it never stands perfectly straight
-		// once it is awake. Two seconds a cycle, independent of walking.
+		// once it is awake.
 		val sway = Mth.cos((state.ageInTicks * SWAY_RATE).toDouble()) * SWAY
 		armRight.zRot = -sway
 		armLeft.zRot = sway
 		body.xRot = LEAN
+	}
+
+	/**
+	 * The telegraphs.
+	 *
+	 * Both attacks spend most of their length winding up and only a few ticks
+	 * landing, which is what gives a player time to read them and move. Written
+	 * over the walk pose, so the legs keep whatever they were doing.
+	 */
+	private fun attacking(state: StoneSentinelRenderState) {
+		val t = state.attackTick.toFloat()
+
+		if (state.attackKind == StoneSentinel.SLAM) {
+			val windup = StoneSentinel.SLAM_WINDUP.toFloat()
+			if (t < windup) {
+				// Both fists hauled overhead. Slow, so it is unmistakable.
+				val p = ease(t / windup)
+				armRight.xRot = Mth.lerp(p, 0.0f, -SLAM_RAISE)
+				armLeft.xRot = Mth.lerp(p, 0.0f, -SLAM_RAISE)
+				armRight.zRot = Mth.lerp(p, 0.0f, -SLAM_GATHER)
+				armLeft.zRot = Mth.lerp(p, 0.0f, SLAM_GATHER)
+				body.xRot = Mth.lerp(p, 0.0f, -SLAM_ARCH)
+				head.xRot = Mth.lerp(p, 0.0f, -SLAM_ARCH)
+			} else {
+				// Down, and stay down through the recovery.
+				val p = ((t - windup) / SLAM_STRIKE).coerceIn(0.0f, 1.0f)
+				armRight.xRot = Mth.lerp(p, -SLAM_RAISE, SLAM_FOLLOW)
+				armLeft.xRot = Mth.lerp(p, -SLAM_RAISE, SLAM_FOLLOW)
+				armRight.zRot = Mth.lerp(p, -SLAM_GATHER, 0.0f)
+				armLeft.zRot = Mth.lerp(p, SLAM_GATHER, 0.0f)
+				body.xRot = Mth.lerp(p, -SLAM_ARCH, SLAM_STOOP)
+				head.xRot = Mth.lerp(p, -SLAM_ARCH, SLAM_STOOP)
+			}
+			return
+		}
+
+		// Sweep: one arm cocked across the chest, then thrown outward.
+		val windup = StoneSentinel.SWEEP_WINDUP.toFloat()
+		if (t < windup) {
+			val p = ease(t / windup)
+			armRight.yRot = Mth.lerp(p, 0.0f, SWEEP_COCK)
+			armRight.xRot = Mth.lerp(p, 0.0f, -SWEEP_LIFT)
+			body.yRot = Mth.lerp(p, 0.0f, SWEEP_TWIST)
+		} else {
+			val p = ((t - windup) / SWEEP_STRIKE).coerceIn(0.0f, 1.0f)
+			armRight.yRot = Mth.lerp(p, SWEEP_COCK, -SWEEP_COCK)
+			armRight.xRot = Mth.lerp(p, -SWEEP_LIFT, -SWEEP_LIFT * 0.4f)
+			body.yRot = Mth.lerp(p, SWEEP_TWIST, -SWEEP_TWIST)
+		}
+	}
+
+	/** Smoothstep. Movement that starts and stops abruptly reads as a glitch. */
+	private fun ease(t: Float): Float {
+		val c = t.coerceIn(0.0f, 1.0f)
+		return c * c * (3.0f - 2.0f * c)
 	}
 
 	companion object {
@@ -87,6 +208,42 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 
 		/** A permanent slight forward lean once it is hunting. */
 		private const val LEAN = 0.05f
+
+		// ---- waking ----
+
+		/** Radians per tick of the twitch's ring-out, and how far it throws the head. */
+		private const val TWITCH_RATE = 1.5f
+		private const val TWITCH = 0.42f
+		private const val TWITCH_DIP = 0.10f
+
+		/** A grinding tremor through the straighten, fading as it takes its weight. */
+		private const val GRIND_RATE = 1.1f
+		private const val GRIND = 0.035f
+
+		private const val HUNCH = 0.30f
+		private const val HEAD_HANG = 0.42f
+		private const val SHOULDER_ROLL = 0.30f
+		private const val ARM_FLEX = 0.25f
+		private const val KNEE = 0.22f
+
+		private const val ROAR_ARCH = 0.24f
+		private const val ROAR_LOOK = 0.55f
+		private const val ROAR_SPREAD = 0.50f
+
+		// ---- attacks ----
+
+		/** Ticks the fists take to come down. Short, against a 20-tick raise. */
+		private const val SLAM_STRIKE = 3.0f
+		private const val SLAM_RAISE = 2.5f
+		private const val SLAM_GATHER = 0.35f
+		private const val SLAM_ARCH = 0.22f
+		private const val SLAM_FOLLOW = 0.55f
+		private const val SLAM_STOOP = 0.30f
+
+		private const val SWEEP_STRIKE = 3.0f
+		private const val SWEEP_COCK = 1.5f
+		private const val SWEEP_LIFT = 0.9f
+		private const val SWEEP_TWIST = 0.30f
 
 		fun createLayer(): LayerDefinition {
 			val mesh = MeshDefinition()

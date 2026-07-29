@@ -13,4 +13,14 @@ import net.minecraft.client.renderer.entity.state.LivingEntityRenderState
 class StoneSentinelRenderState : LivingEntityRenderState() {
 	@JvmField
 	var dormant: Boolean = true
+
+	/** 0 when not waking, otherwise 1..WAKE_TICKS. Drives the whole sequence. */
+	@JvmField
+	var wakeTick: Int = 0
+
+	@JvmField
+	var attackKind: Byte = 0
+
+	@JvmField
+	var attackTick: Int = 0
 }

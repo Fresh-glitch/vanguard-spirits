@@ -30,6 +30,9 @@ class StoneSentinelRenderer(context: EntityRendererProvider.Context) :
 	) {
 		super.extractRenderState(entity, state, partialTick)
 		state.dormant = entity.isDormant
+		state.wakeTick = entity.wakeTick
+		state.attackKind = entity.attackKind
+		state.attackTick = entity.attackTick
 	}
 
 	override fun getTextureLocation(state: StoneSentinelRenderState): Identifier = TEXTURE

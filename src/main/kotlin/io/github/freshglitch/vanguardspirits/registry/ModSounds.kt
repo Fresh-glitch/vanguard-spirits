@@ -16,6 +16,18 @@ object ModSounds {
 	val GOLDEN_CHEST_OPEN: SoundEvent = register("block.golden_chest.open")
 	val GOLDEN_CHEST_CLOSE: SoundEvent = register("block.golden_chest.close")
 
+	/** The waking sequence, in the order it is heard. */
+	val SENTINEL_STIR: SoundEvent = register("entity.stone_sentinel.stir")
+	val SENTINEL_RUMBLE: SoundEvent = register("entity.stone_sentinel.rumble")
+	val SENTINEL_ROAR: SoundEvent = register("entity.stone_sentinel.roar")
+	val SENTINEL_BELLOW: SoundEvent = register("entity.stone_sentinel.bellow")
+
+	val SENTINEL_STEP: SoundEvent = register("entity.stone_sentinel.step")
+	val SENTINEL_SLAM: SoundEvent = register("entity.stone_sentinel.slam")
+	val SENTINEL_SWEEP: SoundEvent = register("entity.stone_sentinel.sweep")
+	val SENTINEL_HURT: SoundEvent = register("entity.stone_sentinel.hurt")
+	val SENTINEL_DEATH: SoundEvent = register("entity.stone_sentinel.death")
+
 	private fun register(path: String): SoundEvent {
 		val id = VanguardSpirits.id(path)
 		return Registry.register(BuiltInRegistries.SOUND_EVENT, id, SoundEvent.createVariableRangeEvent(id))
