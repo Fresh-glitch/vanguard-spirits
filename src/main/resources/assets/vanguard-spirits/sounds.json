@@ -96,6 +96,28 @@
       }
     ]
   },
+  "entity.stone_sentinel.reach": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.reach",
+    "sounds": [
+      {
+        "name": "minecraft:entity.warden.sonic_charge",
+        "type": "event",
+        "volume": 1.6,
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.stone_sentinel.reckoning": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.reckoning",
+    "sounds": [
+      {
+        "name": "minecraft:entity.warden.sonic_boom",
+        "type": "event",
+        "volume": 2.0,
+        "pitch": 0.7
+      }
+    ]
+  },
   "entity.stone_sentinel.hurt": {
     "subtitle": "subtitles.vanguard-spirits.stone_sentinel.hurt",
     "sounds": [

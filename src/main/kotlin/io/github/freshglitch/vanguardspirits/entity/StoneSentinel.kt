@@ -57,6 +57,16 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	/** Server-side cooldowns, in ticks. Not synced -- the client never asks. */
 	private var slamCooldown = 0
 	private var sweepCooldown = 0
+	private var reckoningCooldown = 0
+
+	/**
+	 * Hits taken from somewhere the sentinel cannot answer.
+	 *
+	 * Two blocks of pillar puts a player above everything it can swing at, and
+	 * from up there the fight becomes free. This counts those hits; [RECKONING]
+	 * is what it does about them.
+	 */
+	private var unanswered = 0
 
 	override fun registerGoals() {
 		goalSelector.addGoal(0, FloatGoal(this))
@@ -123,6 +133,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			else -> {
 				if (slamCooldown > 0) slamCooldown--
 				if (sweepCooldown > 0) sweepCooldown--
+				if (reckoningCooldown > 0) reckoningCooldown--
 				if (attackKind != NO_ATTACK) advanceAttack(level)
 			}
 		}
@@ -234,13 +245,17 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		attackKind = kind
 		attackTick = 0
 		navigation.stop()
-		say(if (kind == SLAM) ModSounds.SENTINEL_STIR else ModSounds.SENTINEL_SWEEP, 1.0f, 0.7f)
+		when (kind) {
+			SLAM -> say(ModSounds.SENTINEL_STIR, 1.0f, 0.7f)
+			SWEEP -> say(ModSounds.SENTINEL_SWEEP, 1.0f, 0.7f)
+			else -> say(ModSounds.SENTINEL_REACH, 1.6f, 0.6f)
+		}
 	}
 
 	private fun advanceAttack(level: ServerLevel) {
 		val t = attackTick
 		val kind = attackKind
-		val impactAt = if (kind == SLAM) SLAM_WINDUP else SWEEP_WINDUP
+		val impactAt = windupOf(kind)
 		val endAt = impactAt + RECOVER
 
 		// Rooted through the wind-up. This is what makes the attacks readable:
@@ -249,14 +264,22 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		if (t < impactAt) navigation.stop()
 
 		if (t == impactAt) {
-			if (kind == SLAM) slam(level) else sweep(level)
+			when (kind) {
+				SLAM -> slam(level)
+				SWEEP -> sweep(level)
+				else -> reckon(level)
+			}
 		}
 
 		attackTick = t + 1
 		if (attackTick > endAt) {
 			attackKind = NO_ATTACK
 			attackTick = 0
-			if (kind == SLAM) slamCooldown = SLAM_COOLDOWN else sweepCooldown = SWEEP_COOLDOWN
+			when (kind) {
+				SLAM -> slamCooldown = SLAM_COOLDOWN
+				SWEEP -> sweepCooldown = SWEEP_COOLDOWN
+				else -> reckoningCooldown = RECKONING_COOLDOWN
+			}
 		}
 	}
 
@@ -296,6 +319,45 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			victim.hurtServer(level, damageSources().mobAttack(this), SWEEP_DAMAGE)
 			throwBack(victim, SWEEP_PUSH, SWEEP_LIFT)
 		}
+	}
+
+	/**
+	 * The answer to being fought from a pillar.
+	 *
+	 * It does not try to reach up -- it reaches out and hauls the player down,
+	 * which both lands the damage and destroys the position that made the fight
+	 * free. Standing somewhere it cannot follow stops being a strategy, because
+	 * height is exactly what this attack takes away.
+	 */
+	private fun reckon(level: ServerLevel) {
+		say(ModSounds.SENTINEL_RECKONING, 2.0f, 0.7f)
+		say(ModSounds.SENTINEL_RUMBLE, 1.4f, 0.45f)
+		shake(level, SHAKE_MAX)
+		burst(level)
+
+		for (victim in level.players()) {
+			if (victim.isSpectator || victim.isCreative) continue
+			if (victim.distanceToSqr(this) > RECKONING_RANGE_SQ) continue
+
+			victim.hurtServer(level, damageSources().mobAttack(this), RECKONING_DAMAGE)
+			haul(victim)
+		}
+	}
+
+	/** Yanks a victim off whatever it is standing on and down to the sentinel. */
+	private fun haul(victim: LivingEntity) {
+		val dx = x - victim.x
+		val dy = (y + 0.5) - victim.y
+		val dz = z - victim.z
+		val len = Mth.sqrt((dx * dx + dy * dy + dz * dz).toFloat()).toDouble()
+		if (len < 0.001) return
+
+		victim.setDeltaMovement(
+			dx / len * RECKONING_PULL,
+			dy / len * RECKONING_PULL - RECKONING_DROP,
+			dz / len * RECKONING_PULL,
+		)
+		victim.hurtMarked = true
 	}
 
 	private fun around(radius: Double): List<LivingEntity> =
@@ -418,7 +480,35 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			return false
 		}
 		if (isWaking) return false
-		return super.hurtServer(level, source, amount)
+
+		val hurt = super.hurtServer(level, source, amount)
+		if (hurt) (source.entity as? Player)?.let { resent(it) }
+		return hurt
+	}
+
+	/**
+	 * Counts hits landed from out of reach, and eventually answers them.
+	 *
+	 * "Out of reach" is a height gap, not a distance: the sentinel stands 2.6
+	 * blocks and swings level, so anyone whose feet clear [OUT_OF_REACH] above
+	 * its own can hit it freely from a pillar it has no way to climb. Two such
+	 * hits is enough to establish that it is being done on purpose rather than
+	 * that someone happens to be on a slope.
+	 */
+	private fun resent(attacker: Player) {
+		if (attacker.y - y < OUT_OF_REACH) {
+			unanswered = 0
+			return
+		}
+
+		target = attacker
+		unanswered++
+		if (unanswered < FREE_HITS_ALLOWED) return
+		if (attackKind != NO_ATTACK || reckoningCooldown > 0) return
+		if (attacker.distanceToSqr(this) > RECKONING_RANGE_SQ) return
+
+		unanswered = 0
+		begin(RECKONING)
 	}
 
 	/** Placed deliberately; it should still be there when the player comes back. */
@@ -471,6 +561,14 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		const val NO_ATTACK: Byte = 0
 		const val SLAM: Byte = 1
 		const val SWEEP: Byte = 2
+		const val RECKONING: Byte = 3
+
+		/** Ticks each attack spends winding up before it lands. */
+		fun windupOf(kind: Byte): Int = when (kind) {
+			SLAM -> SLAM_WINDUP
+			SWEEP -> SWEEP_WINDUP
+			else -> RECKONING_WINDUP
+		}
 
 		/** How close to the guarded spot a player has to get. */
 		private const val TRIGGER_RANGE = 6.0
@@ -523,6 +621,30 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 
 		/** Dot-product threshold for the sweep's front arc -- roughly 120 degrees. */
 		private const val SWEEP_ARC = -0.5
+
+		// ---- reckoning: the anti-pillar answer ----
+
+		/**
+		 * Longer than the slam. It has to be, or being dragged off a wall would
+		 * feel like something that simply happened rather than something the
+		 * player watched coming and failed to escape.
+		 */
+		const val RECKONING_WINDUP: Int = 28
+
+		private const val RECKONING_COOLDOWN = 90
+
+		/** Height gap that puts a player past anything the sentinel can swing at. */
+		private const val OUT_OF_REACH = 2.0
+
+		/** Free hits from up there before it stops tolerating the arrangement. */
+		private const val FREE_HITS_ALLOWED = 2
+
+		private const val RECKONING_RANGE_SQ = 16.0 * 16.0
+		private const val RECKONING_DAMAGE = 20.0f
+
+		/** Speed the victim is dragged in at, plus a little extra straight down. */
+		private const val RECKONING_PULL = 1.6
+		private const val RECKONING_DROP = 0.35
 
 		/**
 		 * A wall that followed you.

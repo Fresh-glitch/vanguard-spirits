@@ -171,6 +171,34 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 			return
 		}
 
+		if (state.attackKind == StoneSentinel.RECKONING) {
+			val windup = StoneSentinel.RECKONING_WINDUP.toFloat()
+			if (t < windup) {
+				// Arms opening wide with the head thrown back -- reaching for
+				// something out of range rather than hammering what is in front.
+				// Nothing like the slam's overhead gather, so the two read apart
+				// at a glance.
+				val p = ease(t / windup)
+				armRight.zRot = Mth.lerp(p, 0.0f, -REACH_SPREAD)
+				armLeft.zRot = Mth.lerp(p, 0.0f, REACH_SPREAD)
+				armRight.xRot = Mth.lerp(p, 0.0f, -REACH_LIFT)
+				armLeft.xRot = Mth.lerp(p, 0.0f, -REACH_LIFT)
+				head.xRot = Mth.lerp(p, 0.0f, -REACH_LOOK)
+				body.xRot = Mth.lerp(p, 0.0f, -REACH_ARCH)
+			} else {
+				// The wrench: arms clamp in and down, and it hunches over the
+				// pull as though hauling on a chain.
+				val p = ((t - windup) / RECKON_STRIKE).coerceIn(0.0f, 1.0f)
+				armRight.zRot = Mth.lerp(p, -REACH_SPREAD, RECKON_CLAMP)
+				armLeft.zRot = Mth.lerp(p, REACH_SPREAD, -RECKON_CLAMP)
+				armRight.xRot = Mth.lerp(p, -REACH_LIFT, RECKON_HAUL)
+				armLeft.xRot = Mth.lerp(p, -REACH_LIFT, RECKON_HAUL)
+				head.xRot = Mth.lerp(p, -REACH_LOOK, RECKON_STOOP)
+				body.xRot = Mth.lerp(p, -REACH_ARCH, RECKON_STOOP)
+			}
+			return
+		}
+
 		// Sweep: one arm cocked across the chest, then thrown outward.
 		val windup = StoneSentinel.SWEEP_WINDUP.toFloat()
 		if (t < windup) {
@@ -239,6 +267,16 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 		private const val SLAM_ARCH = 0.22f
 		private const val SLAM_FOLLOW = 0.55f
 		private const val SLAM_STOOP = 0.30f
+
+		/** Reckoning: opening wide, then hauling in. */
+		private const val RECKON_STRIKE = 4.0f
+		private const val REACH_SPREAD = 1.35f
+		private const val REACH_LIFT = 1.10f
+		private const val REACH_LOOK = 0.60f
+		private const val REACH_ARCH = 0.22f
+		private const val RECKON_CLAMP = 0.30f
+		private const val RECKON_HAUL = 0.70f
+		private const val RECKON_STOOP = 0.35f
 
 		private const val SWEEP_STRIKE = 3.0f
 		private const val SWEEP_COCK = 1.5f
