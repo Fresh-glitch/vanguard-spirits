@@ -15,7 +15,9 @@ import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.chunk.ChunkGenerator
 import net.minecraft.world.level.levelgen.structure.BoundingBox
 import net.minecraft.world.level.levelgen.structure.StructurePiece
+import net.minecraft.world.level.block.entity.SpawnerBlockEntity
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext
+import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
@@ -66,12 +68,14 @@ class GuardedRuinsPiece : StructurePiece {
 	) {
 		hollowCavern(level, box)
 		dressCavern(level, box, random)
+		carveDeeps(level, box, random)
 		carveCrypt(level, box, random)
 		layPlatform(level, box, random)
 		raiseColonnade(level, box, random)
 		buildAltar(level, box, random)
 		placeBraziers(level, box)
 		cutStairwell(level, box, random)
+		cutDescents(level, box, random)
 		setSentinel(level, box)
 	}
 
@@ -202,6 +206,177 @@ class GuardedRuinsPiece : StructurePiece {
 	/** True for columns the sanctum itself occupies. */
 	private fun inSanctum(x: Int, z: Int): Boolean =
 		x >= MARGIN && x <= MARGIN + SANCTUM_LAST && z >= MARGIN && z <= MARGIN + SANCTUM_LAST
+
+	// ---------------------------------------------------------------- deeps
+
+	/**
+	 * The rooms below the crypt.
+	 *
+	 * Wider than the crypt and squarer than the sanctum, so the ruin reads as
+	 * opening out the further down it goes rather than tapering to a point.
+	 * Each level is one shell divided into four rooms by a cross wall, which is
+	 * cheap to build and gives a player something to be cornered in.
+	 */
+	private fun carveDeeps(level: WorldGenLevel, box: BoundingBox, random: RandomSource) {
+		for (i in 0 until DEEPS_LEVELS) {
+			carveDeep(level, box, random, FLOOR_PAD + i * LEVEL_HEIGHT)
+		}
+	}
+
+	private fun carveDeep(
+		level: WorldGenLevel,
+		box: BoundingBox,
+		random: RandomSource,
+		floorY: Int,
+	) {
+		val lo = DEEP_INSET
+		val hi = SANCTUM_LAST - DEEP_INSET
+		val roof = floorY + LEVEL_HEIGHT - 1
+
+		// Shell first, then hollow it -- simpler than tracking wall faces, and
+		// the same trick the crypt uses.
+		fill(level, box, lo, floorY, lo, hi, roof, hi, deepslate(random))
+		fill(level, box, lo + 1, floorY + 1, lo + 1, hi - 1, roof - 1, hi - 1, AIR)
+
+		for (x in (lo + 1)..(hi - 1)) {
+			for (z in (lo + 1)..(hi - 1)) {
+				put(level, box, deepslate(random), x, floorY, z)
+				if (random.nextFloat() < DEEP_SCULK_CHANCE) {
+					put(level, box, Blocks.SCULK.defaultBlockState(), x, floorY + 1, z)
+				}
+			}
+		}
+
+		partition(level, box, random, floorY, roof, lo, hi)
+		embedSpawners(level, box, random, floorY, lo, hi)
+
+		// One lantern per level. Enough to tell there is a room, not enough to
+		// see what is already in it.
+		put(level, box, Blocks.SOUL_LANTERN.defaultBlockState(), lo + 1, roof - 1, lo + 1)
+		put(level, box, Blocks.SOUL_LANTERN.defaultBlockState(), hi - 1, roof - 1, hi - 1)
+	}
+
+	/** A cross wall with two doorways per arm, so all four rooms interconnect. */
+	private fun partition(
+		level: WorldGenLevel,
+		box: BoundingBox,
+		random: RandomSource,
+		floorY: Int,
+		roof: Int,
+		lo: Int,
+		hi: Int,
+	) {
+		val mid = (lo + hi) / 2
+		val doorA = (lo + mid) / 2
+		val doorB = (mid + hi) / 2
+
+		for (i in (lo + 1)..(hi - 1)) {
+			if (abs(i - doorA) <= 1 || abs(i - doorB) <= 1) continue
+			for (y in (floorY + 1)..(roof - 1)) {
+				put(level, box, deepslate(random), mid, y, i)
+				put(level, box, deepslate(random), i, y, mid)
+			}
+		}
+	}
+
+	/**
+	 * Sinks spawners into the floor of two of the four rooms.
+	 *
+	 * Flush with the ground rather than standing on it -- a cage sitting proud
+	 * of the floor announces itself from the doorway, and the point is to be
+	 * halfway across the room before anything happens.
+	 */
+	private fun embedSpawners(
+		level: WorldGenLevel,
+		box: BoundingBox,
+		random: RandomSource,
+		floorY: Int,
+		lo: Int,
+		hi: Int,
+	) {
+		val mid = (lo + hi) / 2
+		val near = (lo + mid) / 2
+		val far = (mid + hi) / 2
+		val rooms = arrayOf(
+			intArrayOf(near, near),
+			intArrayOf(near, far),
+			intArrayOf(far, near),
+			intArrayOf(far, far),
+		)
+
+		val first = random.nextInt(rooms.size)
+		val second = (first + 1 + random.nextInt(rooms.size - 1)) % rooms.size
+
+		for (index in intArrayOf(first, second)) {
+			val room = rooms[index]
+			sinkSpawner(level, box, room[0], floorY, room[1])
+		}
+	}
+
+	private fun sinkSpawner(level: WorldGenLevel, box: BoundingBox, x: Int, y: Int, z: Int) {
+		put(level, box, Blocks.SPAWNER.defaultBlockState(), x, y, z)
+
+		val at = BlockPos(
+			getWorldX(MARGIN + x, MARGIN + z),
+			getWorldY(y),
+			getWorldZ(MARGIN + x, MARGIN + z),
+		)
+		// placeBlock silently drops anything outside this chunk's slice, so the
+		// block entity only exists for the chunk that actually owns the spot.
+		if (!box.isInside(at)) return
+
+		val spawner = level.getBlockEntity(at)
+		if (spawner is SpawnerBlockEntity) {
+			spawner.setEntityId(ModEntities.REMNANT, level.random)
+		}
+	}
+
+	/** Stairs from the crypt down through every level, alternating sides. */
+	private fun cutDescents(level: WorldGenLevel, box: BoundingBox, random: RandomSource) {
+		var upper = CRYPT_FLOOR
+		var fromEast = true
+
+		for (i in 0 until DEEPS_LEVELS) {
+			val lower = CRYPT_FLOOR - (i + 1) * LEVEL_HEIGHT
+			cutDescent(level, box, random, upper, lower, fromEast)
+			upper = lower
+			fromEast = !fromEast
+		}
+	}
+
+	/**
+	 * One flight, cut into the level below it.
+	 *
+	 * Only the first tread opens a hole through the floor above; the rest take
+	 * headroom only. Clearing to the upper floor the whole way along would drag
+	 * a trench across the ceiling behind the stair.
+	 */
+	private fun cutDescent(
+		level: WorldGenLevel,
+		box: BoundingBox,
+		random: RandomSource,
+		upperFloor: Int,
+		lowerFloor: Int,
+		fromEast: Boolean,
+	) {
+		val mid = SANCTUM_LAST / 2
+		val zLo = mid - 1
+		val zHi = mid + 1
+		val steps = upperFloor - lowerFloor - 1
+		val headX = if (fromEast) SANCTUM_LAST - DEEP_INSET - 2 else DEEP_INSET + 2
+		val dir = if (fromEast) -1 else 1
+
+		for (s in 0 until steps) {
+			val x = headX + dir * s
+			val treadY = upperFloor - 1 - s
+			val ceiling = if (s == 0) upperFloor else treadY + STAIR_HEADROOM
+
+			fill(level, box, x, treadY + 1, zLo, x, ceiling, zHi, AIR)
+			for (z in zLo..zHi) {
+				put(level, box, deepslate(random), x, treadY, z)
+			}
+		}
+	}
 
 	// ---------------------------------------------------------------- crypt
 
@@ -471,16 +646,31 @@ class GuardedRuinsPiece : StructurePiece {
 		private const val SANCTUM_LAST = SANCTUM_WIDTH - 1
 		private const val LAST = WIDTH - 1
 
-		/** Solid rock kept beneath the crypt floor. */
+		/** Solid rock kept beneath the lowest floor. */
 		private const val FLOOR_PAD = 2
 
 		/** Depth of the crypt below the sanctum floor. */
 		const val CRYPT_DEPTH: Int = 6
 
-		private const val CRYPT_FLOOR = FLOOR_PAD
+		/** Levels of rooms below the crypt, and the floor-to-floor drop of each. */
+		private const val DEEPS_LEVELS = 2
+		private const val LEVEL_HEIGHT = 7
+		private const val DEEPS = DEEPS_LEVELS * LEVEL_HEIGHT
+
+		private const val CRYPT_FLOOR = DEEPS + FLOOR_PAD
 
 		/** Local Y of the sanctum floor. Crypt below, cavern above. */
-		private const val SURFACE = FLOOR_PAD + CRYPT_DEPTH
+		private const val SURFACE = CRYPT_FLOOR + CRYPT_DEPTH
+
+		/**
+		 * How far the piece reaches below the sanctum floor.
+		 *
+		 * Read by [GuardedRuinsStructure] for its bedrock check. Deriving both
+		 * from the same constant is what keeps the depth band honest when the
+		 * deeps grow: everything below is expressed relative to [SURFACE], so the
+		 * box floor drops on its own and the sanctum stays at the same world Y.
+		 */
+		const val DEPTH: Int = SURFACE
 
 		/** Headroom the cavern dome reaches at its centre. */
 		private const val ROOF_LIFT = 26
@@ -493,6 +683,14 @@ class GuardedRuinsPiece : StructurePiece {
 
 		/** Inset of the crypt shell from the sanctum edge. */
 		private const val CRYPT_INSET = 4
+
+		/** The deeps sit wider than the crypt, so the ruin opens out as it drops. */
+		private const val DEEP_INSET = 2
+
+		private const val DEEP_SCULK_CHANCE = 0.10f
+
+		/** Air kept above each tread, beyond the one that opens the floor. */
+		private const val STAIR_HEADROOM = 3
 
 		/** Sanctum X of the crypt's far shell wall -- the boundary the stair pierces. */
 		private const val CRYPT_OUTER = SANCTUM_LAST - CRYPT_INSET

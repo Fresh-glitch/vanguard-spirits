@@ -62,6 +62,7 @@ class ModEnglishProvider(
 		builder.add("subtitles.vanguard-spirits.stone_sentinel.death", "Stone Sentinel crumbles")
 
 		builder.add(ModEntities.STONE_SENTINEL, "Stone Sentinel")
+		builder.add(ModEntities.REMNANT, "Remnant")
 
 		builder.add("tooltip.vanguard-spirits.charm.attuned", "Attuned")
 		builder.add("tooltip.vanguard-spirits.charm.dormant", "Dormant — attunement %s in use")

@@ -44,7 +44,7 @@ class GuardedRuinsStructure(settings: StructureSettings) : Structure(settings) {
 
 	/** True when the column is solid across the piece's full height at [floorY]. */
 	private fun isEncased(column: NoiseColumn, floorY: Int, worldMinY: Int): Boolean {
-		val lowest = floorY - GuardedRuinsPiece.CRYPT_DEPTH - 2
+		val lowest = floorY - GuardedRuinsPiece.DEPTH
 		val highest = floorY + GuardedRuinsPiece.ABOVE
 
 		if (lowest <= worldMinY + BEDROCK_CLEARANCE) return false
@@ -63,12 +63,16 @@ class GuardedRuinsStructure(settings: StructureSettings) : Structure(settings) {
 
 	companion object {
 		/**
-		 * Y band for the sanctum floor. Deepslate runs from roughly y=0 down to
-		 * bedrock, so this keeps the whole piece -- crypt below, cavern dome above
-		 * -- inside the deepslate layer.
+		 * Y band for the sanctum floor.
+		 *
+		 * Raised from its original -44..-30 when the rooms below the crypt were
+		 * added. The piece now reaches [GuardedRuinsPiece.DEPTH] beneath the
+		 * sanctum instead of eight blocks, and the old band would have put the
+		 * lowest level inside bedrock. The dome still tops out well short of the
+		 * stone layer, so the ruin stays buried.
 		 */
-		private const val MIN_FLOOR = -44
-		private const val MAX_FLOOR = -30
+		private const val MIN_FLOOR = -34
+		private const val MAX_FLOOR = -26
 
 		/** Blocks of margin kept above the bedrock floor. */
 		private const val BEDROCK_CLEARANCE = 6
