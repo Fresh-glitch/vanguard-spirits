@@ -10,6 +10,7 @@ import net.minecraft.network.syncher.EntityDataSerializers
 import net.minecraft.network.syncher.SynchedEntityData
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.sounds.SoundEvent
+import net.minecraft.sounds.SoundEvents
 import net.minecraft.sounds.SoundSource
 import net.minecraft.util.Mth
 import net.minecraft.world.damagesource.DamageSource
@@ -29,6 +30,7 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.gamerules.GameRules
 import net.minecraft.world.level.storage.ValueInput
 import net.minecraft.world.level.storage.ValueOutput
 
@@ -53,6 +55,12 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	 * spawned any other way, which then wakes when someone approaches it instead.
 	 */
 	private var wardPos: BlockPos? = null
+
+	/** The altar it was set on. It walks back here once there is nothing to fight. */
+	private var homePos: BlockPos? = null
+
+	/** Counts out the fade back to stone. Zero unless it is settling. */
+	private var settleTick = 0
 
 	/** Server-side cooldowns, in ticks. Not synced -- the client never asks. */
 	private var slamCooldown = 0
@@ -85,6 +93,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		builder.define(DATA_WAKE, 0)
 		builder.define(DATA_ATTACK_KIND, NO_ATTACK)
 		builder.define(DATA_ATTACK_TICK, 0)
+		builder.define(DATA_GLOW, GLOW_EMBER)
 	}
 
 	// ------------------------------------------------------------------ state
@@ -108,8 +117,17 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		get() = entityData.get(DATA_ATTACK_TICK)
 		private set(value) = entityData.set(DATA_ATTACK_TICK, value)
 
+	/** 0..100. Drives the eye brightness on the client and nothing else. */
+	var glow: Int
+		get() = entityData.get(DATA_GLOW)
+		private set(value) = entityData.set(DATA_GLOW, value)
+
 	fun setWard(pos: BlockPos) {
 		wardPos = pos
+	}
+
+	fun setHome(pos: BlockPos) {
+		homePos = pos
 	}
 
 	/** Called by the structure, so a freshly generated one starts as stone. */
@@ -128,15 +146,84 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		if (level !is ServerLevel) return
 
 		when {
+			settleTick > 0 -> settle()
 			isDormant -> if (tickCount % WATCH_INTERVAL == 0) watch(level)
 			isWaking -> advanceWake(level)
 			else -> {
 				if (slamCooldown > 0) slamCooldown--
 				if (sweepCooldown > 0) sweepCooldown--
 				if (reckoningCooldown > 0) reckoningCooldown--
-				if (attackKind != NO_ATTACK) advanceAttack(level)
+
+				when {
+					attackKind != NO_ATTACK -> advanceAttack(level)
+					!hasQuarry() -> goHome()
+				}
 			}
 		}
+
+		updateGlow()
+	}
+
+	private fun hasQuarry(): Boolean = target?.isAlive == true
+
+	/**
+	 * Walks back to the altar once there is nothing left to fight.
+	 *
+	 * The ruin is supposed to look untouched when a player returns to it, so a
+	 * sentinel that killed someone does not stand around where the fight ended.
+	 */
+	private fun goHome() {
+		val home = homePos ?: return
+		val hx = home.x + 0.5
+		val hy = home.y.toDouble()
+		val hz = home.z + 0.5
+
+		if (distanceToSqr(hx, hy, hz) > ARRIVED_SQ) {
+			if (navigation.isDone) navigation.moveTo(hx, hy, hz, RETURN_SPEED)
+			return
+		}
+
+		navigation.stop()
+		snapTo(hx, hy, hz, homeYaw(home), 0.0f)
+
+		// Back to stone straight away -- the pose is the statue pose, and only
+		// the light in its eyes takes time to go out.
+		sleep()
+		unanswered = 0
+		settleTick = 1
+	}
+
+	/** Faces whatever it was set to watch, so it ends up as it was found. */
+	private fun homeYaw(home: BlockPos): Float {
+		val ward = wardPos ?: return yRot
+		val dx = (ward.x - home.x).toDouble()
+		val dz = (ward.z - home.z).toDouble()
+		if (dx == 0.0 && dz == 0.0) return yRot
+		return (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG).toFloat() - 90.0f
+	}
+
+	private fun settle() {
+		settleTick++
+		if (settleTick >= SETTLE_TICKS) settleTick = 0
+	}
+
+	/**
+	 * Eyes glow white only while it is up.
+	 *
+	 * Dormant they hold a dim amber ember rather than going out entirely -- the
+	 * statue still has to read as a warning a player can walk past, which is the
+	 * whole reason the eyes are lit in the first place.
+	 */
+	private fun updateGlow() {
+		val next = when {
+			settleTick > 0 ->
+				Mth.lerp(settleTick.toFloat() / SETTLE_TICKS, GLOW_FULL.toFloat(), GLOW_EMBER.toFloat()).toInt()
+			isDormant -> GLOW_EMBER
+			isWaking ->
+				Mth.lerp(wakeTick.toFloat() / WAKE_TICKS, GLOW_EMBER.toFloat(), GLOW_FULL.toFloat()).toInt()
+			else -> GLOW_FULL
+		}
+		if (glow != next) glow = next
 	}
 
 	/**
@@ -291,6 +378,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		ring(level, SLAM_RADIUS)
 
 		for (victim in around(SLAM_RADIUS)) {
+			breakGuard(victim, SLAM_GUARD_LOCK)
 			victim.hurtServer(level, damageSources().mobAttack(this), SLAM_DAMAGE)
 			throwBack(victim, SLAM_PUSH, SLAM_LIFT)
 		}
@@ -316,6 +404,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			val len = Mth.sqrt((dx * dx + dz * dz).toFloat()).toDouble()
 			if (len > 0.001 && (dx / len * fx + dz / len * fz) < SWEEP_ARC) continue
 
+			breakGuard(victim, SWEEP_GUARD_LOCK)
 			victim.hurtServer(level, damageSources().mobAttack(this), SWEEP_DAMAGE)
 			throwBack(victim, SWEEP_PUSH, SWEEP_LIFT)
 		}
@@ -339,9 +428,61 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			if (victim.isSpectator || victim.isCreative) continue
 			if (victim.distanceToSqr(this) > RECKONING_RANGE_SQ) continue
 
+			// Order matters. Sneaking on the lip of a block survives any amount
+			// of knockback, so the footing has to go before the pull -- otherwise
+			// a player can simply hold shift and stay exactly where they are.
+			shatterFooting(level, victim)
+			breakGuard(victim, RECKONING_GUARD_LOCK)
 			victim.hurtServer(level, damageSources().mobAttack(this), RECKONING_DAMAGE)
 			haul(victim)
 		}
+	}
+
+	/**
+	 * Takes out the ground under a victim.
+	 *
+	 * Three by three and two deep, which is enough that stepping to the edge of
+	 * a pillar does not save them. Gated on mobGriefing like every other mob
+	 * that rearranges the world, and it refuses to chew on anything unbreakable.
+	 */
+	private fun shatterFooting(level: ServerLevel, victim: LivingEntity) {
+		if (!level.gameRules.get(GameRules.MOB_GRIEFING)) return
+
+		val feet = victim.blockPosition()
+		for (dy in -2..-1) {
+			for (dx in -1..1) {
+				for (dz in -1..1) {
+					val at = feet.offset(dx, dy, dz)
+					val state = level.getBlockState(at)
+					if (state.isAir) continue
+					if (state.getDestroySpeed(level, at) < 0.0f) continue
+					level.destroyBlock(at, true, this, DESTROY_RECURSION)
+				}
+			}
+		}
+	}
+
+	/**
+	 * Puts a raised shield out of action.
+	 *
+	 * Blocking otherwise turns the whole fight into a stalemate: every attack is
+	 * absorbed, the knockback never lands, and the player trades hits on their
+	 * own schedule. A shield still works -- it just cannot work continuously.
+	 */
+	private fun breakGuard(victim: LivingEntity, ticks: Int) {
+		if (victim !is Player || !victim.isBlocking) return
+
+		val guard = victim.useItem
+		victim.stopUsingItem()
+		victim.cooldowns.addCooldown(guard, ticks)
+		victim.level().playSound(
+			null,
+			victim.x, victim.y, victim.z,
+			SoundEvents.SHIELD_BREAK,
+			SoundSource.PLAYERS,
+			0.9f,
+			0.55f,
+		)
 	}
 
 	/** Yanks a victim off whatever it is standing on and down to the sentinel. */
@@ -382,6 +523,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	 */
 	override fun doHurtTarget(level: ServerLevel, victim: net.minecraft.world.entity.Entity): Boolean {
 		if (victim is LivingEntity && considerSpecial(victim)) return false
+		if (victim is LivingEntity) breakGuard(victim, MELEE_GUARD_LOCK)
 		return super.doHurtTarget(level, victim)
 	}
 
@@ -552,6 +694,8 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			SynchedEntityData.defineId(StoneSentinel::class.java, EntityDataSerializers.BYTE)
 		private val DATA_ATTACK_TICK: EntityDataAccessor<Int> =
 			SynchedEntityData.defineId(StoneSentinel::class.java, EntityDataSerializers.INT)
+		private val DATA_GLOW: EntityDataAccessor<Int> =
+			SynchedEntityData.defineId(StoneSentinel::class.java, EntityDataSerializers.INT)
 
 		private const val TAG_DORMANT = "Dormant"
 		private const val TAG_WARD_X = "WardX"
@@ -645,6 +789,35 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		/** Speed the victim is dragged in at, plus a little extra straight down. */
 		private const val RECKONING_PULL = 1.6
 		private const val RECKONING_DROP = 0.35
+
+		private const val DESTROY_RECURSION = 512
+
+		// ---- shields ----
+
+		/**
+		 * Ticks a raised shield is put out of action for.
+		 *
+		 * Scaled to how hard the blow was. Even the ordinary swing costs two
+		 * seconds of guard, which is what stops block-hit-block being a rhythm.
+		 */
+		private const val MELEE_GUARD_LOCK = 40
+		private const val SWEEP_GUARD_LOCK = 60
+		private const val SLAM_GUARD_LOCK = 100
+		private const val RECKONING_GUARD_LOCK = 140
+
+		// ---- going back to sleep ----
+
+		/** Close enough to the altar to call it home. */
+		private const val ARRIVED_SQ = 2.25
+
+		private const val RETURN_SPEED = 0.8
+
+		/** Two seconds for the light to leave its eyes. */
+		private const val SETTLE_TICKS = 40
+
+		/** Eye brightness, 0..100. Amber ember at rest, white when it is up. */
+		const val GLOW_EMBER: Int = 22
+		const val GLOW_FULL: Int = 100
 
 		/**
 		 * A wall that followed you.

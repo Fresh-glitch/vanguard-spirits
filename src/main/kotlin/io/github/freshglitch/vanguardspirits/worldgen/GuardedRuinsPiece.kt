@@ -109,6 +109,7 @@ class GuardedRuinsPiece : StructurePiece {
 				getWorldZ(MARGIN + STAIR_HEAD, MARGIN + mid),
 			),
 		)
+		sentinel.setHome(at)
 		sentinel.sleep()
 		sentinel.setPersistenceRequired()
 		level.addFreshEntity(sentinel)
