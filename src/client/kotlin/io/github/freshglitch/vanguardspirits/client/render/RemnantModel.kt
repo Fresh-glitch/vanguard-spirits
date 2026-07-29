@@ -89,20 +89,21 @@ class RemnantModel(root: ModelPart) : EntityModel<RemnantRenderState>(root) {
 				PartPose.offset(2.5f, 12.0f, 0.0f),
 			)
 
+			// Ribs and jaw are painted into the texture rather than modelled.
+			// Bolted on as their own cubes they read as slabs stuck to the front;
+			// as shading they leave the silhouette clean.
 			root.addOrReplaceChild(
 				"body",
 				CubeListBuilder.create()
 					.texOffs(30, 0).addBox(-5.0f, -12.0f, -3.0f, 10.0f, 12.0f, 6.0f, none)
-					.texOffs(0, 21).addBox(-6.0f, -13.0f, 3.0f, 12.0f, 11.0f, 2.0f, none)
-					.texOffs(109, 21).addBox(-3.0f, -9.0f, -4.0f, 6.0f, 4.0f, 1.0f, none),
+					.texOffs(0, 21).addBox(-6.0f, -13.0f, 3.0f, 12.0f, 11.0f, 2.0f, none),
 				PartPose.offset(0.0f, 12.0f, 0.0f),
 			)
 
 			root.addOrReplaceChild(
 				"head",
 				CubeListBuilder.create()
-					.texOffs(93, 0).addBox(-4.0f, -8.0f, -4.0f, 8.0f, 8.0f, 8.0f, none)
-					.texOffs(0, 35).addBox(-2.0f, -3.0f, -5.0f, 4.0f, 2.0f, 1.0f, none),
+					.texOffs(93, 0).addBox(-4.0f, -8.0f, -4.0f, 8.0f, 8.0f, 8.0f, none),
 				PartPose.offset(0.0f, 0.0f, 0.0f),
 			)
 

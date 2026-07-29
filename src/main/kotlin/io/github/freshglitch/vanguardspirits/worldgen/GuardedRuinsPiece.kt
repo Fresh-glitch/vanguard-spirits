@@ -75,7 +75,7 @@ class GuardedRuinsPiece : StructurePiece {
 		buildAltar(level, box, random)
 		placeBraziers(level, box)
 		cutStairwell(level, box, random)
-		cutDescents(level, box, random)
+		breakCryptFloor(level, box, random)
 		setSentinel(level, box)
 	}
 
@@ -223,6 +223,45 @@ class GuardedRuinsPiece : StructurePiece {
 		}
 	}
 
+	/**
+	 * A caved-in patch of floor, in place of a second stair.
+	 *
+	 * There is exactly one way down from here and it is a drop. Rubble is piled
+	 * underneath so the landing costs a couple of hearts rather than a real
+	 * fall, and so the hole reads as something that gave way rather than
+	 * something that was cut.
+	 */
+	private fun breakFloor(
+		level: WorldGenLevel,
+		box: BoundingBox,
+		random: RandomSource,
+		floorY: Int,
+		atX: Int,
+		atZ: Int,
+	) {
+		for (dx in -1..1) {
+			for (dz in -1..1) {
+				// Corners survive, so the opening is ragged instead of a neat
+				// square anyone would read as a hatch.
+				if (dx != 0 && dz != 0 && random.nextBoolean()) continue
+
+				// One course above the floor as well, or the sculk that was
+				// growing on it is left hanging over the hole.
+				fill(level, box, atX + dx, floorY - 1, atZ + dz, atX + dx, floorY + 1, atZ + dz, AIR)
+			}
+		}
+
+		val landing = floorY - LEVEL_HEIGHT + 1
+		for (dx in -1..1) {
+			for (dz in -1..1) {
+				put(level, box, native(random), atX + dx, landing, atZ + dz)
+				if (random.nextFloat() < RUBBLE_MOUND_CHANCE) {
+					put(level, box, native(random), atX + dx, landing + 1, atZ + dz)
+				}
+			}
+		}
+	}
+
 	private fun carveDeep(
 		level: WorldGenLevel,
 		box: BoundingBox,
@@ -248,7 +287,27 @@ class GuardedRuinsPiece : StructurePiece {
 		}
 
 		partition(level, box, random, floorY, roof, lo, hi)
-		embedSpawners(level, box, random, floorY, lo, hi)
+
+		val mid = (lo + hi) / 2
+		val near = (lo + mid) / 2
+		val far = (mid + hi) / 2
+		val rooms = arrayOf(
+			intArrayOf(near, near),
+			intArrayOf(near, far),
+			intArrayOf(far, near),
+			intArrayOf(far, far),
+		)
+
+		// Every level but the lowest gives way somewhere. The spawner goes in a
+		// different room, so the drop is never the first thing that finds you.
+		val holeRoom = if (floorY > FLOOR_PAD) random.nextInt(rooms.size) else -1
+		if (holeRoom >= 0) {
+			breakFloor(level, box, random, floorY, rooms[holeRoom][0], rooms[holeRoom][1])
+		}
+
+		var spawnerRoom = random.nextInt(rooms.size)
+		if (spawnerRoom == holeRoom) spawnerRoom = (spawnerRoom + 1) % rooms.size
+		sinkSpawner(level, box, rooms[spawnerRoom][0], floorY, rooms[spawnerRoom][1])
 
 		// One lantern per level. Enough to tell there is a room, not enough to
 		// see what is already in it.
@@ -280,39 +339,12 @@ class GuardedRuinsPiece : StructurePiece {
 	}
 
 	/**
-	 * Sinks spawners into the floor of two of the four rooms.
+	 * Sinks one spawner into the floor.
 	 *
 	 * Flush with the ground rather than standing on it -- a cage sitting proud
 	 * of the floor announces itself from the doorway, and the point is to be
 	 * halfway across the room before anything happens.
 	 */
-	private fun embedSpawners(
-		level: WorldGenLevel,
-		box: BoundingBox,
-		random: RandomSource,
-		floorY: Int,
-		lo: Int,
-		hi: Int,
-	) {
-		val mid = (lo + hi) / 2
-		val near = (lo + mid) / 2
-		val far = (mid + hi) / 2
-		val rooms = arrayOf(
-			intArrayOf(near, near),
-			intArrayOf(near, far),
-			intArrayOf(far, near),
-			intArrayOf(far, far),
-		)
-
-		val first = random.nextInt(rooms.size)
-		val second = (first + 1 + random.nextInt(rooms.size - 1)) % rooms.size
-
-		for (index in intArrayOf(first, second)) {
-			val room = rooms[index]
-			sinkSpawner(level, box, room[0], floorY, room[1])
-		}
-	}
-
 	private fun sinkSpawner(level: WorldGenLevel, box: BoundingBox, x: Int, y: Int, z: Int) {
 		put(level, box, Blocks.SPAWNER.defaultBlockState(), x, y, z)
 
@@ -331,51 +363,28 @@ class GuardedRuinsPiece : StructurePiece {
 		}
 	}
 
-	/** Stairs from the crypt down through every level, alternating sides. */
-	private fun cutDescents(level: WorldGenLevel, box: BoundingBox, random: RandomSource) {
-		var upper = CRYPT_FLOOR
-		var fromEast = true
-
-		for (i in 0 until DEEPS_LEVELS) {
-			val lower = CRYPT_FLOOR - (i + 1) * LEVEL_HEIGHT
-			cutDescent(level, box, random, upper, lower, fromEast)
-			upper = lower
-			fromEast = !fromEast
-		}
-	}
-
 	/**
-	 * One flight, cut into the level below it.
+	 * Opens the way out of the crypt: a patch of its floor that gave way.
 	 *
-	 * Only the first tread opens a hole through the floor above; the rest take
-	 * headroom only. Clearing to the upper floor the whole way along would drag
-	 * a trench across the ceiling behind the stair.
+	 * The stair down from the sanctum stays a stair, because that descent is the
+	 * one the sentinel is watching and a player needs to walk it. Everything
+	 * past the crypt is a drop, which is less to build and a better answer to
+	 * why nobody ever came back up.
+	 *
+	 * Kept two blocks clear of the crypt walls so it never opens under a corner
+	 * lantern or into the mouth of the stair above.
 	 */
-	private fun cutDescent(
-		level: WorldGenLevel,
-		box: BoundingBox,
-		random: RandomSource,
-		upperFloor: Int,
-		lowerFloor: Int,
-		fromEast: Boolean,
-	) {
-		val mid = SANCTUM_LAST / 2
-		val zLo = mid - 1
-		val zHi = mid + 1
-		val steps = upperFloor - lowerFloor - 1
-		val headX = if (fromEast) SANCTUM_LAST - DEEP_INSET - 2 else DEEP_INSET + 2
-		val dir = if (fromEast) -1 else 1
+	private fun breakCryptFloor(level: WorldGenLevel, box: BoundingBox, random: RandomSource) {
+		val lo = CRYPT_INSET + 2
+		val hi = SANCTUM_LAST - CRYPT_INSET - 2
+		val span = hi - lo + 1
 
-		for (s in 0 until steps) {
-			val x = headX + dir * s
-			val treadY = upperFloor - 1 - s
-			val ceiling = if (s == 0) upperFloor else treadY + STAIR_HEADROOM
-
-			fill(level, box, x, treadY + 1, zLo, x, ceiling, zHi, AIR)
-			for (z in zLo..zHi) {
-				put(level, box, deepslate(random), x, treadY, z)
-			}
-		}
+		breakFloor(
+			level, box, random,
+			CRYPT_FLOOR,
+			lo + random.nextInt(span),
+			lo + random.nextInt(span),
+		)
 	}
 
 	// ---------------------------------------------------------------- crypt
@@ -689,8 +698,8 @@ class GuardedRuinsPiece : StructurePiece {
 
 		private const val DEEP_SCULK_CHANCE = 0.10f
 
-		/** Air kept above each tread, beyond the one that opens the floor. */
-		private const val STAIR_HEADROOM = 3
+		/** How much of the debris under a collapsed floor stands two blocks high. */
+		private const val RUBBLE_MOUND_CHANCE = 0.45f
 
 		/** Sanctum X of the crypt's far shell wall -- the boundary the stair pierces. */
 		private const val CRYPT_OUTER = SANCTUM_LAST - CRYPT_INSET

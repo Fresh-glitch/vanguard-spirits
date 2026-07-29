@@ -53,7 +53,22 @@ import net.minecraft.world.level.storage.ValueOutput
  * point is that the player hears it start and has time to understand what is
  * about to happen, which is also long enough to run.
  */
-class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster(type, level) {
+class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster(type, level), RuinDefender {
+
+	/**
+	 * Never turns on the other things guarding this place.
+	 *
+	 * Its heavy attacks are area effects, so without this a single slam would
+	 * set every Remnant in the room against it and the ruin would clear itself
+	 * out while the player watched from the doorway.
+	 */
+	override fun canAttack(victim: LivingEntity): Boolean =
+		victim !is RuinDefender && super.canAttack(victim)
+
+	override fun setTarget(victim: LivingEntity?) {
+		if (victim is RuinDefender) return
+		super.setTarget(victim)
+	}
 
 	/**
 	 * The spot it is set to watch, in world coordinates.
@@ -639,9 +654,10 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		victim.hurtMarked = true
 	}
 
+	/** Everything in range that is not on the ruin's side. */
 	private fun around(radius: Double): List<LivingEntity> =
 		level().getEntitiesOfClass(LivingEntity::class.java, boundingBox.inflate(radius)) {
-			it !== this && it.isAlive && it !is StoneSentinel
+			it !== this && it.isAlive && it !is RuinDefender
 		}
 
 	private fun throwBack(victim: LivingEntity, push: Double, lift: Double) {
