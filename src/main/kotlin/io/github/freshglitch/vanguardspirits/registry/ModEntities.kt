@@ -1,6 +1,7 @@
 package io.github.freshglitch.vanguardspirits.registry
 
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
+import io.github.freshglitch.vanguardspirits.entity.Remnant
 import io.github.freshglitch.vanguardspirits.entity.StoneSentinel
 // `object` is a Kotlin keyword, so this package path only imports with backticks.
 import net.fabricmc.fabric.api.`object`.builder.v1.entity.FabricDefaultAttributeRegistry
@@ -30,6 +31,21 @@ object ModEntities {
 			.build(key)
 	}
 
+	/**
+	 * What is left of the people who lived here.
+	 *
+	 * Narrow and only slightly taller than a player, so unlike the sentinel it
+	 * fits anywhere the player does -- including the crypt stair and the rooms
+	 * below it. There is nowhere down there it cannot follow.
+	 */
+	val REMNANT: EntityType<Remnant> = register("remnant") { key ->
+		EntityType.Builder.of(::Remnant, MobCategory.MONSTER)
+			.sized(0.6f, 1.95f)
+			.eyeHeight(1.74f)
+			.clientTrackingRange(8)
+			.build(key)
+	}
+
 	private fun <T : Entity> register(
 		path: String,
 		factory: (ResourceKey<EntityType<*>>) -> EntityType<T>,
@@ -41,5 +57,6 @@ object ModEntities {
 	/** Touching the object is what actually runs the registrations above. */
 	fun register() {
 		FabricDefaultAttributeRegistry.register(STONE_SENTINEL, StoneSentinel.createAttributes())
+		FabricDefaultAttributeRegistry.register(REMNANT, Remnant.createAttributes())
 	}
 }
