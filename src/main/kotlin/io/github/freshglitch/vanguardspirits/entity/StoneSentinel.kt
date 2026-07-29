@@ -514,6 +514,12 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			// of knockback, so the footing has to go before the pull -- otherwise
 			// a player can simply hold shift and stay exactly where they are.
 			shatterFooting(level, victim)
+
+			// From below, taking the ceiling is not enough on its own: the crypt
+			// stair is two blocks high and the sentinel needs three, so even
+			// after the haul it has no route down if the player gets back there.
+			// Smashing a corridor through gives it one.
+			if (victim.y < y) carveApproach(level, victim)
 			breakGuard(victim, RECKONING_GUARD_LOCK)
 			victim.hurtServer(level, damageSources().mobAttack(this), RECKONING_DAMAGE)
 			haul(victim)
@@ -545,6 +551,50 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 					if (state.isAir) continue
 					if (state.getDestroySpeed(level, at) < 0.0f) continue
 					level.destroyBlock(at, true, this, DESTROY_RECURSION)
+				}
+			}
+		}
+	}
+
+	/**
+	 * Smashes a corridor from the sentinel to its victim.
+	 *
+	 * Straight line, sampled block by block, cleared to the sentinel's full
+	 * height so the result is something it can actually walk down -- the floor
+	 * of the corridor is left intact and only the headroom above it is taken,
+	 * which turns solid rock into a ramp rather than a pit.
+	 *
+	 * Deliberately destructive. It will take a bite out of the sanctum floor on
+	 * the way down to the crypt, which is the point: the ruin is what the player
+	 * chose to fight inside.
+	 */
+	private fun carveApproach(level: ServerLevel, victim: LivingEntity) {
+		if (!level.gameRules.get(GameRules.MOB_GRIEFING)) return
+
+		val from = position()
+		val to = victim.position()
+		val span = from.distanceTo(to)
+		if (span < 1.0 || span > CARVE_REACH) return
+
+		val steps = Mth.ceil(span)
+		val tall = Mth.ceil(bbHeight)
+		val cursor = BlockPos.MutableBlockPos()
+
+		for (i in 0..steps) {
+			val t = i.toDouble() / steps
+			val px = Mth.floor(Mth.lerp(t, from.x, to.x))
+			val py = Mth.floor(Mth.lerp(t, from.y, to.y))
+			val pz = Mth.floor(Mth.lerp(t, from.z, to.z))
+
+			for (dy in 0 until tall) {
+				for (dx in -1..1) {
+					for (dz in -1..1) {
+						cursor.set(px + dx, py + dy, pz + dz)
+						val state = level.getBlockState(cursor)
+						if (state.isAir) continue
+						if (state.getDestroySpeed(level, cursor) < 0.0f) continue
+						level.destroyBlock(cursor, true, this, DESTROY_RECURSION)
+					}
 				}
 			}
 		}
@@ -914,6 +964,9 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		private const val RECKONING_DROP = 0.35
 
 		private const val DESTROY_RECURSION = 512
+
+		/** Longest corridor it will smash to reach someone underneath it. */
+		private const val CARVE_REACH = 16.0
 
 		// ---- shields ----
 
