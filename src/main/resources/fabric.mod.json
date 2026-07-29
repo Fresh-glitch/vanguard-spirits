@@ -3,13 +3,14 @@
 	"id": "vanguard-spirits",
 	"version": "${version}",
 	"name": "Vanguard Spirits",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "Deep in the deepslate, Guarded Ruins remember what the world forgot. A Stone Sentinel keeps the stair down to the crypt, and a Gilded Reliquary keeps whatever was worth burying. Charms recovered from the dark work from anywhere in your pack — but only as many at once as your attunement allows.",
 	"authors": [
-		"Me!"
+		"Fresh-glitch"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"homepage": "https://github.com/Fresh-glitch/vanguard-spirits",
+		"sources": "https://github.com/Fresh-glitch/vanguard-spirits",
+		"issues": "https://github.com/Fresh-glitch/vanguard-spirits/issues"
 	},
 	"license": "CC0-1.0",
 	"icon": "assets/vanguard-spirits/icon.png",
