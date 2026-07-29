@@ -23,4 +23,8 @@ class StoneSentinelRenderState : LivingEntityRenderState() {
 
 	@JvmField
 	var attackTick: Int = 0
+
+	/** 0..1. Dim amber ember at rest, white at full. */
+	@JvmField
+	var eyeGlow: Float = 0.0f
 }
