@@ -10,6 +10,7 @@ import net.minecraft.sounds.SoundEvents
 import net.minecraft.util.Mth
 import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.goal.FloatGoal
@@ -35,7 +36,23 @@ import net.minecraft.world.level.block.state.BlockState
  * Its eyes only light once it has something to chase, which is the same rule
  * the sentinel follows -- a dark socket means it has not noticed you yet.
  */
-class Remnant(type: EntityType<out Remnant>, level: Level) : Monster(type, level) {
+class Remnant(type: EntityType<out Remnant>, level: Level) : Monster(type, level), RuinDefender {
+
+	/**
+	 * Never turns on the other things guarding this place.
+	 *
+	 * Both halves of the check are needed. [canAttack] stops the target goals
+	 * ever picking one up, and [setTarget] catches everything else -- above all
+	 * the retaliation path, where a sentinel's slam clipping a Remnant would
+	 * otherwise start a fight the player could just stand back and watch.
+	 */
+	override fun canAttack(victim: LivingEntity): Boolean =
+		victim !is RuinDefender && super.canAttack(victim)
+
+	override fun setTarget(victim: LivingEntity?) {
+		if (victim is RuinDefender) return
+		super.setTarget(victim)
+	}
 
 	override fun registerGoals() {
 		goalSelector.addGoal(0, FloatGoal(this))
