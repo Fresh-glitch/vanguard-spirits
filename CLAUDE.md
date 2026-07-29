@@ -178,6 +178,42 @@ needed a screenshot to diagnose.
 - Slot bevels belong on the 18x18 outer ring, not inside the 16x16 well. Inside,
   every slot's weight shifts up-left and the grid reads as if it were misaligned.
 
+## Blockbench
+
+The Blockbench MCP server drives the desktop app directly. Model sources live in
+`blockbench/` and are the authority; the Kotlin `LayerDefinition` is a
+transcription of Blockbench's Java export, never hand-authored.
+
+- **`risky_eval` rejects `//` and `/* */`.** Comments in the payload fail
+  validation outright, so scripts have to go in bare.
+- **The export negates X.** A bone placed at Blockbench x = +9 exports to model
+  x = -9, which after the renderer's `scale(-1, -1, 1)` lands on the entity's
+  own right — matching vanilla, whose `rightArm` is at model x = -5. So *right*
+  parts go at *positive* Blockbench X. Y is likewise flipped and offset:
+  Blockbench y (0 at the feet) exports as pivot `24 - y`. Blockbench previews
+  the result, so what is on screen is what renders.
+- **`create_texture` with width/height does not resize the bitmap.** The texture
+  stays 16x16 while `Project.texture_width` is whatever was asked for, so UVs
+  spanning 128 fall off a 16px canvas and almost every face renders transparent
+  — which looks like the *model* has come apart, not the texture. Set
+  `tex.canvas.width/height`, `tex.width/height` and `tex.uv_width/uv_height`
+  together.
+- **Auto-UV does not lay out a sheet.** `autouv: 1` leaves every cube at
+  `texOffs(0, 0)`, all overlapping. `TextureGenerator.generateTemplate` is a
+  minified dialog API; a shelf packer over `cube.uv_offset` is less trouble and
+  gives a layout that can be reproduced.
+- Ask Blockbench for `cube.faces[k].uv` rather than deriving the box-UV net.
+  The verified layout is: top row `v..v+d` holds UP at `u+d` then DOWN at
+  `u+d+w`; bottom row `v+d..v+d+h` holds EAST, NORTH, WEST, SOUTH left to right.
+  Painting from the live rectangles skips the question entirely.
+- **Never hand-transcribe a data URL.** Base64 for a 128x128 PNG runs to
+  thousands of characters and dropping twelve bytes yields a file that still
+  reports `PNG image data, 128 x 128` to `file` and still parses its IHDR —
+  it fails much later, in game, as `unknown PNG chunk type`. Blockbench is
+  Electron: `require("fs").writeFileSync(path, Buffer.from(b64, "base64"))`
+  inside `risky_eval` writes the real bytes. Verify by walking the chunk list;
+  a good PNG ends IHDR … IDAT … IEND.
+
 ## Particles
 
 26.2 rebuilt this area, so almost nothing remembered about particles is true.

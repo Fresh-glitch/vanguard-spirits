@@ -1,9 +1,11 @@
 package io.github.freshglitch.vanguardspirits.worldgen
 
+import io.github.freshglitch.vanguardspirits.registry.ModEntities
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.world.entity.EntitySpawnReason
 import net.minecraft.util.RandomSource
 import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.StructureManager
@@ -70,6 +72,46 @@ class GuardedRuinsPiece : StructurePiece {
 		buildAltar(level, box, random)
 		placeBraziers(level, box)
 		cutStairwell(level, box, random)
+		setSentinel(level, box)
+	}
+
+	// -------------------------------------------------------------- sentinel
+
+	/**
+	 * Stands a dormant [StoneSentinel] on the altar, watching the stairwell.
+	 *
+	 * An entity rather than a block that swaps for one later: the statue and the
+	 * enemy are the same thing in two states, so there is no seam to hide.
+	 *
+	 * `postProcess` runs once per chunk the piece touches, so this would fire
+	 * several times and stack sentinels on top of each other. The box check is
+	 * what keeps it to one -- only the chunk actually containing the altar
+	 * passes.
+	 */
+	private fun setSentinel(level: WorldGenLevel, box: BoundingBox) {
+		val mid = SANCTUM_LAST / 2
+		val at = BlockPos(
+			getWorldX(MARGIN + mid, MARGIN + mid),
+			getWorldY(SURFACE + 4),
+			getWorldZ(MARGIN + mid, MARGIN + mid),
+		)
+		if (!box.isInside(at)) return
+
+		val sentinel = ModEntities.STONE_SENTINEL.create(level.level, EntitySpawnReason.STRUCTURE) ?: return
+
+		// Facing the stairwell it guards, which is the +X end of the sanctum.
+		// Yaw runs 0 = south, so east is -90.
+		sentinel.snapTo(at.x + 0.5, at.y.toDouble(), at.z + 0.5, FACING_STAIRWELL, 0.0f)
+		sentinel.setWard(
+			BlockPos(
+				getWorldX(MARGIN + STAIR_HEAD, MARGIN + mid),
+				getWorldY(SURFACE + 1),
+				getWorldZ(MARGIN + STAIR_HEAD, MARGIN + mid),
+			),
+		)
+		sentinel.sleep()
+		sentinel.setPersistenceRequired()
+		level.addFreshEntity(sentinel)
 	}
 
 	// --------------------------------------------------------------- cavern
@@ -453,6 +495,12 @@ class GuardedRuinsPiece : StructurePiece {
 
 		/** Sanctum X of the crypt's far shell wall -- the boundary the stair pierces. */
 		private const val CRYPT_OUTER = SANCTUM_LAST - CRYPT_INSET
+
+		/** Sanctum X of the stairwell mouth, which is what the sentinel watches. */
+		private const val STAIR_HEAD = SANCTUM_LAST - 1
+
+		/** Yaw for east, the direction the stairwell lies in. */
+		private const val FACING_STAIRWELL = -90.0f
 
 		private const val GAP_CHANCE = 0.40f
 		private const val SCULK_CHANCE = 0.18f

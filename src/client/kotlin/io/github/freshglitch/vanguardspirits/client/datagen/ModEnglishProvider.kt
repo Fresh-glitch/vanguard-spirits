@@ -3,6 +3,7 @@ package io.github.freshglitch.vanguardspirits.client.datagen
 import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
 import io.github.freshglitch.vanguardspirits.item.EchoOfKinshipItem
 import io.github.freshglitch.vanguardspirits.registry.ModBlocks
+import io.github.freshglitch.vanguardspirits.registry.ModEntities
 import io.github.freshglitch.vanguardspirits.registry.ModItemGroups
 import io.github.freshglitch.vanguardspirits.registry.ModItems
 import net.fabricmc.fabric.api.datagen.v1.FabricPackOutput
@@ -48,6 +49,8 @@ class ModEnglishProvider(
 		builder.add(GoldenChestBlockEntity.NAME_KEY, "Gilded Reliquary")
 		builder.add("subtitles.vanguard-spirits.golden_chest.open", "Reliquary creaks open")
 		builder.add("subtitles.vanguard-spirits.golden_chest.close", "Reliquary seals")
+
+		builder.add(ModEntities.STONE_SENTINEL, "Stone Sentinel")
 
 		builder.add("tooltip.vanguard-spirits.charm.attuned", "Attuned")
 		builder.add("tooltip.vanguard-spirits.charm.dormant", "Dormant — attunement %s in use")
