@@ -22,7 +22,6 @@ import net.minecraft.world.entity.ai.goal.FloatGoal
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal
-import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal
 import net.minecraft.world.entity.monster.Monster
@@ -62,6 +61,9 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	/** Counts out the fade back to stone. Zero unless it is settling. */
 	private var settleTick = 0
 
+	/** How long it has been trying to walk back to the altar. */
+	private var homingTicks = 0
+
 	/** Server-side cooldowns, in ticks. Not synced -- the client never asks. */
 	private var slamCooldown = 0
 	private var sweepCooldown = 0
@@ -79,7 +81,9 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	override fun registerGoals() {
 		goalSelector.addGoal(0, FloatGoal(this))
 		goalSelector.addGoal(1, MeleeAttackGoal(this, 1.0, true))
-		goalSelector.addGoal(6, WaterAvoidingRandomStrollGoal(this, 0.7))
+		// No strolling goal on purpose. A guardian that wanders has nowhere to go
+		// back to, and worse, it keeps the navigator permanently busy -- the walk
+		// home below would never get a path issued.
 		goalSelector.addGoal(7, LookAtPlayerGoal(this, Player::class.java, 16.0f))
 		goalSelector.addGoal(8, RandomLookAroundGoal(this))
 
@@ -156,7 +160,8 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 
 				when {
 					attackKind != NO_ATTACK -> advanceAttack(level)
-					!hasQuarry() -> goHome()
+					hasQuarry() -> homingTicks = 0
+					else -> goHome()
 				}
 			}
 		}
@@ -178,16 +183,35 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		val hy = home.y.toDouble()
 		val hz = home.z + 0.5
 
-		if (distanceToSqr(hx, hy, hz) > ARRIVED_SQ) {
-			if (navigation.isDone) navigation.moveTo(hx, hy, hz, RETURN_SPEED)
+		if (distanceToSqr(hx, hy, hz) <= ARRIVED_SQ) {
+			arrive(home, hx, hy, hz)
 			return
 		}
 
+		homingTicks++
+
+		// Re-issued on a timer rather than only when the navigator reports done.
+		// A path that stops short of the altar -- around a pillar, or at the lip
+		// of the stairwell -- would otherwise leave it standing there lit forever.
+		if (homingTicks % REPATH_EVERY == 1) navigation.moveTo(hx, hy, hz, RETURN_SPEED)
+
+		// Last resort. A sentinel stranded somewhere with its eyes still burning
+		// is worse than one that steps back onto its plinth unobserved.
+		if (homingTicks > HOMING_PATIENCE) arrive(home, hx, hy, hz)
+	}
+
+	/**
+	 * Back onto the plinth, facing what it was set to watch.
+	 *
+	 * Turns to stone immediately -- the rest pose *is* the statue pose, so there
+	 * is nothing to animate. Only the light in its eyes takes time to go out.
+	 */
+	private fun arrive(home: BlockPos, hx: Double, hy: Double, hz: Double) {
+		homingTicks = 0
 		navigation.stop()
+		target = null
 		snapTo(hx, hy, hz, homeYaw(home), 0.0f)
 
-		// Back to stone straight away -- the pose is the statue pose, and only
-		// the light in its eyes takes time to go out.
 		sleep()
 		unanswered = 0
 		settleTick = 1
@@ -281,6 +305,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 				say(ModSounds.SENTINEL_ROAR, 2.0f, 0.7f)
 				say(ModSounds.SENTINEL_BELLOW, 1.6f, 0.6f)
 				burst(level)
+				hurl(level)
 			}
 		}
 
@@ -302,6 +327,21 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		if (wakeTick > WAKE_TICKS) {
 			wakeTick = 0
 			isNoAi = false
+		}
+	}
+
+	/**
+	 * The shout throws anyone standing too close off their feet.
+	 *
+	 * Deliberately no damage. The point is to break up whatever the player was
+	 * doing at the stairwell and put distance between them, so the sentinel gets
+	 * to finish standing up and they get to see what they woke.
+	 */
+	private fun hurl(level: ServerLevel) {
+		for (player in level.players()) {
+			if (player.isSpectator || player.isCreative) continue
+			if (player.distanceToSqr(this) > ROAR_RANGE_SQ) continue
+			throwBack(player, ROAR_PUSH, ROAR_LIFT)
 		}
 	}
 
@@ -664,6 +704,13 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			output.putInt(TAG_WARD_Y, it.y)
 			output.putInt(TAG_WARD_Z, it.z)
 		}
+		// Saved for the same reason the ward is: chunks unload constantly, and a
+		// sentinel that forgets where it stood has nowhere to go back to.
+		homePos?.let {
+			output.putInt(TAG_HOME_X, it.x)
+			output.putInt(TAG_HOME_Y, it.y)
+			output.putInt(TAG_HOME_Z, it.z)
+		}
 	}
 
 	override fun readAdditionalSaveData(input: ValueInput) {
@@ -675,10 +722,15 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		// resuming: the cues would be out of step with the animation anyway.
 		wakeTick = 0
 
-		val x = input.getInt(TAG_WARD_X)
-		val y = input.getInt(TAG_WARD_Y)
-		val z = input.getInt(TAG_WARD_Z)
-		wardPos = if (x.isPresent && y.isPresent && z.isPresent) {
+		wardPos = readPos(input, TAG_WARD_X, TAG_WARD_Y, TAG_WARD_Z)
+		homePos = readPos(input, TAG_HOME_X, TAG_HOME_Y, TAG_HOME_Z)
+	}
+
+	private fun readPos(input: ValueInput, xKey: String, yKey: String, zKey: String): BlockPos? {
+		val x = input.getInt(xKey)
+		val y = input.getInt(yKey)
+		val z = input.getInt(zKey)
+		return if (x.isPresent && y.isPresent && z.isPresent) {
 			BlockPos(x.get(), y.get(), z.get())
 		} else {
 			null
@@ -701,6 +753,9 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		private const val TAG_WARD_X = "WardX"
 		private const val TAG_WARD_Y = "WardY"
 		private const val TAG_WARD_Z = "WardZ"
+		private const val TAG_HOME_X = "HomeX"
+		private const val TAG_HOME_Y = "HomeY"
+		private const val TAG_HOME_Z = "HomeZ"
 
 		const val NO_ATTACK: Byte = 0
 		const val SLAM: Byte = 1
@@ -739,6 +794,11 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		private const val SHAKE_MIN = 0.012
 		private const val SHAKE_MAX = 0.055
 		private const val SHAKE_RANGE_SQ = 24.0 * 24.0
+
+		/** The shout's reach and shove. Far enough to catch someone at the stairs. */
+		private const val ROAR_RANGE_SQ = 12.0 * 12.0
+		private const val ROAR_PUSH = 1.35
+		private const val ROAR_LIFT = 0.55
 
 		// ---- attacks ----
 
@@ -815,9 +875,21 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		/** Two seconds for the light to leave its eyes. */
 		private const val SETTLE_TICKS = 40
 
-		/** Eye brightness, 0..100. Amber ember at rest, white when it is up. */
-		const val GLOW_EMBER: Int = 22
+		/**
+		 * Eye brightness, 0..100.
+		 *
+		 * Dark at rest, so a statue is genuinely just a statue and the light is
+		 * something the player only ever sees on a sentinel that is up. The eyes
+		 * come on through the waking sequence and drain out again as it settles.
+		 */
+		const val GLOW_EMBER: Int = 0
 		const val GLOW_FULL: Int = 100
+
+		/** Ticks between re-issuing the path home. */
+		private const val REPATH_EVERY = 20
+
+		/** After this long failing to walk home, it simply steps back onto the plinth. */
+		private const val HOMING_PATIENCE = 200
 
 		/**
 		 * A wall that followed you.
