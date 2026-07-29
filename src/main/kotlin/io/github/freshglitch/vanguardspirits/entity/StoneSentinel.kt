@@ -16,6 +16,9 @@ import net.minecraft.util.Mth
 import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.Mob
+import net.minecraft.world.entity.ai.navigation.GroundPathNavigation
+import net.minecraft.world.entity.ai.navigation.PathNavigation
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.goal.FloatGoal
@@ -29,7 +32,12 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.PathNavigationRegion
 import net.minecraft.world.level.gamerules.GameRules
+import net.minecraft.world.level.pathfinder.PathFinder
+import net.minecraft.world.level.pathfinder.WalkNodeEvaluator
+import net.minecraft.world.phys.AABB
+import kotlin.math.abs
 import net.minecraft.world.level.storage.ValueInput
 import net.minecraft.world.level.storage.ValueOutput
 
@@ -64,6 +72,9 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	/** How long it has been trying to walk back to the altar. */
 	private var homingTicks = 0
 
+	/** Tick of the last blow it actually landed, for telling stuck from merely high. */
+	private var lastLanded = 0
+
 	/** Server-side cooldowns, in ticks. Not synced -- the client never asks. */
 	private var slamCooldown = 0
 	private var sweepCooldown = 0
@@ -89,6 +100,26 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 
 		targetSelector.addGoal(1, HurtByTargetGoal(this))
 		targetSelector.addGoal(2, NearestAttackableTargetGoal(this, Player::class.java, true))
+	}
+
+	/**
+	 * Pathfinding that knows how tall it actually is.
+	 *
+	 * [NodeEvaluator.prepare] sets `entityHeight` with `Mth.floor`, so a 2.6
+	 * block sentinel is planned for as though it were 2 -- it walks confidently
+	 * into two-block gaps and ends up standing inside the blocks. Rounding up
+	 * instead makes it path only through openings it genuinely fits.
+	 */
+	override fun createNavigation(level: Level): PathNavigation = object : GroundPathNavigation(this, level) {
+		override fun createPathFinder(maxVisitedNodes: Int): PathFinder {
+			nodeEvaluator = object : WalkNodeEvaluator() {
+				override fun prepare(region: PathNavigationRegion, mob: Mob) {
+					super.prepare(region, mob)
+					entityHeight = Mth.ceil(mob.bbHeight)
+				}
+			}
+			return PathFinder(nodeEvaluator, maxVisitedNodes)
+		}
 	}
 
 	override fun defineSynchedData(builder: SynchedEntityData.Builder) {
@@ -210,11 +241,22 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		homingTicks = 0
 		navigation.stop()
 		target = null
-		snapTo(hx, hy, hz, homeYaw(home), 0.0f)
+
+		// Only step onto the plinth if there is room for it. Someone who walled
+		// the altar in gets a sentinel that turns to stone where it stands,
+		// rather than one embedded halfway through their blocks.
+		if (fits(hx, hy, hz)) snapTo(hx, hy, hz, homeYaw(home), 0.0f)
 
 		sleep()
 		unanswered = 0
 		settleTick = 1
+	}
+
+	/** Whether the sentinel's whole bulk clears the blocks at a position. */
+	private fun fits(px: Double, py: Double, pz: Double): Boolean {
+		val half = bbWidth / 2.0
+		val box = AABB(px - half, py, pz - half, px + half, py + bbHeight, pz + half)
+		return level().noCollision(this, box)
 	}
 
 	/** Faces whatever it was set to watch, so it ends up as it was found. */
@@ -489,7 +531,13 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		if (!level.gameRules.get(GameRules.MOB_GRIEFING)) return
 
 		val feet = victim.blockPosition()
-		for (dy in -2..-1) {
+
+		// Above the sentinel, the floor under them goes. Below it, the ceiling
+		// over them does -- otherwise the haul just presses them into the crypt
+		// roof and the whole attack accomplishes nothing.
+		val band = if (victim.y > y) -2..-1 else 2..3
+
+		for (dy in band) {
 			for (dx in -1..1) {
 				for (dz in -1..1) {
 					val at = feet.offset(dx, dy, dz)
@@ -564,7 +612,10 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	override fun doHurtTarget(level: ServerLevel, victim: net.minecraft.world.entity.Entity): Boolean {
 		if (victim is LivingEntity && considerSpecial(victim)) return false
 		if (victim is LivingEntity) breakGuard(victim, MELEE_GUARD_LOCK)
-		return super.doHurtTarget(level, victim)
+
+		val landed = super.doHurtTarget(level, victim)
+		if (landed) lastLanded = tickCount
+		return landed
 	}
 
 	// ------------------------------------------------------------ presentation
@@ -678,7 +729,16 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	 * that someone happens to be on a slope.
 	 */
 	private fun resent(attacker: Player) {
-		if (attacker.y - y < OUT_OF_REACH) {
+		// Either direction. Being too tall to follow a player down the crypt
+		// stair is the same problem as being too short to climb their pillar --
+		// what matters is the gap, not which way it runs.
+		val gap = abs(attacker.y - y)
+
+		// And it has to genuinely be stuck. A height difference alone is not
+		// enough: the sanctum has steps, and a sentinel that can still land its
+		// own hits is not being cheesed.
+		val stranded = gap >= OUT_OF_REACH && tickCount - lastLanded > RETALIATION_WINDOW
+		if (!stranded) {
 			unanswered = 0
 			return
 		}
@@ -837,8 +897,11 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 
 		private const val RECKONING_COOLDOWN = 90
 
-		/** Height gap that puts a player past anything the sentinel can swing at. */
+		/** Height gap, either way, that puts a player past anything it can swing at. */
 		private const val OUT_OF_REACH = 2.0
+
+		/** How long without landing a blow before it counts itself stuck. */
+		private const val RETALIATION_WINDOW = 60
 
 		/** Free hits from up there before it stops tolerating the arrangement. */
 		private const val FREE_HITS_ALLOWED = 2
