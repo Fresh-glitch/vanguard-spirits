@@ -25,6 +25,7 @@ object ModSounds {
 	 */
 	/** Heard well before the bird is seen, which is rather the point. */
 	val MOURNER_CALL: SoundEvent = register("entity.mourner.call")
+	val MOURNER_HURT: SoundEvent = register("entity.mourner.hurt")
 
 	val REMNANT_RASP: SoundEvent = register("entity.remnant.rasp")
 	val REMNANT_NOTICE: SoundEvent = register("entity.remnant.notice")

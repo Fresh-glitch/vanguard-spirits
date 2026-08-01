@@ -26,6 +26,12 @@
       "vanguard-spirits:entity/mourner/call2"
     ]
   },
+  "entity.mourner.hurt": {
+    "subtitle": "subtitles.vanguard-spirits.mourner.hurt",
+    "sounds": [
+      "vanguard-spirits:entity/mourner/hurt"
+    ]
+  },
   "entity.remnant.rasp": {
     "subtitle": "subtitles.vanguard-spirits.remnant.rasp",
     "sounds": [

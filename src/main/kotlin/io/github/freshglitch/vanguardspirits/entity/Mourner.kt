@@ -136,12 +136,13 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 	 */
 	override fun hurtServer(level: ServerLevel, source: DamageSource, amount: Float): Boolean {
 		val hurt = super.hurtServer(level, source, amount)
-		if (hurt && isAlive) {
-			alarm = ALARM_TICKS
-			playSound(ModSounds.MOURNER_CALL, 1.0f, 1.15f)
-		}
+		if (hurt && isAlive) alarm = ALARM_TICKS
 		return hurt
 	}
+
+	override fun getHurtSound(source: DamageSource): SoundEvent = ModSounds.MOURNER_HURT
+
+	override fun getDeathSound(): SoundEvent = ModSounds.MOURNER_HURT
 
 	/**
 	 * Killing one ends the vigil over that ruin for good.

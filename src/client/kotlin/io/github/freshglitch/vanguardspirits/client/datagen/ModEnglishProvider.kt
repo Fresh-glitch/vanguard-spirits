@@ -51,6 +51,7 @@ class ModEnglishProvider(
 		builder.add("subtitles.vanguard-spirits.golden_chest.close", "Reliquary seals")
 
 		builder.add("subtitles.vanguard-spirits.mourner.call", "Mourner calls")
+		builder.add("subtitles.vanguard-spirits.mourner.hurt", "Mourner cries out")
 		builder.add("subtitles.vanguard-spirits.remnant.rasp", "Something breathes")
 		builder.add("subtitles.vanguard-spirits.remnant.notice", "Remnant cries out")
 		builder.add("subtitles.vanguard-spirits.remnant.hurt", "Remnant breaks")
