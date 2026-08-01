@@ -10,7 +10,6 @@ import net.minecraft.client.model.geom.builders.CubeListBuilder
 import net.minecraft.client.model.geom.builders.LayerDefinition
 import net.minecraft.client.model.geom.builders.MeshDefinition
 import net.minecraft.util.Mth
-import net.minecraft.client.renderer.entity.state.LivingEntityRenderState
 
 /**
  * The Mourner's geometry.
@@ -18,7 +17,7 @@ import net.minecraft.client.renderer.entity.state.LivingEntityRenderState
  * **A transcription of Blockbench's Java export.** The source is
  * `blockbench/mourner.bbmodel`; edit there and re-export.
  */
-class MournerModel(root: ModelPart) : EntityModel<LivingEntityRenderState>(root) {
+class MournerModel(root: ModelPart) : EntityModel<MournerRenderState>(root) {
 
 	private val body: ModelPart = root.getChild("body")
 	private val head: ModelPart = root.getChild("head")
@@ -27,8 +26,22 @@ class MournerModel(root: ModelPart) : EntityModel<LivingEntityRenderState>(root)
 	private val legRight: ModelPart = root.getChild("leg_right")
 	private val legLeft: ModelPart = root.getChild("leg_left")
 
-	override fun setupAnim(state: LivingEntityRenderState) {
+	override fun setupAnim(state: MournerRenderState) {
 		super.setupAnim(state)
+
+		if (state.perched) {
+			// Folded, level, and standing on its feet. Only a faint shuffle, so
+			// it is still clearly alive without looking like it is about to go.
+			val settle = Mth.sin((state.ageInTicks * SETTLE_RATE).toDouble()) * SETTLE
+			wingRight.zRot = FOLD + settle
+			wingLeft.zRot = -FOLD - settle
+			body.xRot = 0.0f
+			head.xRot = state.xRot * Mth.DEG_TO_RAD * HEAD_STEADY
+			head.yRot = 0.0f
+			legRight.xRot = 0.0f
+			legLeft.xRot = 0.0f
+			return
+		}
 
 		// Mostly gliding. A slow deep beat with a long hold at the top reads as
 		// a big bird riding a thermal; an even flap reads as a pigeon.
@@ -42,6 +55,7 @@ class MournerModel(root: ModelPart) : EntityModel<LivingEntityRenderState>(root)
 		// than just its wings.
 		body.xRot = Mth.sin((state.ageInTicks * BEAT_RATE - LAG).toDouble()) * PITCH
 		head.xRot = -body.xRot * HEAD_STEADY
+		head.yRot = 0.0f
 
 		// Legs tucked back in flight.
 		legRight.xRot = TUCK
@@ -58,6 +72,11 @@ class MournerModel(root: ModelPart) : EntityModel<LivingEntityRenderState>(root)
 		private const val PITCH = 0.08f
 		private const val HEAD_STEADY = 0.8f
 		private const val TUCK = 0.8f
+
+		/** Wings held in against the body while sitting, with a faint shuffle. */
+		private const val FOLD = 1.45f
+		private const val SETTLE_RATE = 0.05f
+		private const val SETTLE = 0.05f
 
 		fun createLayer(): LayerDefinition {
 			val mesh = MeshDefinition()

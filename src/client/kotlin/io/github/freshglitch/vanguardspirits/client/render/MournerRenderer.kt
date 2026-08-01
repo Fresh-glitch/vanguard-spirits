@@ -4,19 +4,23 @@ import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import io.github.freshglitch.vanguardspirits.entity.Mourner
 import net.minecraft.client.renderer.entity.EntityRendererProvider
 import net.minecraft.client.renderer.entity.MobRenderer
-import net.minecraft.client.renderer.entity.state.LivingEntityRenderState
 import net.minecraft.resources.Identifier
 
 class MournerRenderer(context: EntityRendererProvider.Context) :
-	MobRenderer<Mourner, LivingEntityRenderState, MournerModel>(
+	MobRenderer<Mourner, MournerRenderState, MournerModel>(
 		context,
 		MournerModel(context.bakeLayer(MournerModel.LAYER)),
 		SHADOW,
 	) {
 
-	override fun createRenderState(): LivingEntityRenderState = LivingEntityRenderState()
+	override fun createRenderState(): MournerRenderState = MournerRenderState()
 
-	override fun getTextureLocation(state: LivingEntityRenderState): Identifier = TEXTURE
+	override fun extractRenderState(entity: Mourner, state: MournerRenderState, partialTick: Float) {
+		super.extractRenderState(entity, state, partialTick)
+		state.perched = entity.isPerched
+	}
+
+	override fun getTextureLocation(state: MournerRenderState): Identifier = TEXTURE
 
 	companion object {
 		private val TEXTURE = VanguardSpirits.id("textures/entity/mourner.png")
