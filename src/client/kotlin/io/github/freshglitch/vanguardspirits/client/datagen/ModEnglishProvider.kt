@@ -50,6 +50,7 @@ class ModEnglishProvider(
 		builder.add("subtitles.vanguard-spirits.golden_chest.open", "Reliquary creaks open")
 		builder.add("subtitles.vanguard-spirits.golden_chest.close", "Reliquary seals")
 
+		builder.add("subtitles.vanguard-spirits.mourner.call", "Mourner calls")
 		builder.add("subtitles.vanguard-spirits.remnant.rasp", "Something breathes")
 		builder.add("subtitles.vanguard-spirits.remnant.notice", "Remnant cries out")
 		builder.add("subtitles.vanguard-spirits.remnant.hurt", "Remnant breaks")
@@ -69,6 +70,7 @@ class ModEnglishProvider(
 
 		builder.add(ModEntities.STONE_SENTINEL, "Stone Sentinel")
 		builder.add(ModEntities.REMNANT, "Remnant")
+		builder.add(ModEntities.MOURNER, "Mourner")
 
 		builder.add("tooltip.vanguard-spirits.charm.attuned", "Attuned")
 		builder.add("tooltip.vanguard-spirits.charm.dormant", "Dormant — attunement %s in use")

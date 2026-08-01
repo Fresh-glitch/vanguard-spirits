@@ -23,6 +23,9 @@ object ModSounds {
 	 * `.ogg` files are synthesised from a source-filter voice model, which is
 	 * what makes them read as something that used to speak.
 	 */
+	/** Heard well before the bird is seen, which is rather the point. */
+	val MOURNER_CALL: SoundEvent = register("entity.mourner.call")
+
 	val REMNANT_RASP: SoundEvent = register("entity.remnant.rasp")
 	val REMNANT_NOTICE: SoundEvent = register("entity.remnant.notice")
 	val REMNANT_HURT: SoundEvent = register("entity.remnant.hurt")

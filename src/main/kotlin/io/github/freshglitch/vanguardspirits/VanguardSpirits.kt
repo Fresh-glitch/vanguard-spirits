@@ -12,6 +12,7 @@ import io.github.freshglitch.vanguardspirits.registry.ModParticles
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
 import io.github.freshglitch.vanguardspirits.worldgen.RuinAmbience
+import io.github.freshglitch.vanguardspirits.worldgen.RuinBeacon
 import net.fabricmc.api.ModInitializer
 import net.minecraft.resources.Identifier
 import org.slf4j.LoggerFactory
@@ -35,6 +36,7 @@ object VanguardSpirits : ModInitializer {
 		Attunement.register()
 		CharmTicker.register()
 		RuinAmbience.register()
+		RuinBeacon.register()
 
 		LOGGER.info("Vanguard Spirits awakened with {} items.", ModItems.ALL.size)
 	}

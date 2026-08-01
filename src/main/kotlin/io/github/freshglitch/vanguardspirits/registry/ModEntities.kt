@@ -1,6 +1,7 @@
 package io.github.freshglitch.vanguardspirits.registry
 
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
+import io.github.freshglitch.vanguardspirits.entity.Mourner
 import io.github.freshglitch.vanguardspirits.entity.Remnant
 import io.github.freshglitch.vanguardspirits.entity.StoneSentinel
 // `object` is a Kotlin keyword, so this package path only imports with backticks.
@@ -46,6 +47,21 @@ object ModEntities {
 			.build(key)
 	}
 
+	/**
+	 * The sign that a ruin is below.
+	 *
+	 * Ambient rather than a monster, so it never counts against the hostile mob
+	 * cap and never stops anyone sleeping. Tracked from far away on purpose --
+	 * a landmark that only renders once you are on top of it is useless.
+	 */
+	val MOURNER: EntityType<Mourner> = register("mourner") { key ->
+		EntityType.Builder.of(::Mourner, MobCategory.AMBIENT)
+			.sized(1.2f, 0.7f)
+			.eyeHeight(0.5f)
+			.clientTrackingRange(16)
+			.build(key)
+	}
+
 	private fun <T : Entity> register(
 		path: String,
 		factory: (ResourceKey<EntityType<*>>) -> EntityType<T>,
@@ -58,5 +74,6 @@ object ModEntities {
 	fun register() {
 		FabricDefaultAttributeRegistry.register(STONE_SENTINEL, StoneSentinel.createAttributes())
 		FabricDefaultAttributeRegistry.register(REMNANT, Remnant.createAttributes())
+		FabricDefaultAttributeRegistry.register(MOURNER, Mourner.createAttributes())
 	}
 }
