@@ -24,6 +24,19 @@ import net.minecraft.util.Mth
  *
  * Bones are flat under the root rather than nested, matching vanilla's humanoid
  * layout, so limb swing works the same way it does for every other biped.
+ *
+ * **Arm `zRot` sign convention.** Away from the body is **positive on the right
+ * arm and negative on the left**, and it is not guessable from reading the code
+ * -- getting it backwards folds both arms through the torso, where they simply
+ * disappear. The reason: [ModelPart.translateAndRotate] composes with
+ * `Quaternionf.rotationZYX`, and the right arm's bone sits at model `x = -9`
+ * with its cubes hanging down `+y`, so a positive `zRot` carries the hand
+ * further into `-x`, which is its own side. Confirmed against the model file --
+ * a Blockbench rotation of `z = +90` on `arm_right` exports as `zRot = 1.5708`.
+ *
+ * So `-` on the right arm means *across the chest*. That is deliberate in the
+ * slam, where the fists gather together overhead, and wrong everywhere the
+ * intent is to open out.
  */
 class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState>(root) {
 
@@ -45,11 +58,47 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 		when {
 			state.dormant -> return
 			state.wakeTick > 0 -> waking(state)
+			state.gyreTick > 0 -> spinning(state)
 			else -> {
 				hunting(state)
 				if (state.attackKind != StoneSentinel.NO_ATTACK) attacking(state)
 			}
 		}
+	}
+
+	/**
+	 * The gyre: arms out level, then the whole thing turning.
+	 *
+	 * The turn is the root part's own yaw, so every bone goes round together
+	 * about the body's centre line -- rotating the bones individually would swing
+	 * each one about its own shoulder instead and come apart immediately.
+	 *
+	 * Driven by `ageInTicks` rather than the gyre counter, because the counter
+	 * only advances twenty times a second and a spin this fast would strobe. The
+	 * counter decides how *much* of the spin is in effect; the smooth clock
+	 * decides where in it the model currently is.
+	 */
+	private fun spinning(state: StoneSentinelRenderState) {
+		val t = state.gyreTick.toFloat()
+		val out = ease((t / StoneSentinel.GYRE_FLARE).coerceIn(0.0f, 1.0f))
+
+		// Both arms straight out from the shoulders. Legs stay under it and keep
+		// walking, since it is closing ground the whole time it spins.
+		val swing = state.walkAnimationPos * STRIDE_RATE
+		legRight.xRot = Mth.cos(swing.toDouble()) * LEG_SWING * state.walkAnimationSpeed
+		legLeft.xRot = Mth.cos((swing + Mth.PI).toDouble()) * LEG_SWING * state.walkAnimationSpeed
+
+		armRight.zRot = T_POSE * out
+		armLeft.zRot = -T_POSE * out
+		armRight.xRot = 0.0f
+		armLeft.xRot = 0.0f
+		head.xRot = -T_LOOK * out
+		body.xRot = 0.0f
+
+		// Winds up over the flare and holds. Both terms rise, so the angle only
+		// ever goes one way round -- an accelerating spin, never a stutter.
+		val ramp = ((t - StoneSentinel.GYRE_FLARE) / SPIN_RAMP).coerceIn(0.0f, 1.0f)
+		root().yRot = state.ageInTicks * SPIN_RATE * ramp
 	}
 
 	/** The statue pose, and the base every other pose is written over. */
@@ -93,8 +142,8 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 
 			body.xRot = Mth.lerp(p, 0.0f, HUNCH) + grind
 			head.xRot = Mth.lerp(p, 0.0f, HEAD_HANG) - grind
-			armRight.zRot = Mth.lerp(p, 0.0f, -SHOULDER_ROLL) + grind
-			armLeft.zRot = Mth.lerp(p, 0.0f, SHOULDER_ROLL) - grind
+			armRight.zRot = Mth.lerp(p, 0.0f, SHOULDER_ROLL) + grind
+			armLeft.zRot = Mth.lerp(p, 0.0f, -SHOULDER_ROLL) - grind
 			armRight.xRot = Mth.lerp(p, 0.0f, -ARM_FLEX)
 			armLeft.xRot = Mth.lerp(p, 0.0f, -ARM_FLEX)
 			legRight.xRot = Mth.lerp(p, 0.0f, KNEE)
@@ -108,8 +157,8 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 
 		body.xRot = Mth.lerp(p, HUNCH, 0.0f) - flare * ROAR_ARCH
 		head.xRot = Mth.lerp(p, HEAD_HANG, 0.0f) - flare * ROAR_LOOK
-		armRight.zRot = Mth.lerp(p, -SHOULDER_ROLL, 0.0f) - flare * ROAR_SPREAD
-		armLeft.zRot = Mth.lerp(p, SHOULDER_ROLL, 0.0f) + flare * ROAR_SPREAD
+		armRight.zRot = Mth.lerp(p, SHOULDER_ROLL, 0.0f) + flare * ROAR_SPREAD
+		armLeft.zRot = Mth.lerp(p, -SHOULDER_ROLL, 0.0f) - flare * ROAR_SPREAD
 		armRight.xRot = Mth.lerp(p, -ARM_FLEX, 0.0f)
 		armLeft.xRot = Mth.lerp(p, -ARM_FLEX, 0.0f)
 		legRight.xRot = Mth.lerp(p, KNEE, 0.0f)
@@ -150,7 +199,8 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 		if (state.attackKind == StoneSentinel.SLAM) {
 			val windup = StoneSentinel.SLAM_WINDUP.toFloat()
 			if (t < windup) {
-				// Both fists hauled overhead. Slow, so it is unmistakable.
+				// Both fists hauled overhead and brought together. The inward sign
+				// on the gather is intentional here -- see the class note.
 				val p = ease(t / windup)
 				armRight.xRot = Mth.lerp(p, 0.0f, -SLAM_RAISE)
 				armLeft.xRot = Mth.lerp(p, 0.0f, -SLAM_RAISE)
@@ -179,8 +229,8 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 				// Nothing like the slam's overhead gather, so the two read apart
 				// at a glance.
 				val p = ease(t / windup)
-				armRight.zRot = Mth.lerp(p, 0.0f, -REACH_SPREAD)
-				armLeft.zRot = Mth.lerp(p, 0.0f, REACH_SPREAD)
+				armRight.zRot = Mth.lerp(p, 0.0f, REACH_SPREAD)
+				armLeft.zRot = Mth.lerp(p, 0.0f, -REACH_SPREAD)
 				armRight.xRot = Mth.lerp(p, 0.0f, -REACH_LIFT)
 				armLeft.xRot = Mth.lerp(p, 0.0f, -REACH_LIFT)
 				head.xRot = Mth.lerp(p, 0.0f, -REACH_LOOK)
@@ -189,8 +239,8 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 				// The wrench: arms clamp in and down, and it hunches over the
 				// pull as though hauling on a chain.
 				val p = ((t - windup) / RECKON_STRIKE).coerceIn(0.0f, 1.0f)
-				armRight.zRot = Mth.lerp(p, -REACH_SPREAD, RECKON_CLAMP)
-				armLeft.zRot = Mth.lerp(p, REACH_SPREAD, -RECKON_CLAMP)
+				armRight.zRot = Mth.lerp(p, REACH_SPREAD, -RECKON_CLAMP)
+				armLeft.zRot = Mth.lerp(p, -REACH_SPREAD, RECKON_CLAMP)
 				armRight.xRot = Mth.lerp(p, -REACH_LIFT, RECKON_HAUL)
 				armLeft.xRot = Mth.lerp(p, -REACH_LIFT, RECKON_HAUL)
 				head.xRot = Mth.lerp(p, -REACH_LOOK, RECKON_STOOP)
@@ -209,7 +259,7 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 				val p = ease(t / windup)
 				val tremor = Mth.cos((t * BRACE_RATE).toDouble()) * BRACE_SHAKE * p
 				armRight.xRot = Mth.lerp(p, 0.0f, BRACE_DRAW) + tremor
-				armRight.zRot = Mth.lerp(p, 0.0f, -BRACE_FLARE)
+				armRight.zRot = Mth.lerp(p, 0.0f, BRACE_FLARE)
 				armLeft.xRot = Mth.lerp(p, 0.0f, -BRACE_COUNTER)
 				body.yRot = Mth.lerp(p, 0.0f, BRACE_COIL)
 				head.yRot = Mth.lerp(p, 0.0f, -BRACE_COIL)
@@ -220,7 +270,7 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 				// than any amount of follow-through.
 				val p = ((t - windup) / SUNDER_STRIKE).coerceIn(0.0f, 1.0f)
 				armRight.xRot = Mth.lerp(p, BRACE_DRAW, -THRUST)
-				armRight.zRot = Mth.lerp(p, -BRACE_FLARE, 0.0f)
+				armRight.zRot = Mth.lerp(p, BRACE_FLARE, 0.0f)
 				armLeft.xRot = Mth.lerp(p, -BRACE_COUNTER, THRUST * 0.25f)
 				body.yRot = Mth.lerp(p, BRACE_COIL, -BRACE_COIL * 0.6f)
 				head.yRot = Mth.lerp(p, -BRACE_COIL, 0.0f)
@@ -307,6 +357,20 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 		private const val RECKON_CLAMP = 0.30f
 		private const val RECKON_HAUL = 0.70f
 		private const val RECKON_STOOP = 0.35f
+
+		// ---- gyre ----
+
+		/** Arms level with the shoulders. A quarter turn is exactly horizontal. */
+		private const val T_POSE = Mth.HALF_PI
+
+		/** Chin up. It is not looking at anything in particular any more. */
+		private const val T_LOOK = 0.25f
+
+		/** Radians per tick at full speed: a whole turn every eight ticks. */
+		private const val SPIN_RATE = 0.785f
+
+		/** Ticks after the flare before it is turning at full speed. */
+		private const val SPIN_RAMP = 20.0f
 
 		/** Sunder: winding the arm back, then putting it through the wall. */
 		private const val SUNDER_STRIKE = 2.5f

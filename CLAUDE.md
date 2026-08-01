@@ -192,6 +192,21 @@ transcription of Blockbench's Java export, never hand-authored.
   parts go at *positive* Blockbench X. Y is likewise flipped and offset:
   Blockbench y (0 at the feet) exports as pivot `24 - y`. Blockbench previews
   the result, so what is on screen is what renders.
+- **Rotations export as `xRot = -bb.x`, `yRot = -bb.y`, `zRot = +bb.z`.** Two of
+  the three are negated and the third is not, so no single mental rule covers
+  them. Verified by setting a bone to `[30, 20, 10]` and reading what
+  `Codecs.modded_entity.compile()` emitted: `-0.5236F, -0.3491F, 0.1745F`. To
+  preview a Java pose in Blockbench, set the bone to `[-deg(xRot), -deg(yRot),
+  +deg(zRot)]` — cheaper than a game session, and it catches poses that fold
+  through the body.
+- **Which way a limb opens is not guessable — derive it.** `ModelPart` composes
+  with `Quaternionf.rotationZYX`, so for an arm whose bone sits at model x = -9
+  with cubes hanging down +y, *positive* `zRot` carries the hand further into
+  -x, which is its own side. Away from the body is therefore **positive on the
+  right arm, negative on the left**. Getting it backwards folds both arms
+  through the torso and they vanish — which reads as the model breaking, not as
+  a wrong sign. Four animations in this mod shipped inverted for exactly this
+  reason, all of them commented "out" or "wide" while rotating in.
 - **`create_texture` with width/height does not resize the bitmap.** The texture
   stays 16x16 while `Project.texture_width` is whatever was asked for, so UVs
   spanning 128 fall off a 16px canvas and almost every face renders transparent

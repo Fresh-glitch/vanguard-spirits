@@ -1,5 +1,6 @@
 package io.github.freshglitch.vanguardspirits.entity
 
+import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import io.github.freshglitch.vanguardspirits.registry.ModParticles
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import net.minecraft.core.BlockPos
@@ -8,6 +9,7 @@ import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers
 import net.minecraft.network.syncher.SynchedEntityData
+import net.minecraft.resources.Identifier
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.sounds.SoundEvents
@@ -19,6 +21,7 @@ import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation
 import net.minecraft.world.entity.ai.navigation.PathNavigation
+import net.minecraft.world.entity.ai.attributes.AttributeModifier
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier
 import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.entity.ai.goal.FloatGoal
@@ -29,6 +32,7 @@ import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal
 import net.minecraft.world.entity.monster.Monster
 import net.minecraft.world.entity.player.Player
+import net.minecraft.world.entity.projectile.Projectile
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.state.BlockState
@@ -111,6 +115,29 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	private var pinZ = 0.0
 	private var pinnedTicks = 0
 
+	/**
+	 * How far around the sentinel its attacker has travelled while hitting it.
+	 *
+	 * Kiting is a shape, not a position: the player is never anywhere the
+	 * sentinel cannot reach, they are simply never there when it arrives. What
+	 * gives it away is the bearing sweeping round, so that is what is measured.
+	 */
+	private var lastBearing = Float.NaN
+	private var swept = 0.0f
+	private var lastCircled = 0
+
+	private var gyreCooldown = 0
+
+	/**
+	 * Projectiles caught this tick, to be thrown back on the next one.
+	 *
+	 * Not reflected where they are caught. A projectile that fails to damage its
+	 * target is bounced by vanilla immediately afterwards, which would undo any
+	 * velocity set from inside the damage hook -- so the throw waits a tick and
+	 * has the last word.
+	 */
+	private val caught = mutableListOf<Projectile>()
+
 	override fun registerGoals() {
 		goalSelector.addGoal(0, FloatGoal(this))
 		goalSelector.addGoal(1, MeleeAttackGoal(this, 1.0, true))
@@ -151,6 +178,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		builder.define(DATA_ATTACK_KIND, NO_ATTACK)
 		builder.define(DATA_ATTACK_TICK, 0)
 		builder.define(DATA_GLOW, GLOW_EMBER)
+		builder.define(DATA_GYRE, 0)
 	}
 
 	// ------------------------------------------------------------------ state
@@ -178,6 +206,11 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	var glow: Int
 		get() = entityData.get(DATA_GLOW)
 		private set(value) = entityData.set(DATA_GLOW, value)
+
+	/** 0 when it is not spinning, otherwise 1..[GYRE_TICKS]. */
+	var gyreTick: Int
+		get() = entityData.get(DATA_GYRE)
+		private set(value) = entityData.set(DATA_GYRE, value)
 
 	fun setWard(pos: BlockPos) {
 		wardPos = pos
@@ -211,8 +244,10 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 				if (sweepCooldown > 0) sweepCooldown--
 				if (reckoningCooldown > 0) reckoningCooldown--
 				if (sunderCooldown > 0) sunderCooldown--
+				if (gyreCooldown > 0) gyreCooldown--
 
 				checkPinned()
+				if (gyreTick > 0) advanceGyre(level)
 
 				when {
 					attackKind != NO_ATTACK -> advanceAttack(level)
@@ -295,9 +330,11 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		// rather than one embedded halfway through their blocks.
 		if (fits(hx, hy, hz)) snapTo(hx, hy, hz, homeYaw(home), 0.0f)
 
+		endGyre()
 		sleep()
 		unanswered = 0
 		pinnedTicks = 0
+		swept = 0.0f
 		settleTick = 1
 	}
 
@@ -446,6 +483,11 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	 */
 	private fun considerSpecial(victim: LivingEntity): Boolean {
 		if (attackKind != NO_ATTACK) return true
+
+		// Nothing special while it is spinning. Catching up to the player is the
+		// whole point of the gyre, so what it does on arrival is an ordinary
+		// swing -- and the spin stays unbroken, which is what sells it.
+		if (gyreTick > 0) return false
 
 		val reach = distanceToSqr(victim)
 		if (slamCooldown <= 0 && reach <= SLAM_TRIGGER_SQ) {
@@ -597,6 +639,115 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			haul(victim)
 			lastLanded = tickCount
 		}
+	}
+
+	// ------------------------------------------------------------------- gyre
+
+	/**
+	 * The answer to being run rings around.
+	 *
+	 * Not a strike, so it is not an [attackKind] -- it is a state the sentinel
+	 * spends several seconds in, and everything else it can do carries on
+	 * underneath. Both arms go out level and it turns on the spot, faster and
+	 * faster, closing at nearly twice its usual pace with a face of moving stone
+	 * that arrows come off.
+	 *
+	 * Kiting works because the sentinel is slow and answers only what it can
+	 * touch. This takes away both halves of that at once.
+	 */
+	private fun beginGyre() {
+		gyreTick = 1
+		swept = 0.0f
+		lastBearing = Float.NaN
+
+		say(ModSounds.SENTINEL_WIND, 1.8f, 0.6f)
+		say(ModSounds.SENTINEL_STIR, 1.2f, 0.8f)
+
+		getAttribute(Attributes.MOVEMENT_SPEED)?.addTransientModifier(
+			AttributeModifier(GYRE_HASTE, GYRE_SPEED_BONUS, AttributeModifier.Operation.ADD_MULTIPLIED_BASE),
+		)
+	}
+
+	private fun advanceGyre(level: ServerLevel) {
+		throwBackCaught(level)
+
+		// Nothing left to chase. Spinning on the way back to the altar would look
+		// like a sentinel that had forgotten why it started.
+		if (!hasQuarry()) {
+			endGyre()
+			return
+		}
+
+		val t = gyreTick
+
+		// The whirl is re-announced rather than looped, because a looping sound
+		// would keep playing for a second after the spin stops.
+		if (t >= GYRE_FLARE && (t - GYRE_FLARE) % WHIRL_EVERY == 0) {
+			say(ModSounds.SENTINEL_WIND, 1.4f, 0.75f + random.nextFloat() * 0.1f)
+			level.sendParticles(
+				BlockParticleOption(ParticleTypes.BLOCK, Blocks.DEEPSLATE_TILES.defaultBlockState()),
+				x, y + bbHeight * 0.5, z,
+				14,
+				bbWidth.toDouble(), bbHeight * 0.35, bbWidth.toDouble(),
+				0.05,
+			)
+		}
+
+		gyreTick = t + 1
+		if (gyreTick > GYRE_TICKS) endGyre()
+	}
+
+	/** Stops the spin and puts it back to its usual pace. */
+	private fun endGyre() {
+		if (gyreTick == 0) return
+		gyreTick = 0
+		gyreCooldown = GYRE_COOLDOWN
+		caught.clear()
+		getAttribute(Attributes.MOVEMENT_SPEED)?.removeModifier(GYRE_HASTE)
+	}
+
+	/**
+	 * Sends last tick's caught projectiles back where they came from.
+	 *
+	 * Aimed at whoever loosed it rather than simply reversed, so a shot that
+	 * would have missed on the way back still finds them -- the point of the
+	 * spin is that shooting it is worse than not shooting it.
+	 */
+	private fun throwBackCaught(level: ServerLevel) {
+		if (caught.isEmpty()) return
+
+		for (bolt in caught) {
+			if (!bolt.isAlive) continue
+
+			val shooter = bolt.owner
+			val speed = bolt.deltaMovement.length().coerceAtLeast(REFLECT_MIN_SPEED)
+
+			val aim = if (shooter != null) {
+				shooter.position().add(0.0, shooter.bbHeight * 0.5, 0.0).subtract(bolt.position()).normalize()
+			} else {
+				bolt.deltaMovement.normalize().scale(-1.0)
+			}
+
+			// Out of its own bulk first. The projectile is sitting inside the
+			// sentinel at this point and would otherwise strike it on the way out,
+			// now that the sentinel is no longer its owner.
+			bolt.snapTo(
+				bolt.x + aim.x * REFLECT_CLEARANCE,
+				bolt.y + aim.y * REFLECT_CLEARANCE,
+				bolt.z + aim.z * REFLECT_CLEARANCE,
+				bolt.yRot,
+				bolt.xRot,
+			)
+			bolt.deltaMovement = aim.scale(speed * REFLECT_GAIN)
+			// Forces the new velocity out to clients this tick, so the arrow is
+			// seen turning round rather than teleporting a moment later.
+			bolt.hurtMarked = true
+			bolt.setOwner(this)
+
+			level.playSound(null, bolt.x, bolt.y, bolt.z, SoundEvents.BREEZE_DEFLECT, SoundSource.HOSTILE, 1.2f, 0.7f)
+		}
+
+		caught.clear()
 	}
 
 	/**
@@ -920,7 +1071,23 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		}
 		if (isWaking) return false
 
-		val hurt = super.hurtServer(level, source, amount)
+		if (gyreTick > 0) {
+			// Anything thrown at a spinning sentinel is caught rather than
+			// absorbed, and comes back on the next tick. Queued instead of
+			// answered here because vanilla bounces a projectile that fails to
+			// damage its target, and that bounce happens after this returns.
+			val bolt = source.directEntity as? Projectile
+			if (bolt != null) {
+				if (bolt !in caught) caught.add(bolt)
+				return false
+			}
+		}
+
+		// Half of everything else while it is spinning. A face of moving stone is
+		// a worse thing to swing at than a standing one.
+		val taken = if (gyreTick > 0) amount * GYRE_ABSORB else amount
+
+		val hurt = super.hurtServer(level, source, taken)
 		if (hurt) (source.entity as? Player)?.let { resent(it) }
 		return hurt
 	}
@@ -936,15 +1103,21 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	 * level and close, so what the sentinel needs is not a pull but a way out.
 	 * That is the [SUNDER].
 	 *
-	 * Both require that it has genuinely had no chance: a height difference on
-	 * its own means nothing, the sanctum has steps, and a sentinel still landing
-	 * its own blows is not being cheesed by anybody.
+	 * Kiting is the third: the player is in reach and it is not stuck, they are
+	 * simply never standing still long enough to be hit. The [GYRE] is the reply.
+	 *
+	 * All three require that it has genuinely had no chance: a height difference
+	 * on its own means nothing, the sanctum has steps, and a sentinel still
+	 * landing its own blows is not being cheesed by anybody.
 	 */
 	private fun resent(attacker: Player) {
 		if (tickCount - lastLanded <= RETALIATION_WINDOW) {
 			unanswered = 0
+			swept = 0.0f
 			return
 		}
+
+		traceBearing(attacker)
 
 		// Either direction on the gap. Being too tall to follow a player down the
 		// crypt stair is the same problem as being too short to climb their
@@ -953,8 +1126,9 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		val reach = attacker.distanceToSqr(this)
 
 		val answer = when {
-			gap >= OUT_OF_REACH -> RECKONING
-			pinnedTicks >= PINNED_TICKS -> SUNDER
+			gap >= OUT_OF_REACH -> Answer.RECKONING
+			pinnedTicks >= PINNED_TICKS -> Answer.SUNDER
+			swept >= CIRCLE_SWEEP -> Answer.GYRE
 			else -> {
 				unanswered = 0
 				return
@@ -967,13 +1141,43 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		if (attackKind != NO_ATTACK) return
 
 		when (answer) {
-			RECKONING -> if (reckoningCooldown > 0 || reach > RECKONING_RANGE_SQ) return
-			else -> if (sunderCooldown > 0 || reach > SUNDER_TRIGGER_SQ) return
+			Answer.RECKONING -> if (reckoningCooldown > 0 || reach > RECKONING_RANGE_SQ) return
+			Answer.SUNDER -> if (sunderCooldown > 0 || reach > SUNDER_TRIGGER_SQ) return
+			Answer.GYRE -> if (gyreCooldown > 0 || gyreTick > 0) return
 		}
 
 		unanswered = 0
-		begin(answer)
+		when (answer) {
+			Answer.RECKONING -> begin(RECKONING)
+			Answer.SUNDER -> begin(SUNDER)
+			Answer.GYRE -> beginGyre()
+		}
 	}
+
+	/**
+	 * Adds up how far round the attacker has moved between the hits it lands.
+	 *
+	 * Accumulated across hits rather than measured between two of them, because
+	 * one step sideways is not kiting -- what the sentinel is looking for is a
+	 * player who has been all the way round it without ever being caught. The
+	 * total lapses if the hits stop coming, so a long fight in one spot never
+	 * adds up to a circle.
+	 */
+	private fun traceBearing(attacker: Player) {
+		val bearing = (Mth.atan2(attacker.z - z, attacker.x - x) * Mth.RAD_TO_DEG).toFloat()
+
+		if (lastBearing.isNaN() || tickCount - lastCircled > CIRCLE_WINDOW) {
+			swept = 0.0f
+		} else {
+			swept += abs(Mth.wrapDegrees(bearing - lastBearing))
+		}
+
+		lastBearing = bearing
+		lastCircled = tickCount
+	}
+
+	/** Which kind of unfairness the sentinel decided it was looking at. */
+	private enum class Answer { RECKONING, SUNDER, GYRE }
 
 	/** Placed deliberately; it should still be there when the player comes back. */
 	override fun removeWhenFarAway(distance: Double): Boolean = false
@@ -1029,6 +1233,8 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		private val DATA_ATTACK_TICK: EntityDataAccessor<Int> =
 			SynchedEntityData.defineId(StoneSentinel::class.java, EntityDataSerializers.INT)
 		private val DATA_GLOW: EntityDataAccessor<Int> =
+			SynchedEntityData.defineId(StoneSentinel::class.java, EntityDataSerializers.INT)
+		private val DATA_GYRE: EntityDataAccessor<Int> =
 			SynchedEntityData.defineId(StoneSentinel::class.java, EntityDataSerializers.INT)
 
 		private const val TAG_DORMANT = "Dormant"
@@ -1177,6 +1383,41 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		/** Blocks of wall it goes through, and how tall the hole is left. */
 		private const val SUNDER_DEPTH = 2
 		private const val SUNDER_HEIGHT = 3
+
+		// ---- gyre: the answer to being kited ----
+
+		/** Degrees the attacker has to travel around it before it stops playing along. */
+		private const val CIRCLE_SWEEP = 200.0f
+
+		/** Hits further apart than this stop counting toward the same circle. */
+		private const val CIRCLE_WINDOW = 100
+
+		/** Six seconds of it, which is long enough to cross a sanctum twice. */
+		const val GYRE_TICKS: Int = 120
+
+		/** Arms coming out level before the turn starts. The tell. */
+		const val GYRE_FLARE: Int = 12
+
+		private const val GYRE_COOLDOWN = 240
+
+		/** Nearly double pace. A walking player cannot open ground on this. */
+		private const val GYRE_SPEED_BONUS = 0.95
+
+		/** What is left of a blow that lands on moving stone. */
+		private const val GYRE_ABSORB = 0.5f
+
+		private const val WHIRL_EVERY = 14
+
+		/** Slowest a thrown-back projectile travels, however gently it arrived. */
+		private const val REFLECT_MIN_SPEED = 0.8
+
+		/** Sent back harder than it came in. */
+		private const val REFLECT_GAIN = 1.15
+
+		/** Far enough out of its own bulk not to strike the sentinel on the way. */
+		private const val REFLECT_CLEARANCE = 1.2
+
+		private val GYRE_HASTE: Identifier = VanguardSpirits.id("gyre_haste")
 
 		// ---- shields ----
 
