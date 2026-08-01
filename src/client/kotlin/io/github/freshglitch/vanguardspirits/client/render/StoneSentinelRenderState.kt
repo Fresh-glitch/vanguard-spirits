@@ -27,4 +27,8 @@ class StoneSentinelRenderState : LivingEntityRenderState() {
 	/** 0..1. Dim amber ember at rest, white at full. */
 	@JvmField
 	var eyeGlow: Float = 0.0f
+
+	/** 0 when not spinning, otherwise 1..GYRE_TICKS. */
+	@JvmField
+	var gyreTick: Int = 0
 }

@@ -186,6 +186,17 @@
       }
     ]
   },
+  "entity.stone_sentinel.wind": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.wind",
+    "sounds": [
+      {
+        "name": "minecraft:entity.breeze.whirl",
+        "type": "event",
+        "volume": 1.4,
+        "pitch": 0.55
+      }
+    ]
+  },
   "entity.stone_sentinel.hurt": {
     "subtitle": "subtitles.vanguard-spirits.stone_sentinel.hurt",
     "sounds": [

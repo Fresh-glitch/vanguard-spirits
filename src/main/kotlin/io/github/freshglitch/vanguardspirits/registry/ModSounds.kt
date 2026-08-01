@@ -50,6 +50,9 @@ object ModSounds {
 	val SENTINEL_BRACE: SoundEvent = register("entity.stone_sentinel.brace")
 	val SENTINEL_SUNDER: SoundEvent = register("entity.stone_sentinel.sunder")
 
+	/** The answer to being kited: a spin you can hear coming across a room. */
+	val SENTINEL_WIND: SoundEvent = register("entity.stone_sentinel.wind")
+
 	val SENTINEL_HURT: SoundEvent = register("entity.stone_sentinel.hurt")
 	val SENTINEL_DEATH: SoundEvent = register("entity.stone_sentinel.death")
 
