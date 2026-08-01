@@ -66,6 +66,8 @@ class ModEnglishProvider(
 		builder.add("subtitles.vanguard-spirits.stone_sentinel.sweep", "Stone Sentinel sweeps")
 		builder.add("subtitles.vanguard-spirits.stone_sentinel.reach", "Stone Sentinel reaches out")
 		builder.add("subtitles.vanguard-spirits.stone_sentinel.reckoning", "Stone Sentinel hauls you down")
+		builder.add("subtitles.vanguard-spirits.stone_sentinel.brace", "Stone Sentinel draws back")
+		builder.add("subtitles.vanguard-spirits.stone_sentinel.sunder", "Stone Sentinel breaks through")
 		builder.add("subtitles.vanguard-spirits.stone_sentinel.hurt", "Stone Sentinel cracks")
 		builder.add("subtitles.vanguard-spirits.stone_sentinel.death", "Stone Sentinel crumbles")
 

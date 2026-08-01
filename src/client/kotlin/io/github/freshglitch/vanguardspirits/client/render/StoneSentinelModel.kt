@@ -55,7 +55,7 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 	/** The statue pose, and the base every other pose is written over. */
 	private fun rest() {
 		head.xRot = 0.0f; head.yRot = 0.0f; head.zRot = 0.0f
-		body.xRot = 0.0f
+		body.xRot = 0.0f; body.yRot = 0.0f
 		armRight.xRot = 0.0f; armRight.yRot = 0.0f; armRight.zRot = 0.0f
 		armLeft.xRot = 0.0f; armLeft.yRot = 0.0f; armLeft.zRot = 0.0f
 		legRight.xRot = 0.0f
@@ -199,6 +199,36 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 			return
 		}
 
+		if (state.attackKind == StoneSentinel.SUNDER) {
+			val windup = StoneSentinel.SUNDER_WINDUP.toFloat()
+			if (t < windup) {
+				// The right arm hauled back behind the shoulder while the body
+				// coils after it, shaking harder the further it is wound. A long
+				// draw against a very short release is what makes the punch snap
+				// rather than swing.
+				val p = ease(t / windup)
+				val tremor = Mth.cos((t * BRACE_RATE).toDouble()) * BRACE_SHAKE * p
+				armRight.xRot = Mth.lerp(p, 0.0f, BRACE_DRAW) + tremor
+				armRight.zRot = Mth.lerp(p, 0.0f, -BRACE_FLARE)
+				armLeft.xRot = Mth.lerp(p, 0.0f, -BRACE_COUNTER)
+				body.yRot = Mth.lerp(p, 0.0f, BRACE_COIL)
+				head.yRot = Mth.lerp(p, 0.0f, -BRACE_COIL)
+				body.xRot = Mth.lerp(p, 0.0f, BRACE_CROUCH)
+			} else {
+				// Straight out, and it stays out through the recovery -- the arm
+				// left buried in the hole it just made says what happened better
+				// than any amount of follow-through.
+				val p = ((t - windup) / SUNDER_STRIKE).coerceIn(0.0f, 1.0f)
+				armRight.xRot = Mth.lerp(p, BRACE_DRAW, -THRUST)
+				armRight.zRot = Mth.lerp(p, -BRACE_FLARE, 0.0f)
+				armLeft.xRot = Mth.lerp(p, -BRACE_COUNTER, THRUST * 0.25f)
+				body.yRot = Mth.lerp(p, BRACE_COIL, -BRACE_COIL * 0.6f)
+				head.yRot = Mth.lerp(p, -BRACE_COIL, 0.0f)
+				body.xRot = Mth.lerp(p, BRACE_CROUCH, -THRUST_LEAN)
+			}
+			return
+		}
+
 		// Sweep: one arm cocked across the chest, then thrown outward.
 		val windup = StoneSentinel.SWEEP_WINDUP.toFloat()
 		if (t < windup) {
@@ -277,6 +307,18 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 		private const val RECKON_CLAMP = 0.30f
 		private const val RECKON_HAUL = 0.70f
 		private const val RECKON_STOOP = 0.35f
+
+		/** Sunder: winding the arm back, then putting it through the wall. */
+		private const val SUNDER_STRIKE = 2.5f
+		private const val BRACE_DRAW = 1.25f
+		private const val BRACE_FLARE = 0.28f
+		private const val BRACE_COUNTER = 0.45f
+		private const val BRACE_COIL = 0.35f
+		private const val BRACE_CROUCH = 0.18f
+		private const val BRACE_RATE = 0.9f
+		private const val BRACE_SHAKE = 0.05f
+		private const val THRUST = 1.55f
+		private const val THRUST_LEAN = 0.20f
 
 		private const val SWEEP_STRIKE = 3.0f
 		private const val SWEEP_COCK = 1.5f
