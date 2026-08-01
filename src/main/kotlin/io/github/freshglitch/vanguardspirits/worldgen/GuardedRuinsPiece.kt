@@ -1,8 +1,10 @@
 package io.github.freshglitch.vanguardspirits.worldgen
 
 import io.github.freshglitch.vanguardspirits.block.GoldenChestBlock
+import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
 import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModEntities
+import io.github.freshglitch.vanguardspirits.registry.ModLootTables
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
@@ -362,11 +364,7 @@ class GuardedRuinsPiece : StructurePiece {
 		}
 
 		// Reliquary against the far wall, turned to face whoever comes in.
-		put(
-			level, box,
-			ModBlocks.GOLDEN_CHEST.defaultBlockState().setValue(GoldenChestBlock.FACING, Direction.WEST),
-			outer - 2, floorY + 1, mid,
-		)
+		stockReliquary(level, box, random, outer - 2, floorY + 1, mid)
 
 		put(level, box, Blocks.SOUL_LANTERN.defaultBlockState(), inner + 1, roof - 1, mid - 2)
 		put(level, box, Blocks.SOUL_LANTERN.defaultBlockState(), inner + 1, roof - 1, mid + 2)
@@ -402,6 +400,42 @@ class GuardedRuinsPiece : StructurePiece {
 	 * of the floor announces itself from the doorway, and the point is to be
 	 * halfway across the room before anything happens.
 	 */
+	/**
+	 * Places the Reliquary and tells it what it is holding.
+	 *
+	 * The table is assigned rather than the contents written: the chest rolls it
+	 * the first time somebody opens it, so what is inside is decided when it is
+	 * found rather than when the world was made. A seed is set from the piece
+	 * random so the same ruin gives the same haul however often it is reloaded.
+	 */
+	private fun stockReliquary(
+		level: WorldGenLevel,
+		box: BoundingBox,
+		random: RandomSource,
+		x: Int,
+		y: Int,
+		z: Int,
+	) {
+		put(
+			level, box,
+			ModBlocks.GOLDEN_CHEST.defaultBlockState().setValue(GoldenChestBlock.FACING, Direction.WEST),
+			x, y, z,
+		)
+
+		val at = BlockPos(
+			getWorldX(MARGIN + x, MARGIN + z),
+			getWorldY(y),
+			getWorldZ(MARGIN + x, MARGIN + z),
+		)
+		if (!box.isInside(at)) return
+
+		val chest = level.getBlockEntity(at)
+		if (chest is GoldenChestBlockEntity) {
+			chest.setLootTable(ModLootTables.GILDED_RELIQUARY)
+			chest.setLootTableSeed(random.nextLong())
+		}
+	}
+
 	private fun sinkSpawner(level: WorldGenLevel, box: BoundingBox, x: Int, y: Int, z: Int) {
 		put(level, box, Blocks.SPAWNER.defaultBlockState(), x, y, z)
 
