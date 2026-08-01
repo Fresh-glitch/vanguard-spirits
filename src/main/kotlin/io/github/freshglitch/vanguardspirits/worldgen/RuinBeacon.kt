@@ -72,6 +72,9 @@ object RuinBeacon {
 		val surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, ruinCentre.x, ruinCentre.z)
 		val anchor = BlockPos(ruinCentre.x, surface + FLIGHT_HEIGHT, ruinCentre.z)
 
+		// Once someone has shot them down over this ruin, they stay down.
+		if (RuinVigil.isBroken(level, anchor)) return
+
 		val watch = AABB(
 			anchor.x - WATCH_RADIUS, anchor.y - WATCH_RADIUS, anchor.z - WATCH_RADIUS,
 			anchor.x + WATCH_RADIUS, anchor.y + WATCH_RADIUS, anchor.z + WATCH_RADIUS,
