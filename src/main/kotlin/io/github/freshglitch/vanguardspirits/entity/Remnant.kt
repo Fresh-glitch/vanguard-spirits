@@ -5,8 +5,8 @@ import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers
 import net.minecraft.network.syncher.SynchedEntityData
 import net.minecraft.server.level.ServerLevel
+import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import net.minecraft.sounds.SoundEvent
-import net.minecraft.sounds.SoundEvents
 import net.minecraft.util.Mth
 import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.EntityType
@@ -79,23 +79,38 @@ class Remnant(type: EntityType<out Remnant>, level: Level) : Monster(type, level
 		super.tick()
 		if (level() !is ServerLevel) return
 
+		val hunting = target?.isAlive == true
+
+		// The cry lands on the frame the light arrives, because the two are the
+		// same event: it has seen you, and now you know.
+		if (hunting && glow == 0) {
+			level().playSound(
+				null,
+				x, y, z,
+				ModSounds.REMNANT_NOTICE,
+				soundSource,
+				1.0f,
+				0.92f + random.nextFloat() * 0.16f,
+			)
+		}
+
 		// Eases rather than snaps. A Remnant that spots you across a room should
 		// look like something kindling, not like a light switch.
-		val want = if (target?.isAlive == true) GLOW_FULL else 0
+		val want = if (hunting) GLOW_FULL else 0
 		val step = if (want > glow) GLOW_RISE else GLOW_FADE
 		val next = Mth.clamp(glow + Mth.clamp(want - glow, -step, step), 0, GLOW_FULL)
 		if (next != glow) glow = next
 	}
 
-	override fun getAmbientSound(): SoundEvent = SoundEvents.ZOMBIE_AMBIENT
+	override fun getAmbientSound(): SoundEvent = ModSounds.REMNANT_RASP
 
-	override fun getHurtSound(source: DamageSource): SoundEvent = SoundEvents.ZOMBIE_HURT
+	override fun getHurtSound(source: DamageSource): SoundEvent = ModSounds.REMNANT_HURT
 
-	override fun getDeathSound(): SoundEvent = SoundEvents.ZOMBIE_DEATH
+	override fun getDeathSound(): SoundEvent = ModSounds.REMNANT_DEATH
 
 	/** Quick, soft and far too many of them. */
 	override fun playStepSound(pos: BlockPos, state: BlockState) {
-		playSound(SoundEvents.SOUL_SAND_STEP, 0.4f, 0.8f + random.nextFloat() * 0.3f)
+		playSound(ModSounds.REMNANT_STEP, 0.5f, 0.9f + random.nextFloat() * 0.25f)
 	}
 
 	companion object {

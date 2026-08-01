@@ -50,6 +50,12 @@ class ModEnglishProvider(
 		builder.add("subtitles.vanguard-spirits.golden_chest.open", "Reliquary creaks open")
 		builder.add("subtitles.vanguard-spirits.golden_chest.close", "Reliquary seals")
 
+		builder.add("subtitles.vanguard-spirits.remnant.rasp", "Something breathes")
+		builder.add("subtitles.vanguard-spirits.remnant.notice", "Remnant cries out")
+		builder.add("subtitles.vanguard-spirits.remnant.hurt", "Remnant breaks")
+		builder.add("subtitles.vanguard-spirits.remnant.death", "Remnant comes apart")
+		builder.add("subtitles.vanguard-spirits.remnant.step", "Remnant scurries")
+
 		builder.add("subtitles.vanguard-spirits.stone_sentinel.stir", "Stone grinds")
 		builder.add("subtitles.vanguard-spirits.stone_sentinel.rumble", "The ground shudders")
 		builder.add("subtitles.vanguard-spirits.stone_sentinel.roar", "Stone Sentinel wakes")
