@@ -94,15 +94,22 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	private var slamCooldown = 0
 	private var sweepCooldown = 0
 	private var reckoningCooldown = 0
+	private var sunderCooldown = 0
 
 	/**
 	 * Hits taken from somewhere the sentinel cannot answer.
 	 *
 	 * Two blocks of pillar puts a player above everything it can swing at, and
 	 * from up there the fight becomes free. This counts those hits; [RECKONING]
-	 * is what it does about them.
+	 * and [SUNDER] are what it does about them.
 	 */
 	private var unanswered = 0
+
+	/** Where it stood at the last pin sample, and how long it has gone nowhere. */
+	private var pinX = 0.0
+	private var pinY = 0.0
+	private var pinZ = 0.0
+	private var pinnedTicks = 0
 
 	override fun registerGoals() {
 		goalSelector.addGoal(0, FloatGoal(this))
@@ -203,6 +210,9 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 				if (slamCooldown > 0) slamCooldown--
 				if (sweepCooldown > 0) sweepCooldown--
 				if (reckoningCooldown > 0) reckoningCooldown--
+				if (sunderCooldown > 0) sunderCooldown--
+
+				checkPinned()
 
 				when {
 					attackKind != NO_ATTACK -> advanceAttack(level)
@@ -216,6 +226,29 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	}
 
 	private fun hasQuarry(): Boolean = target?.isAlive == true
+
+	/**
+	 * Notices when it has stopped going anywhere.
+	 *
+	 * Walling a sentinel in works on exactly the same principle as standing on a
+	 * pillar: it cannot reach, so the fight costs nothing. Height is not the tell
+	 * in that case though -- the player can be stood level with it, one block of
+	 * cobble away -- so what gets measured is displacement instead.
+	 *
+	 * Sampled over half a second rather than per tick, because a sentinel pressed
+	 * against a wall still jitters and would otherwise never look still.
+	 */
+	private fun checkPinned() {
+		if (tickCount % PIN_SAMPLE != 0) return
+
+		val drift = distanceToSqr(pinX, pinY, pinZ)
+		pinX = x
+		pinY = y
+		pinZ = z
+
+		// Rooted on purpose through a wind-up, which is not the same as being held.
+		pinnedTicks = if (attackKind == NO_ATTACK && drift < PIN_DRIFT_SQ) pinnedTicks + PIN_SAMPLE else 0
+	}
 
 	/**
 	 * Walks back to the altar once there is nothing left to fight.
@@ -264,6 +297,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 
 		sleep()
 		unanswered = 0
+		pinnedTicks = 0
 		settleTick = 1
 	}
 
@@ -432,8 +466,27 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		when (kind) {
 			SLAM -> say(ModSounds.SENTINEL_STIR, 1.0f, 0.7f)
 			SWEEP -> say(ModSounds.SENTINEL_SWEEP, 1.0f, 0.7f)
+			SUNDER -> {
+				// Square up first. The punch goes wherever the model is pointing,
+				// so the turn has to happen before the arm starts coming back or
+				// the wall it breaks will not be the one in the way.
+				target?.let(::squareUp)
+				say(ModSounds.SENTINEL_BRACE, 1.5f, 0.6f)
+			}
 			else -> say(ModSounds.SENTINEL_REACH, 1.6f, 0.6f)
 		}
+	}
+
+	/** Turns the whole body, not just the head, to face a victim. */
+	private fun squareUp(victim: LivingEntity) {
+		val dx = victim.x - x
+		val dz = victim.z - z
+		if (dx * dx + dz * dz < 1.0E-4) return
+
+		val yaw = (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG).toFloat() - 90.0f
+		yRot = yaw
+		yBodyRot = yaw
+		yHeadRot = yaw
 	}
 
 	private fun advanceAttack(level: ServerLevel) {
@@ -451,6 +504,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			when (kind) {
 				SLAM -> slam(level)
 				SWEEP -> sweep(level)
+				SUNDER -> sunder(level)
 				else -> reckon(level)
 			}
 		}
@@ -462,6 +516,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			when (kind) {
 				SLAM -> slamCooldown = SLAM_COOLDOWN
 				SWEEP -> sweepCooldown = SWEEP_COOLDOWN
+				SUNDER -> sunderCooldown = SUNDER_COOLDOWN
 				else -> reckoningCooldown = RECKONING_COOLDOWN
 			}
 		}
@@ -478,6 +533,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			breakGuard(victim, SLAM_GUARD_LOCK)
 			victim.hurtServer(level, damageSources().mobAttack(this), SLAM_DAMAGE)
 			throwBack(victim, SLAM_PUSH, SLAM_LIFT)
+			lastLanded = tickCount
 		}
 	}
 
@@ -504,6 +560,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			breakGuard(victim, SWEEP_GUARD_LOCK)
 			victim.hurtServer(level, damageSources().mobAttack(this), SWEEP_DAMAGE)
 			throwBack(victim, SWEEP_PUSH, SWEEP_LIFT)
+			lastLanded = tickCount
 		}
 	}
 
@@ -538,6 +595,89 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			breakGuard(victim, RECKONING_GUARD_LOCK)
 			victim.hurtServer(level, damageSources().mobAttack(this), RECKONING_DAMAGE)
 			haul(victim)
+			lastLanded = tickCount
+		}
+	}
+
+	/**
+	 * The answer to being walled in.
+	 *
+	 * Where the reckoning drags a distant player down, this one goes through
+	 * whatever is between them. The arm comes back behind the shoulder, then
+	 * straightens: a three by three breach punched out of the wall in front, and
+	 * anything caught in the swing takes the worst single blow it has.
+	 *
+	 * Which makes it a way out as much as an attack. A sentinel that cannot walk
+	 * is not a sentinel any more, so the point of the strike is that the hole is
+	 * still there afterwards.
+	 */
+	private fun sunder(level: ServerLevel) {
+		say(ModSounds.SENTINEL_SUNDER, 2.0f, 0.6f)
+		say(ModSounds.SENTINEL_SLAM, 1.4f, 0.5f)
+		shake(level, SHAKE_MAX)
+
+		val facing = yRot * Mth.DEG_TO_RAD
+		val fx = -Mth.sin(facing.toDouble()).toDouble()
+		val fz = Mth.cos(facing.toDouble()).toDouble()
+
+		breach(level, fx, fz)
+
+		level.sendParticles(
+			BlockParticleOption(ParticleTypes.BLOCK, Blocks.DEEPSLATE_BRICKS.defaultBlockState()),
+			x + fx * 2.0, y + bbHeight * 0.55, z + fz * 2.0,
+			70,
+			0.9, 0.9, 0.9,
+			0.35,
+		)
+
+		for (victim in around(SUNDER_RADIUS)) {
+			val dx = victim.x - x
+			val dz = victim.z - z
+			val len = Mth.sqrt((dx * dx + dz * dz).toFloat()).toDouble()
+			if (len > 0.001 && (dx / len * fx + dz / len * fz) < SUNDER_ARC) continue
+
+			breakGuard(victim, SUNDER_GUARD_LOCK)
+			victim.hurtServer(level, damageSources().mobAttack(this), SUNDER_DAMAGE)
+			throwBack(victim, SUNDER_PUSH, SUNDER_LIFT)
+			lastLanded = tickCount
+		}
+
+		// Whatever was holding it is gone, so stop counting it as held and let it
+		// try to walk again on the next tick.
+		pinnedTicks = 0
+	}
+
+	/**
+	 * Punches a doorway out of the wall it is facing.
+	 *
+	 * Three wide and three tall, starting at the sentinel's own feet, which is
+	 * exactly the opening it needs to fit through. The course of blocks it is
+	 * standing on is never touched -- taking that would drop it into a pit and
+	 * leave it just as stuck as before.
+	 */
+	private fun breach(level: ServerLevel, fx: Double, fz: Double) {
+		if (!level.gameRules.get(GameRules.MOB_GRIEFING)) return
+
+		// Perpendicular to the facing, so the three-wide span runs across the wall
+		// rather than into it.
+		val sx = -fz
+		val sz = fx
+
+		val floor = blockPosition().y
+		val cursor = BlockPos.MutableBlockPos()
+
+		for (depth in 1..SUNDER_DEPTH) {
+			for (side in -1..1) {
+				val bx = x + fx * depth + sx * side
+				val bz = z + fz * depth + sz * side
+				for (dy in 0 until SUNDER_HEIGHT) {
+					cursor.set(Mth.floor(bx), floor + dy, Mth.floor(bz))
+					val state = level.getBlockState(cursor)
+					if (state.isAir) continue
+					if (state.getDestroySpeed(level, cursor) < 0.0f) continue
+					level.destroyBlock(cursor, true, this, DESTROY_RECURSION)
+				}
+			}
 		}
 	}
 
@@ -786,37 +926,53 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	}
 
 	/**
-	 * Counts hits landed from out of reach, and eventually answers them.
+	 * Counts hits it had no way to answer, and eventually answers them anyway.
 	 *
-	 * "Out of reach" is a height gap, not a distance: the sentinel stands 2.6
-	 * blocks and swings level, so anyone whose feet clear [OUT_OF_REACH] above
-	 * its own can hit it freely from a pillar it has no way to climb. Two such
-	 * hits is enough to establish that it is being done on purpose rather than
-	 * that someone happens to be on a slope.
+	 * Two arrangements make a fight free, and they need different replies.
+	 * Height is one: the sentinel stands 2.6 blocks and swings level, so anyone
+	 * whose feet clear [OUT_OF_REACH] above its own can hit it from a pillar it
+	 * cannot climb, and the [RECKONING] pulls them off it. Being held in place is
+	 * the other -- walled in, or wedged -- and there the player may be standing
+	 * level and close, so what the sentinel needs is not a pull but a way out.
+	 * That is the [SUNDER].
+	 *
+	 * Both require that it has genuinely had no chance: a height difference on
+	 * its own means nothing, the sanctum has steps, and a sentinel still landing
+	 * its own blows is not being cheesed by anybody.
 	 */
 	private fun resent(attacker: Player) {
-		// Either direction. Being too tall to follow a player down the crypt
-		// stair is the same problem as being too short to climb their pillar --
-		// what matters is the gap, not which way it runs.
-		val gap = abs(attacker.y - y)
-
-		// And it has to genuinely be stuck. A height difference alone is not
-		// enough: the sanctum has steps, and a sentinel that can still land its
-		// own hits is not being cheesed.
-		val stranded = gap >= OUT_OF_REACH && tickCount - lastLanded > RETALIATION_WINDOW
-		if (!stranded) {
+		if (tickCount - lastLanded <= RETALIATION_WINDOW) {
 			unanswered = 0
 			return
+		}
+
+		// Either direction on the gap. Being too tall to follow a player down the
+		// crypt stair is the same problem as being too short to climb their
+		// pillar -- what matters is the gap, not which way it runs.
+		val gap = abs(attacker.y - y)
+		val reach = attacker.distanceToSqr(this)
+
+		val answer = when {
+			gap >= OUT_OF_REACH -> RECKONING
+			pinnedTicks >= PINNED_TICKS -> SUNDER
+			else -> {
+				unanswered = 0
+				return
+			}
 		}
 
 		target = attacker
 		unanswered++
 		if (unanswered < FREE_HITS_ALLOWED) return
-		if (attackKind != NO_ATTACK || reckoningCooldown > 0) return
-		if (attacker.distanceToSqr(this) > RECKONING_RANGE_SQ) return
+		if (attackKind != NO_ATTACK) return
+
+		when (answer) {
+			RECKONING -> if (reckoningCooldown > 0 || reach > RECKONING_RANGE_SQ) return
+			else -> if (sunderCooldown > 0 || reach > SUNDER_TRIGGER_SQ) return
+		}
 
 		unanswered = 0
-		begin(RECKONING)
+		begin(answer)
 	}
 
 	/** Placed deliberately; it should still be there when the player comes back. */
@@ -887,11 +1043,13 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		const val SLAM: Byte = 1
 		const val SWEEP: Byte = 2
 		const val RECKONING: Byte = 3
+		const val SUNDER: Byte = 4
 
 		/** Ticks each attack spends winding up before it lands. */
 		fun windupOf(kind: Byte): Int = when (kind) {
 			SLAM -> SLAM_WINDUP
 			SWEEP -> SWEEP_WINDUP
+			SUNDER -> SUNDER_WINDUP
 			else -> RECKONING_WINDUP
 		}
 
@@ -984,6 +1142,42 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		/** Longest corridor it will smash to reach someone underneath it. */
 		private const val CARVE_REACH = 16.0
 
+		// ---- sunder: the answer to being held in place ----
+
+		/**
+		 * Long. The whole read is the arm travelling backwards and hanging there,
+		 * so a player watching through the hole they left themselves has a full
+		 * second to understand what is about to come through it.
+		 */
+		const val SUNDER_WINDUP: Int = 24
+
+		private const val SUNDER_COOLDOWN = 100
+
+		/** Half a second of sampled drift under this counts as going nowhere. */
+		private const val PIN_SAMPLE = 10
+		private const val PIN_DRIFT_SQ = 1.0
+
+		/** Two seconds pinned before it stops treating the wall as scenery. */
+		private const val PINNED_TICKS = 40
+
+		/** Close enough that a punch through the wall is a plausible answer. */
+		private const val SUNDER_TRIGGER_SQ = 7.0 * 7.0
+
+		/** Its worst single blow. Nothing else it does hits one target this hard. */
+		private const val SUNDER_DAMAGE = 18.0f
+
+		private const val SUNDER_RADIUS = 4.5
+
+		/** Dot-product threshold for the punch's cone -- a narrow 70 degrees. */
+		private const val SUNDER_ARC = 0.35
+
+		private const val SUNDER_PUSH = 2.1
+		private const val SUNDER_LIFT = 0.5
+
+		/** Blocks of wall it goes through, and how tall the hole is left. */
+		private const val SUNDER_DEPTH = 2
+		private const val SUNDER_HEIGHT = 3
+
 		// ---- shields ----
 
 		/**
@@ -995,6 +1189,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		private const val MELEE_GUARD_LOCK = 40
 		private const val SWEEP_GUARD_LOCK = 60
 		private const val SLAM_GUARD_LOCK = 100
+		private const val SUNDER_GUARD_LOCK = 120
 		private const val RECKONING_GUARD_LOCK = 140
 
 		// ---- going back to sleep ----

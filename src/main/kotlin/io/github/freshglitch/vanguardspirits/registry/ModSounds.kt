@@ -46,6 +46,10 @@ object ModSounds {
 	val SENTINEL_REACH: SoundEvent = register("entity.stone_sentinel.reach")
 	val SENTINEL_RECKONING: SoundEvent = register("entity.stone_sentinel.reckoning")
 
+	/** The answer to being walled in: the arm drawing back, then the wall going. */
+	val SENTINEL_BRACE: SoundEvent = register("entity.stone_sentinel.brace")
+	val SENTINEL_SUNDER: SoundEvent = register("entity.stone_sentinel.sunder")
+
 	val SENTINEL_HURT: SoundEvent = register("entity.stone_sentinel.hurt")
 	val SENTINEL_DEATH: SoundEvent = register("entity.stone_sentinel.death")
 
