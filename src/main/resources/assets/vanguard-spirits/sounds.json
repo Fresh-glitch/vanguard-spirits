@@ -19,6 +19,43 @@
       }
     ]
   },
+  "entity.remnant.rasp": {
+    "subtitle": "subtitles.vanguard-spirits.remnant.rasp",
+    "sounds": [
+      "vanguard-spirits:entity/remnant/rasp1",
+      "vanguard-spirits:entity/remnant/rasp2",
+      "vanguard-spirits:entity/remnant/rasp3"
+    ]
+  },
+  "entity.remnant.notice": {
+    "subtitle": "subtitles.vanguard-spirits.remnant.notice",
+    "sounds": [
+      "vanguard-spirits:entity/remnant/notice"
+    ]
+  },
+  "entity.remnant.hurt": {
+    "subtitle": "subtitles.vanguard-spirits.remnant.hurt",
+    "sounds": [
+      "vanguard-spirits:entity/remnant/hurt1",
+      "vanguard-spirits:entity/remnant/hurt2",
+      "vanguard-spirits:entity/remnant/hurt3"
+    ]
+  },
+  "entity.remnant.death": {
+    "subtitle": "subtitles.vanguard-spirits.remnant.death",
+    "sounds": [
+      "vanguard-spirits:entity/remnant/death"
+    ]
+  },
+  "entity.remnant.step": {
+    "subtitle": "subtitles.vanguard-spirits.remnant.step",
+    "sounds": [
+      "vanguard-spirits:entity/remnant/step1",
+      "vanguard-spirits:entity/remnant/step2",
+      "vanguard-spirits:entity/remnant/step3",
+      "vanguard-spirits:entity/remnant/step4"
+    ]
+  },
   "entity.stone_sentinel.stir": {
     "subtitle": "subtitles.vanguard-spirits.stone_sentinel.stir",
     "sounds": [

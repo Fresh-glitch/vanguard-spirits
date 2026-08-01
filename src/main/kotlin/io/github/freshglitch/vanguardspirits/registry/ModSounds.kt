@@ -16,6 +16,19 @@ object ModSounds {
 	val GOLDEN_CHEST_OPEN: SoundEvent = register("block.golden_chest.open")
 	val GOLDEN_CHEST_CLOSE: SoundEvent = register("block.golden_chest.close")
 
+	/**
+	 * The Remnant's voice.
+	 *
+	 * These are the only sounds in the mod that are not vanilla samples: the
+	 * `.ogg` files are synthesised from a source-filter voice model, which is
+	 * what makes them read as something that used to speak.
+	 */
+	val REMNANT_RASP: SoundEvent = register("entity.remnant.rasp")
+	val REMNANT_NOTICE: SoundEvent = register("entity.remnant.notice")
+	val REMNANT_HURT: SoundEvent = register("entity.remnant.hurt")
+	val REMNANT_DEATH: SoundEvent = register("entity.remnant.death")
+	val REMNANT_STEP: SoundEvent = register("entity.remnant.step")
+
 	/** The waking sequence, in the order it is heard. */
 	val SENTINEL_STIR: SoundEvent = register("entity.stone_sentinel.stir")
 	val SENTINEL_RUMBLE: SoundEvent = register("entity.stone_sentinel.rumble")
