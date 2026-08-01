@@ -19,6 +19,13 @@
       }
     ]
   },
+  "entity.mourner.call": {
+    "subtitle": "subtitles.vanguard-spirits.mourner.call",
+    "sounds": [
+      "vanguard-spirits:entity/mourner/call1",
+      "vanguard-spirits:entity/mourner/call2"
+    ]
+  },
   "entity.remnant.rasp": {
     "subtitle": "subtitles.vanguard-spirits.remnant.rasp",
     "sounds": [

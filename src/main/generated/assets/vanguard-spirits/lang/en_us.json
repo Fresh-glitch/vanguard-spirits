@@ -1,6 +1,7 @@
 {
   "block.vanguard-spirits.golden_chest": "Gilded Reliquary",
   "container.vanguard-spirits.golden_chest": "Gilded Reliquary",
+  "entity.vanguard-spirits.mourner": "Mourner",
   "entity.vanguard-spirits.remnant": "Remnant",
   "entity.vanguard-spirits.stone_sentinel": "Stone Sentinel",
   "item.vanguard-spirits.charm_of_the_delver": "Charm of the Delver",
@@ -17,6 +18,7 @@
   "message.vanguard-spirits.attunement.raised": "Attunement deepens — %s of %s",
   "subtitles.vanguard-spirits.golden_chest.close": "Reliquary seals",
   "subtitles.vanguard-spirits.golden_chest.open": "Reliquary creaks open",
+  "subtitles.vanguard-spirits.mourner.call": "Mourner calls",
   "subtitles.vanguard-spirits.remnant.death": "Remnant comes apart",
   "subtitles.vanguard-spirits.remnant.hurt": "Remnant breaks",
   "subtitles.vanguard-spirits.remnant.notice": "Remnant cries out",

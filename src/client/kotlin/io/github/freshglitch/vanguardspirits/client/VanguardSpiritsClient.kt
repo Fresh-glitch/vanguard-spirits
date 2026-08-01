@@ -4,6 +4,8 @@ import io.github.freshglitch.vanguardspirits.client.particle.EchoRuneParticle
 import io.github.freshglitch.vanguardspirits.client.particle.MemoryMoteParticle
 import io.github.freshglitch.vanguardspirits.client.render.ChestParts
 import io.github.freshglitch.vanguardspirits.client.render.GoldenChestRenderer
+import io.github.freshglitch.vanguardspirits.client.render.MournerModel
+import io.github.freshglitch.vanguardspirits.client.render.MournerRenderer
 import io.github.freshglitch.vanguardspirits.client.render.RemnantModel
 import io.github.freshglitch.vanguardspirits.client.render.RemnantRenderer
 import io.github.freshglitch.vanguardspirits.client.render.StoneSentinelModel
@@ -32,6 +34,9 @@ object VanguardSpiritsClient : ClientModInitializer {
 
 		ModelLayerRegistry.registerModelLayer(RemnantModel.LAYER) { RemnantModel.createLayer() }
 		EntityRendererRegistry.register(ModEntities.REMNANT, ::RemnantRenderer)
+
+		ModelLayerRegistry.registerModelLayer(MournerModel.LAYER) { MournerModel.createLayer() }
+		EntityRendererRegistry.register(ModEntities.MOURNER, ::MournerRenderer)
 		MenuScreens.register(ModMenus.GOLDEN_CHEST, ::GoldenChestScreen)
 
 		// Registered pending: the sprite set for a particle does not exist until
