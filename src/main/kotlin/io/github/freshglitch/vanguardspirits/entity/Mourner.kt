@@ -3,9 +3,14 @@ package io.github.freshglitch.vanguardspirits.entity
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import io.github.freshglitch.vanguardspirits.worldgen.RuinVigil
 import net.minecraft.core.BlockPos
+import net.minecraft.network.syncher.EntityDataAccessor
+import net.minecraft.network.syncher.EntityDataSerializers
+import net.minecraft.network.syncher.SynchedEntityData
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.sounds.SoundEvent
+import net.minecraft.tags.BlockTags
 import net.minecraft.world.damagesource.DamageSource
+import net.minecraft.world.phys.Vec3
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.Mob
@@ -39,6 +44,12 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 	/** Ticks left of being spooked. Not saved -- it should settle on reload. */
 	private var alarm = 0
 
+	/** The leaf it is heading for or sitting on, if any. */
+	private var perch: BlockPos? = null
+
+	/** Ticks left of sitting. Counts only once it has actually arrived. */
+	private var roost = 0
+
 	init {
 		isNoGravity = true
 	}
@@ -47,6 +58,16 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 		// None. Movement is driven outright in customServerAiStep, because every
 		// goal worth having would take it somewhere else.
 	}
+
+	override fun defineSynchedData(builder: SynchedEntityData.Builder) {
+		super.defineSynchedData(builder)
+		builder.define(DATA_PERCHED, false)
+	}
+
+	/** Sitting rather than flying. The client folds the wings on this. */
+	var isPerched: Boolean
+		get() = entityData.get(DATA_PERCHED)
+		private set(value) = entityData.set(DATA_PERCHED, value)
 
 	fun setAnchor(pos: BlockPos, startAngle: Float) {
 		anchor = pos
@@ -63,6 +84,14 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 
 		val home = anchor ?: return
 		if (alarm > 0) alarm--
+
+		// Perching takes priority over the circle entirely: a bird heading for a
+		// branch has stopped patrolling.
+		if (perch != null) {
+			roostStep(level)
+			return
+		}
+		if (tickCount % PERCH_LOOK_INTERVAL == 0) lookForPerch(level, home)
 
 		// Three things bend the circle, so it never runs at one radius and one
 		// height for long: a slow breath in and out, whether anyone is standing
@@ -116,6 +145,92 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 
 	private data class Vec3Target(val x: Double, val y: Double, val z: Double)
 
+	// ---------------------------------------------------------------- perching
+
+	/**
+	 * Looks for a branch in the stretch of circle it is about to fly through.
+	 *
+	 * Only ahead, never behind or to the side: a bird that spots a tree it has
+	 * already passed and doubles back looks like it changed its mind, where one
+	 * that drops onto something in front of it looks like it saw it coming.
+	 */
+	private fun lookForPerch(level: ServerLevel, home: BlockPos) {
+		if (alarm > 0) return
+		if (random.nextFloat() > PERCH_CHANCE) return
+
+		val ahead = orbit + PERCH_LOOKAHEAD
+		val x = Mth.floor(home.x + 0.5 + Mth.cos(ahead.toDouble()) * ORBIT_RADIUS)
+		val z = Mth.floor(home.z + 0.5 + Mth.sin(ahead.toDouble()) * ORBIT_RADIUS)
+
+		val cursor = BlockPos.MutableBlockPos()
+		for (y in home.y downTo home.y - PERCH_SEARCH_DEPTH) {
+			cursor.set(x, y, z)
+			if (!level.getBlockState(cursor).`is`(BlockTags.LEAVES)) continue
+
+			// The first leaf going down is the top of the canopy. Anything below
+			// that is inside the tree, which is no place to sit.
+			val seat = BlockPos(x, y + 1, z)
+			if (!level.getBlockState(seat).isAir) return
+
+			perch = seat
+			roost = Mth.nextInt(random, ROOST_MIN, ROOST_MAX)
+			return
+		}
+	}
+
+	/** Flying down to a branch, or sitting on one. */
+	private fun roostStep(level: ServerLevel) {
+		val seat = perch ?: return
+
+		// Anything that would make sitting there wrong: startled, the tree gone,
+		// or somebody standing underneath it.
+		val stillLeaves = level.getBlockState(seat.below()).`is`(BlockTags.LEAVES)
+		if (alarm > 0 || !stillLeaves) {
+			takeOff()
+			return
+		}
+
+		val cx = seat.x + 0.5
+		val cy = seat.y.toDouble()
+		val cz = seat.z + 0.5
+
+		if (!isPerched) {
+			if (distanceToSqr(cx, cy, cz) < LANDED_SQ) {
+				isPerched = true
+				snapTo(cx, cy, cz, yRot, 0.0f)
+				deltaMovement = Vec3.ZERO
+				return
+			}
+
+			// Steer in harder than the orbit does. A slow drift onto a branch
+			// reads as being blown there rather than choosing to land.
+			deltaMovement = deltaMovement
+				.add((cx - x) * LAND_PULL, (cy - y) * LAND_PULL, (cz - z) * LAND_PULL)
+				.scale(LAND_DRAG)
+			return
+		}
+
+		deltaMovement = Vec3.ZERO
+		roost--
+
+		// Slow head turns while it sits, so a perched bird is not a statue.
+		if (tickCount % LOOK_INTERVAL == 0) {
+			yRot += (random.nextFloat() - 0.5f) * LOOK_SWEEP
+			yBodyRot = yRot
+			yHeadRot = yRot
+		}
+
+		if (roost <= 0 || level.getNearestPlayer(cx, cy, cz, FLUSH_RANGE, null) != null) takeOff()
+	}
+
+	/** Back to the circle. */
+	private fun takeOff() {
+		if (isPerched) deltaMovement = deltaMovement.add(0.0, TAKEOFF_KICK, 0.0)
+		perch = null
+		roost = 0
+		isPerched = false
+	}
+
 	override fun getAmbientSound(): SoundEvent = ModSounds.MOURNER_CALL
 
 	/**
@@ -136,7 +251,10 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 	 */
 	override fun hurtServer(level: ServerLevel, source: DamageSource, amount: Float): Boolean {
 		val hurt = super.hurtServer(level, source, amount)
-		if (hurt && isAlive) alarm = ALARM_TICKS
+		if (hurt && isAlive) {
+			alarm = ALARM_TICKS
+			takeOff()
+		}
 		return hurt
 	}
 
@@ -202,6 +320,9 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 		private const val DRAG = 0.91
 
 		/** Two anchors closer than this are the same ruin. */
+		private val DATA_PERCHED: EntityDataAccessor<Boolean> =
+			SynchedEntityData.defineId(Mourner::class.java, EntityDataSerializers.BOOLEAN)
+
 		private const val SAME_RUIN_SQ = 24.0 * 24.0
 
 		/** Ticks between calls. Roughly half a minute. */
@@ -222,6 +343,34 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 		private const val STOOP_RANGE = 26.0
 		private const val STOOP_TIGHTEN = 2.5
 		private const val STOOP_DROP = 4.0
+
+		// ---- perching ----
+
+		/** How often it bothers looking for a branch, and how often it takes one. */
+		private const val PERCH_LOOK_INTERVAL = 40
+		private const val PERCH_CHANCE = 0.35f
+
+		/** How far around the circle it looks. A quarter turn ahead of itself. */
+		private const val PERCH_LOOKAHEAD = 1.5f
+
+		/** Blocks below the flight line worth searching. Clears any canopy. */
+		private const val PERCH_SEARCH_DEPTH = 22
+
+		/** Roughly twenty seconds to a minute of sitting. */
+		private const val ROOST_MIN = 400
+		private const val ROOST_MAX = 1200
+
+		private const val LANDED_SQ = 0.6
+		private const val LAND_PULL = 0.09
+		private const val LAND_DRAG = 0.82
+		private const val TAKEOFF_KICK = 0.35
+
+		/** Head turns while sitting. */
+		private const val LOOK_INTERVAL = 50
+		private const val LOOK_SWEEP = 70.0f
+
+		/** How close someone has to get before it gives up the branch. */
+		private const val FLUSH_RANGE = 8.0
 
 		fun createAttributes(): AttributeSupplier.Builder = createMobAttributes()
 			.add(Attributes.MAX_HEALTH, 8.0)
