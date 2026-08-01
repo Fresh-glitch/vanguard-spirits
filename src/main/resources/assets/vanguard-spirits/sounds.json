@@ -49,8 +49,7 @@
     "subtitle": "subtitles.vanguard-spirits.remnant.step",
     "sounds": [
       "vanguard-spirits:entity/remnant/step1",
-      "vanguard-spirits:entity/remnant/step2",
-      "vanguard-spirits:entity/remnant/step3"
+      "vanguard-spirits:entity/remnant/step2"
     ]
   },
   "entity.stone_sentinel.stir": {
