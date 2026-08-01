@@ -1,5 +1,7 @@
 package io.github.freshglitch.vanguardspirits.worldgen
 
+import io.github.freshglitch.vanguardspirits.block.GoldenChestBlock
+import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModEntities
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
 import net.minecraft.core.BlockPos
@@ -313,6 +315,61 @@ class GuardedRuinsPiece : StructurePiece {
 		// see what is already in it.
 		put(level, box, Blocks.SOUL_LANTERN.defaultBlockState(), lo + 1, roof - 1, lo + 1)
 		put(level, box, Blocks.SOUL_LANTERN.defaultBlockState(), hi - 1, roof - 1, hi - 1)
+
+		// Only the deepest floor gets the vault. Whatever was worth burying is
+		// as far from the entrance as the ruin goes.
+		if (floorY == FLOOR_PAD) buildVault(level, box, random, floorY, roof, hi)
+	}
+
+	/**
+	 * The vault: a sealed room off the lowest floor with the Reliquary in it.
+	 *
+	 * Cut into the rock outside the chamber shell rather than partitioned off
+	 * inside it. The quadrants are barely five blocks across, so a room within
+	 * a room would have swallowed one whole -- and a door in an outside wall
+	 * reads as somewhere deliberately sealed rather than a corner someone
+	 * bricked up.
+	 *
+	 * Cast solid first, then carved. Facing a passage after cutting it never
+	 * covers the back wall or the floor beneath, which is the same trap the
+	 * sanctum stairwell hit.
+	 */
+	private fun buildVault(
+		level: WorldGenLevel,
+		box: BoundingBox,
+		random: RandomSource,
+		floorY: Int,
+		roof: Int,
+		chamberEdge: Int,
+	) {
+		val mid = SANCTUM_LAST / 2
+		val doorLo = mid - 1
+		val doorHi = mid + 1
+
+		val outer = chamberEdge + VAULT_REACH
+		fill(level, box, chamberEdge + 1, floorY, mid - 4, outer, roof, mid + 4, deepslate(random))
+
+		// Passage through the chamber wall and along to the vault door.
+		fill(level, box, chamberEdge, floorY + 1, doorLo, chamberEdge + 3, floorY + 2, doorHi, AIR)
+
+		// The room itself.
+		val inner = chamberEdge + 4
+		fill(level, box, inner, floorY + 1, mid - 3, outer - 1, roof - 1, mid + 3, AIR)
+		for (x in inner..(outer - 1)) {
+			for (z in (mid - 3)..(mid + 3)) {
+				put(level, box, tiles(random), x, floorY, z)
+			}
+		}
+
+		// Reliquary against the far wall, turned to face whoever comes in.
+		put(
+			level, box,
+			ModBlocks.GOLDEN_CHEST.defaultBlockState().setValue(GoldenChestBlock.FACING, Direction.WEST),
+			outer - 2, floorY + 1, mid,
+		)
+
+		put(level, box, Blocks.SOUL_LANTERN.defaultBlockState(), inner + 1, roof - 1, mid - 2)
+		put(level, box, Blocks.SOUL_LANTERN.defaultBlockState(), inner + 1, roof - 1, mid + 2)
 	}
 
 	/** A cross wall with two doorways per arm, so all four rooms interconnect. */
@@ -697,6 +754,15 @@ class GuardedRuinsPiece : StructurePiece {
 		private const val DEEP_INSET = 2
 
 		private const val DEEP_SCULK_CHANCE = 0.10f
+
+		/**
+		 * How far past the chamber wall the vault reaches.
+		 *
+		 * Nine blocks of margin sit between the sanctum and the cavern rim, and
+		 * all of it is solid below the sanctum floor, so there is room to cut
+		 * into -- but not much. Ten keeps the far wall inside the bounding box.
+		 */
+		private const val VAULT_REACH = 10
 
 		/** How much of the debris under a collapsed floor stands two blocks high. */
 		private const val RUBBLE_MOUND_CHANCE = 0.45f
