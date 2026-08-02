@@ -2,6 +2,7 @@ package io.github.freshglitch.vanguardspirits.client
 
 import io.github.freshglitch.vanguardspirits.client.particle.EchoRuneParticle
 import io.github.freshglitch.vanguardspirits.client.particle.MemoryMoteParticle
+import io.github.freshglitch.vanguardspirits.client.particle.StoneWakeParticle
 import io.github.freshglitch.vanguardspirits.client.render.ChestParts
 import io.github.freshglitch.vanguardspirits.client.render.GoldenChestRenderer
 import io.github.freshglitch.vanguardspirits.client.render.MournerModel
@@ -44,5 +45,6 @@ object VanguardSpiritsClient : ClientModInitializer {
 		val particles = ParticleProviderRegistry.getInstance()
 		particles.register(ModParticles.MEMORY_MOTE, MemoryMoteParticle::Provider)
 		particles.register(ModParticles.ECHO_RUNE, EchoRuneParticle::Provider)
+		particles.register(ModParticles.STONE_WAKE, StoneWakeParticle::Provider)
 	}
 }

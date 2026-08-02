@@ -31,4 +31,8 @@ class StoneSentinelRenderState : LivingEntityRenderState() {
 	/** 0 when not spinning, otherwise 1..GYRE_TICKS. */
 	@JvmField
 	var gyreTick: Int = 0
+
+	/** 0 when standing, otherwise how long it has been curled up. Unbounded. */
+	@JvmField
+	var bulwarkTick: Int = 0
 }

@@ -116,6 +116,18 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	private var pinnedTicks = 0
 
 	/**
+	 * How long it has failed to get any closer to what it is chasing.
+	 *
+	 * A separate question from [pinnedTicks], and the one the shell cares about.
+	 * Standing still means walled in; failing to close means the player is
+	 * somewhere walking cannot help with. A sentinel milling about at the foot of
+	 * a tower is not still -- it shuffles, and the position counter kept resetting
+	 * on it -- but it never gets nearer, which is the fact that matters.
+	 */
+	private var lastGap = 0.0f
+	private var stalledTicks = 0
+
+	/**
 	 * How far around the sentinel its attacker has travelled while hitting it.
 	 *
 	 * Kiting is a shape, not a position: the player is never anywhere the
@@ -179,6 +191,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		builder.define(DATA_ATTACK_TICK, 0)
 		builder.define(DATA_GLOW, GLOW_EMBER)
 		builder.define(DATA_GYRE, 0)
+		builder.define(DATA_BULWARK, 0)
 	}
 
 	// ------------------------------------------------------------------ state
@@ -212,6 +225,15 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		get() = entityData.get(DATA_GYRE)
 		private set(value) = entityData.set(DATA_GYRE, value)
 
+	/**
+	 * 0 when it is standing, otherwise how long it has been curled up.
+	 *
+	 * Unbounded, unlike the gyre. The shell lasts as long as the threat does.
+	 */
+	var bulwarkTick: Int
+		get() = entityData.get(DATA_BULWARK)
+		private set(value) = entityData.set(DATA_BULWARK, value)
+
 	fun setWard(pos: BlockPos) {
 		wardPos = pos
 	}
@@ -233,7 +255,12 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		super.tick()
 
 		val level = level()
-		if (level !is ServerLevel) return
+		if (level !is ServerLevel) {
+			// Only the client knows how far round the spin has come, so only the
+			// client can put the wake where the fists actually are.
+			if (gyreTick > GYRE_FLARE) shedWake(level)
+			return
+		}
 
 		when {
 			settleTick > 0 -> settle()
@@ -247,12 +274,21 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 				if (gyreCooldown > 0) gyreCooldown--
 
 				checkPinned()
-				if (gyreTick > 0) advanceGyre(level)
 
-				when {
-					attackKind != NO_ATTACK -> advanceAttack(level)
-					hasQuarry() -> homingTicks = 0
-					else -> goHome()
+				// The shell takes the whole tick. Nothing else runs while it is up,
+				// which is what stops a curled sentinel trying to walk home
+				// mid-siege -- and once it opens, the ordinary order below picks
+				// straight back up with no special case.
+				if (bulwarkTick > 0) {
+					advanceBulwark(level)
+				} else {
+					if (gyreTick > 0) advanceGyre(level)
+
+					when {
+						attackKind != NO_ATTACK -> advanceAttack(level)
+						hasQuarry() -> homingTicks = 0
+						else -> goHome()
+					}
 				}
 			}
 		}
@@ -283,6 +319,38 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 
 		// Rooted on purpose through a wind-up, which is not the same as being held.
 		pinnedTicks = if (attackKind == NO_ATTACK && drift < PIN_DRIFT_SQ) pinnedTicks + PIN_SAMPLE else 0
+
+		checkStalled()
+	}
+
+	/**
+	 * Notices when walking has stopped helping.
+	 *
+	 * Measured as distance to the quarry rather than distance travelled, because
+	 * those come apart in exactly the case that matters. Under a tower the
+	 * sentinel shuffles about after a player who keeps moving, so it is never
+	 * still -- but it never gets any nearer either, and a counter that resets on
+	 * every shuffle misses the siege entirely.
+	 *
+	 * Losing ground counts the same as holding station: a player building higher
+	 * is not a reason to keep hoping.
+	 */
+	private fun checkStalled() {
+		val quarry = target
+		if (quarry == null || !quarry.isAlive) {
+			stalledTicks = 0
+			lastGap = 0.0f
+			return
+		}
+
+		val now = distanceTo(quarry)
+		if (lastGap <= 0.0f) {
+			lastGap = now
+			return
+		}
+
+		stalledTicks = if (now < lastGap - CLOSING) 0 else stalledTicks + PIN_SAMPLE
+		lastGap = now
 	}
 
 	/**
@@ -331,6 +399,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		if (fits(hx, hy, hz)) snapTo(hx, hy, hz, homeYaw(home), 0.0f)
 
 		endGyre()
+		endBulwark(release = true)
 		sleep()
 		unanswered = 0
 		pinnedTicks = 0
@@ -489,6 +558,10 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		// swing -- and the spin stays unbroken, which is what sells it.
 		if (gyreTick > 0) return false
 
+		// Curled up it does not attack at all. Reaching it is what opens it, and
+		// that happens in hurtServer.
+		if (bulwarkTick > 0) return true
+
 		val reach = distanceToSqr(victim)
 		if (slamCooldown <= 0 && reach <= SLAM_TRIGGER_SQ) {
 			begin(SLAM)
@@ -641,6 +714,83 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		}
 	}
 
+	// ---------------------------------------------------------------- bulwark
+
+	/**
+	 * The answer to being shot at from somewhere it cannot even reply to.
+	 *
+	 * Everything else the sentinel does assumes it can eventually get its hands
+	 * on the player. From forty blocks up a tower that is simply untrue: the
+	 * Reckoning cannot span it, the Sunder has nothing to break, and the Gyre
+	 * would only carry it to the foot of a wall. So it stops pretending and
+	 * shuts itself away instead -- arrows come off the shell, and the stone
+	 * knits back together faster than a bow can open it.
+	 *
+	 * Which makes it a refusal rather than an attack. The player is not punished
+	 * for shooting from up there; they are told that it will not work, and left
+	 * to either come down or leave.
+	 */
+	private fun beginBulwark() {
+		bulwarkTick = 1
+		navigation.stop()
+		say(ModSounds.SENTINEL_SHELL, 1.6f, 0.4f)
+		say(ModSounds.SENTINEL_RUMBLE, 1.2f, 0.4f)
+	}
+
+	private fun advanceBulwark(level: ServerLevel) {
+		// Held down every tick. The melee goal is still running underneath and
+		// would otherwise walk the shell across the room.
+		navigation.stop()
+		bulwarkTick++
+
+		if (bulwarkTick % MEND_EVERY == 0 && health < maxHealth) {
+			heal(MEND_AMOUNT)
+			say(ModSounds.SENTINEL_MEND, 0.9f, 0.65f)
+			dust(level, y + bbHeight * 0.35, 8, 0.5)
+		}
+
+		if (threatGone(level)) endBulwark(release = true)
+	}
+
+	/**
+	 * Opens back up.
+	 *
+	 * [release] is the difference between the two ways out. A siege that ended
+	 * because the player left has nothing to fight, so the quarry is dropped and
+	 * the walk home starts on the next tick. One that ended because somebody
+	 * finally came within arm's reach keeps its target and goes back to work.
+	 */
+	private fun endBulwark(release: Boolean) {
+		if (bulwarkTick == 0) return
+		bulwarkTick = 0
+		unanswered = 0
+		swept = 0.0f
+		stalledTicks = 0
+		lastGap = 0.0f
+
+		// A fresh grace period, or the very next arrow would find the retaliation
+		// window already expired and slam the shell straight back down.
+		lastLanded = tickCount
+
+		if (release) target = null
+		say(ModSounds.SENTINEL_STIR, 1.1f, 0.55f)
+	}
+
+	/**
+	 * Whether there is still anyone worth staying shut for.
+	 *
+	 * Measured at the same range the target selector uses, so the moment this
+	 * says yes there is also nothing left to re-acquire -- the sentinel opens,
+	 * finds no quarry, and walks back to the altar under the ordinary rules.
+	 */
+	private fun threatGone(level: ServerLevel): Boolean {
+		for (player in level.players()) {
+			if (player.isSpectator || player.isCreative) continue
+			if (player.distanceToSqr(this) <= BULWARK_WATCH_SQ) return false
+		}
+		return true
+	}
+
 	// ------------------------------------------------------------------- gyre
 
 	/**
@@ -695,6 +845,58 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 
 		gyreTick = t + 1
 		if (gyreTick > GYRE_TICKS) endGyre()
+	}
+
+	/**
+	 * Trails torn air off the fists and the greaves.
+	 *
+	 * The four points ride the same circle the model turns the bones around, so
+	 * the wake sits on the limbs rather than near them. Both fists are one radius
+	 * apart on opposite sides, and the greaves the same at ankle height, which is
+	 * why one signed offset covers all four.
+	 */
+	private fun shedWake(level: Level) {
+		val psi = (spinAngle(gyreTick, tickCount.toFloat()) + yBodyRot * Mth.DEG_TO_RAD).toDouble()
+		val cos = Mth.cos(psi).toDouble()
+		val sin = Mth.sin(psi).toDouble()
+
+		for (side in SIDES) {
+			fling(level, side, cos, sin, FIST_REACH, FIST_HEIGHT, FIST_WHIP, WAKE_PER_FIST)
+			fling(level, side, cos, sin, GREAVE_REACH, GREAVE_HEIGHT, GREAVE_WHIP, WAKE_PER_GREAVE)
+		}
+	}
+
+	/** One limb's worth: a few crescents thrown off along the way it is going. */
+	private fun fling(
+		level: Level,
+		side: Double,
+		cos: Double,
+		sin: Double,
+		reach: Double,
+		height: Double,
+		whip: Double,
+		count: Int,
+	) {
+		val px = x + side * reach * cos
+		val py = y + height
+		val pz = z + side * reach * sin
+
+		// Tangent to the circle at that point, which is the direction the limb is
+		// travelling and so the direction the air comes off it.
+		val tx = side * -sin * whip
+		val tz = side * cos * whip
+
+		repeat(count) {
+			level.addParticle(
+				ModParticles.STONE_WAKE,
+				px + (random.nextDouble() - 0.5) * WAKE_SCATTER,
+				py + (random.nextDouble() - 0.5) * WAKE_SCATTER,
+				pz + (random.nextDouble() - 0.5) * WAKE_SCATTER,
+				tx + (random.nextDouble() - 0.5) * WAKE_DRIFT,
+				(random.nextDouble() - 0.3) * WAKE_DRIFT,
+				tz + (random.nextDouble() - 0.5) * WAKE_DRIFT,
+			)
+		}
 	}
 
 	/** Stops the spin and puts it back to its usual pace. */
@@ -1071,16 +1273,26 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		}
 		if (isWaking) return false
 
-		if (gyreTick > 0) {
+		val bolt = source.directEntity as? Projectile
+
+		if (bulwarkTick > 0) {
+			// Nothing thrown gets through the shell. Refusing the damage is the
+			// whole of it: vanilla bounces a projectile that fails to hurt what
+			// it struck, so the arrow is seen to come off on its own.
+			if (bolt != null) return false
+
+			// Something got close enough to touch it. That is the one thing the
+			// shell was never proof against, so it opens -- and takes the hit.
+			endBulwark(release = false)
+		}
+
+		if (gyreTick > 0 && bolt != null) {
 			// Anything thrown at a spinning sentinel is caught rather than
 			// absorbed, and comes back on the next tick. Queued instead of
 			// answered here because vanilla bounces a projectile that fails to
 			// damage its target, and that bounce happens after this returns.
-			val bolt = source.directEntity as? Projectile
-			if (bolt != null) {
-				if (bolt !in caught) caught.add(bolt)
-				return false
-			}
+			if (bolt !in caught) caught.add(bolt)
+			return false
 		}
 
 		// Half of everything else while it is spinning. A face of moving stone is
@@ -1088,7 +1300,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		val taken = if (gyreTick > 0) amount * GYRE_ABSORB else amount
 
 		val hurt = super.hurtServer(level, source, taken)
-		if (hurt) (source.entity as? Player)?.let { resent(it) }
+		if (hurt) (source.entity as? Player)?.let { resent(it, ranged = bolt != null) }
 		return hurt
 	}
 
@@ -1106,11 +1318,15 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	 * Kiting is the third: the player is in reach and it is not stuck, they are
 	 * simply never standing still long enough to be hit. The [GYRE] is the reply.
 	 *
+	 * The fourth is not unfairness so much as futility -- shot at from so far
+	 * above or below that none of the other three could span it. There the
+	 * sentinel has no move, and [beginBulwark] is it declining to invent one.
+	 *
 	 * All three require that it has genuinely had no chance: a height difference
 	 * on its own means nothing, the sanctum has steps, and a sentinel still
 	 * landing its own blows is not being cheesed by anybody.
 	 */
-	private fun resent(attacker: Player) {
+	private fun resent(attacker: Player, ranged: Boolean) {
 		if (tickCount - lastLanded <= RETALIATION_WINDOW) {
 			unanswered = 0
 			swept = 0.0f
@@ -1126,6 +1342,10 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		val reach = attacker.distanceToSqr(this)
 
 		val answer = when {
+			// Out of reach *and* past anything it can answer with. The Reckoning
+			// spans sixteen blocks; beyond that a bow from a tower is a fight the
+			// sentinel has no move in at all, so it stops trying to have one.
+			gap >= OUT_OF_REACH && ranged && reach > RECKONING_RANGE_SQ -> Answer.BULWARK
 			gap >= OUT_OF_REACH -> Answer.RECKONING
 			pinnedTicks >= PINNED_TICKS -> Answer.SUNDER
 			swept >= CIRCLE_SWEEP -> Answer.GYRE
@@ -1144,6 +1364,13 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			Answer.RECKONING -> if (reckoningCooldown > 0 || reach > RECKONING_RANGE_SQ) return
 			Answer.SUNDER -> if (sunderCooldown > 0 || reach > SUNDER_TRIGGER_SQ) return
 			Answer.GYRE -> if (gyreCooldown > 0 || gyreTick > 0) return
+			// A player it can still walk towards is a long climb, not a siege, and
+			// it should make the climb. Going nowhere is what separates the two,
+			// and that is already measured -- asking the navigator instead looks
+			// more direct but is not: createPath hands back whatever path the
+			// melee goal already has cached, so the answer describes that goal's
+			// state rather than the question being asked.
+			Answer.BULWARK -> if (gyreTick > 0 || stalledTicks < STALLED_TICKS) return
 		}
 
 		unanswered = 0
@@ -1151,6 +1378,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 			Answer.RECKONING -> begin(RECKONING)
 			Answer.SUNDER -> begin(SUNDER)
 			Answer.GYRE -> beginGyre()
+			Answer.BULWARK -> beginBulwark()
 		}
 	}
 
@@ -1177,7 +1405,7 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	}
 
 	/** Which kind of unfairness the sentinel decided it was looking at. */
-	private enum class Answer { RECKONING, SUNDER, GYRE }
+	private enum class Answer { RECKONING, SUNDER, GYRE, BULWARK }
 
 	/** Placed deliberately; it should still be there when the player comes back. */
 	override fun removeWhenFarAway(distance: Double): Boolean = false
@@ -1235,6 +1463,8 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		private val DATA_GLOW: EntityDataAccessor<Int> =
 			SynchedEntityData.defineId(StoneSentinel::class.java, EntityDataSerializers.INT)
 		private val DATA_GYRE: EntityDataAccessor<Int> =
+			SynchedEntityData.defineId(StoneSentinel::class.java, EntityDataSerializers.INT)
+		private val DATA_BULWARK: EntityDataAccessor<Int> =
 			SynchedEntityData.defineId(StoneSentinel::class.java, EntityDataSerializers.INT)
 
 		private const val TAG_DORMANT = "Dormant"
@@ -1366,6 +1596,15 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 		/** Two seconds pinned before it stops treating the wall as scenery. */
 		private const val PINNED_TICKS = 40
 
+		/**
+		 * Blocks it has to close in half a second for the chase to count as going
+		 * somewhere. Walking covers several, so anything short of this is a stall.
+		 */
+		private const val CLOSING = 0.5f
+
+		/** Two seconds of getting no nearer before it stops trying to. */
+		private const val STALLED_TICKS = 40
+
 		/** Close enough that a punch through the wall is a plausible answer. */
 		private const val SUNDER_TRIGGER_SQ = 7.0 * 7.0
 
@@ -1397,6 +1636,84 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 
 		/** Arms coming out level before the turn starts. The tell. */
 		const val GYRE_FLARE: Int = 12
+
+		/** Radians per tick at full speed: a whole turn every eight ticks. */
+		private const val SPIN_RATE = 0.785f
+
+		/** Ticks after the flare before it is turning at full speed. */
+		private const val SPIN_RAMP = 20.0f
+
+		/**
+		 * How far round the spin has come.
+		 *
+		 * Lives here rather than in the model because both sides need it and they
+		 * must agree: the model turns the bones by this, and the wake particles
+		 * are placed on fists that are wherever this says they are. Two copies of
+		 * the formula would come apart the moment either was tuned.
+		 *
+		 * Both terms grow, so the angle only ever runs one way -- an accelerating
+		 * spin, never a stutter. Pass `ageInTicks` on the client for a smooth
+		 * value, or `tickCount` where whole ticks are all that is on offer; the
+		 * former is the latter plus the partial tick, so they agree on the frame.
+		 */
+		fun spinAngle(gyreTick: Int, ageInTicks: Float): Float {
+			if (gyreTick <= 0) return 0.0f
+			val ramp = ((gyreTick - GYRE_FLARE) / SPIN_RAMP).coerceIn(0.0f, 1.0f)
+			return ageInTicks * SPIN_RATE * ramp
+		}
+
+		// ---- the wake it sheds while spinning ----
+
+		/**
+		 * Where the fists and greaves sit, in blocks from the Sentinel's own
+		 * centre line and above its feet.
+		 *
+		 * Read off the model rather than eyeballed. `fist_r` centres on Blockbench
+		 * (10.5, 14.5, 0), which is model (-10.5, 9.5, 0); with the arm out level
+		 * its bone rotation carries that to (-23.5, -6.5, 0), and the feet are at
+		 * model y = 24. Everything below is those numbers over sixteen.
+		 */
+		private const val FIST_REACH = 23.5 / 16.0
+		private const val FIST_HEIGHT = 30.5 / 16.0
+		private const val GREAVE_REACH = 4.5 / 16.0
+		private const val GREAVE_HEIGHT = 6.0 / 16.0
+
+		/**
+		 * Tangential speed given to the wake, well under the fist's own.
+		 *
+		 * A fist at this radius covers better than a block a tick, and a particle
+		 * launched at that speed is gone before it has been seen. What is wanted
+		 * is the suggestion of being flung, not the arithmetic.
+		 */
+		private const val FIST_WHIP = 0.28
+		private const val GREAVE_WHIP = 0.10
+
+		private const val WAKE_SCATTER = 0.25
+		private const val WAKE_DRIFT = 0.05
+
+		private const val WAKE_PER_FIST = 2
+		private const val WAKE_PER_GREAVE = 1
+
+		/** Right limbs sit at a negative offset, left at a positive one. */
+		private val SIDES = doubleArrayOf(-1.0, 1.0)
+
+		// ---- bulwark: the answer to being shot at from out of reach ----
+
+		/** Ticks the curl takes to close. The model reads this too. */
+		const val BULWARK_CURL: Int = 14
+
+		/** How often a curled sentinel knits, and by how much. */
+		private const val MEND_EVERY = 10
+		private const val MEND_AMOUNT = 1.0f
+
+		/**
+		 * How near a player has to be for the siege to still count as one.
+		 *
+		 * Deliberately the same as FOLLOW_RANGE. Any shorter and the sentinel
+		 * would open up while the target selector could still see the player, and
+		 * immediately re-acquire them instead of going home.
+		 */
+		private const val BULWARK_WATCH_SQ = 40.0 * 40.0
 
 		private const val GYRE_COOLDOWN = 240
 
