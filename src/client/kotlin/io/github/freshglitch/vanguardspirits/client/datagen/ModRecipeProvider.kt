@@ -26,6 +26,7 @@ class ModRecipeProvider(
 			charm(ModItems.CHARM_OF_THE_LEAPER, Items.RABBIT_FOOT)
 			charm(ModItems.CHARM_OF_THE_WANDERER, Items.FEATHER)
 			charm(ModItems.CHARM_OF_THE_DELVER, Items.GOLDEN_CARROT)
+			charm(ModItems.CHARM_OF_THE_RETURNED, Items.SHIELD)
 		}
 
 		/**

@@ -40,6 +40,16 @@
       }
     ]
   },
+  "item.charm.deflect": {
+    "subtitle": "subtitles.vanguard-spirits.charm.deflect",
+    "sounds": [
+      {
+        "name": "vanguard-spirits:item/charm/deflect",
+        "volume": 0.8,
+        "pitch": 1.0
+      }
+    ]
+  },
   "block.golden_chest.reject": {
     "subtitle": "subtitles.vanguard-spirits.golden_chest.reject",
     "sounds": [
