@@ -46,5 +46,10 @@ object ModItemGroups {
 			ModItems.CHARMS.forEach(output::accept)
 			output.accept(ModItems.ECHO_OF_KINSHIP)
 		}
+
+		// Where anyone actually looks for a spawn egg.
+		CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.SPAWN_EGGS).register { output ->
+			ModItems.SPAWN_EGGS.forEach(output::accept)
+		}
 	}
 }
