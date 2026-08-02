@@ -124,6 +124,35 @@ Each of these cost a compile cycle or a wrong guess:
   (action bar) or `sendSystemMessage` (chat).
 - `MobEffects` constants are `SPEED` / `HASTE`, not `MOVEMENT_SPEED` / `DIG_SPEED`,
   and are `Holder<MobEffect>`, not raw `MobEffect`.
+- **Vanilla bounces a projectile that failed to damage its target, *after* the
+  damage hook returns.** `AbstractArrow.onHitEntity` scales its velocity by
+  `-0.1` and flips the yaw, so any velocity or owner set from inside the hook is
+  overwritten a moment later. Queue the projectile and act on the next tick,
+  where you get the last word. The same trap hides a second bug: read the speed
+  inside the hook too, because by the next tick the only speed left is a tenth
+  of what arrived.
+- **Deflect a hurting projectile through `Projectile.deflect`, not by assigning
+  a velocity.** Fireballs carry an `accelerationPower` and re-derive motion from
+  it, so one given only a new delta turns and then accelerates itself straight
+  back round. `deflect` runs `onDeflection`, which rescales it.
+- **Spawn eggs are no longer a tinted template.** Every vanilla egg in 26.2 is
+  its own 16x16 painting under `textures/item/`, referenced by a plain
+  `item/generated` model with no tints, and they are illustrated with the mob's
+  features — bat ears, parrot crest, ravager horns. There is nothing to tint;
+  draw one.
+- **`ItemEntity.setUnlimitedLifetime()` freezes `age` at -32768**, because
+  `tick` stops incrementing once it holds that value. Anything timed off `age`
+  — a bob, a repeating sound — stops dead the moment it is called. Use
+  `level.gameTime`, which also survives a reload.
+- **A sound cannot be stopped by the level.** `ClientboundStopSoundPacket` is
+  per listener, so everyone in earshot has to be told individually.
+- **Sound volume above 1 is also its reach**: a variable-range event carries
+  `16 * volume` blocks. There is no way to make something loud and near-field,
+  or quiet and far-carrying.
+- **A dropped item's behaviour needs a mixin.** Fabric can say when an entity
+  enters the world but not when one ticks, and the behaviour belongs to the
+  `ItemEntity` rather than the `Item`. See `ItemEntityMixin`, which is kept to
+  an injection point and calls straight out to Kotlin.
 - **Goals can require attributes, and say so only by crashing.** `TemptGoal`
   reads `Attributes.TEMPT_RANGE` inside `canUse`, so a mob built on
   `createMobAttributes` rather than `createAnimalAttributes` dies with
@@ -322,11 +351,11 @@ last page's granule position by the sample rate when the duration matters.
 
 ## Design invariant: charms and attunement
 
-Charms apply their aura **from anywhere in the inventory**, but only the first N
-in slot order, where N is the player's **attunement** (starts 1, caps 4). Vanilla
-numbers the hotbar first, so players set priority by moving charms to the hotbar.
-Attunement is a Fabric data attachment: persistent, `copyOnDeath`, synced
-`targetOnly`. **Echo of Kinship** is consumed to raise it.
+Charms apply their aura **from anywhere in the inventory**, in slot order, until
+the player's **attunement** runs out (starts 1, caps 4). Vanilla numbers the
+hotbar first, so players set priority by moving charms to the hotbar. Attunement
+is a Fabric data attachment: persistent, `copyOnDeath`, synced `targetOnly`.
+**Echo of Kinship** is consumed to raise it.
 
 `CharmScan.activeSlots()` is the **single source of truth** and lives in the
 common source set, because the server tick applies auras and the client tooltip
@@ -334,6 +363,42 @@ labels them Attuned/Dormant. If the rule changes, change `CharmScan` — never
 duplicate it in the ticker or the tooltip, or the UI will lie.
 
 Adding a charm should only require a new `CharmAura`. No per-charm slot logic.
+
+Four rules that are load-bearing, each of which cost something to arrive at:
+
+- **Attunement is a budget, not a count.** `CharmItem.cost` is 1 for almost
+  everything and 3 for the Returned, so at the cap it leaves room for exactly
+  one more. A charm that will not fit is **skipped, not stopping the walk** —
+  otherwise one expensive charm high in the inventory silently strands every
+  cheap one below it.
+- **A hushed charm gives up its place**, rather than merely going dormant. It
+  drops out of the queue so a charm further down takes the attunement, which is
+  the whole point of being able to switch one off. The off switch is a synced
+  component on the *stack*, so the setting travels with the charm rather than
+  with the player.
+- **Auras are granted infinite and withdrawn**, never topped up. A short effect
+  re-applied on a timer looks fine for most things and is wrong for night
+  vision, which vanilla deliberately makes flicker under ten seconds remaining
+  as an expiry warning — so a charm meant to be permanent strobes underground.
+  That inverts the sweep's job, and it runs **every tick** so putting a charm
+  down cancels at once.
+- **Only withdraw what is infinite *and* ambient.** That pair is a signature
+  nothing a player can drink or stand in produces: potions are finite, and a
+  beacon is ambient but keeps refreshing a finite duration (checked in the
+  bytecode, not assumed). The list of effects to consider is read off the item
+  registry rather than hand-kept, so a new charm is withdrawn correctly without
+  anyone remembering to come back here.
+
+**Reacting to damage is the wrong shape for anything that intercepts a
+projectile.** The Returned's deflection tried it first and could never have
+worked for a ghast fireball, which calls `Level.explode` and then `discard` —
+by the time anything is hurt there is no projectile left to send anywhere. It
+also makes the feature depend on whether each projectile type names itself as
+the `directEntity` of its damage source, which varies, and is what tridents fell
+through. **Look a tick ahead instead**: clip the segment each nearby projectile
+is about to travel against the guard's box and turn what would cross. One rule
+for everything, and nothing has to be hurt for it to fire. The Sentinel's gyre
+still answers the damage hook because it only ever catches arrows.
 
 ## Testing in-game with the player
 
