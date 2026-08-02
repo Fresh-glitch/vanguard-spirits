@@ -1,13 +1,14 @@
 {
   "type": "minecraft:crafting_shaped",
   "key": {
+    "B": "minecraft:deepslate_bricks",
     "C": "minecraft:golden_carrot",
     "M": "vanguard-spirits:fractured_memory"
   },
   "pattern": [
-    " M ",
+    "BMB",
     "MCM",
-    " M "
+    "BMB"
   ],
   "result": {
     "id": "vanguard-spirits:charm_of_the_delver"

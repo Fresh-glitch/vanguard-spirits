@@ -1,6 +1,8 @@
 package io.github.freshglitch.vanguardspirits.client.datagen
 
 import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
+import io.github.freshglitch.vanguardspirits.client.CharmTooltip
+import io.github.freshglitch.vanguardspirits.item.CharmItem
 import io.github.freshglitch.vanguardspirits.item.EchoOfKinshipItem
 import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModEntities
@@ -23,7 +25,7 @@ class ModEnglishProvider(
 		builder.add(ModItemGroups.TITLE_KEY, "Vanguard Spirits")
 
 		builder.add(ModItems.FRACTURED_MEMORY, "Fractured Memory")
-		builder.add(ModItems.CHARM_OF_THE_SENTINEL, "Charm of the Sentinel")
+		builder.add(ModItems.CHARM_OF_THE_LEAPER, "Charm of the Leaper")
 		builder.add(ModItems.CHARM_OF_THE_WANDERER, "Charm of the Wanderer")
 		builder.add(ModItems.CHARM_OF_THE_DELVER, "Charm of the Delver")
 		builder.add(ModItems.ECHO_OF_KINSHIP, "Echo of Kinship")
@@ -33,8 +35,8 @@ class ModEnglishProvider(
 		builder.add(ModItems.MOURNER_SPAWN_EGG, "Mourner Spawn Egg")
 
 		builder.add(
-			ModItems.loreKey("charm_of_the_sentinel"),
-			"The last watch never stood down.",
+			ModItems.loreKey("charm_of_the_leaper"),
+			"They cleared the gap. Nobody saw them land.",
 		)
 		builder.add(
 			ModItems.loreKey("charm_of_the_wanderer"),
@@ -53,6 +55,12 @@ class ModEnglishProvider(
 		builder.add(GoldenChestBlockEntity.NAME_KEY, "Gilded Reliquary")
 		builder.add("subtitles.vanguard-spirits.golden_chest.open", "Reliquary creaks open")
 		builder.add("subtitles.vanguard-spirits.golden_chest.close", "Reliquary seals")
+		builder.add("subtitles.vanguard-spirits.charm.wake", "Charm answers")
+		builder.add("subtitles.vanguard-spirits.charm.hush", "Charm falls quiet")
+
+		builder.add(CharmItem.WOKEN_KEY, "The charm answers you.")
+		builder.add(CharmItem.HUSHED_KEY, "The charm falls quiet.")
+		builder.add(CharmTooltip.HUSHED_KEY, "Hushed — sneak and use to wake")
 		builder.add("subtitles.vanguard-spirits.golden_chest.reject", "Runes gather")
 		builder.add("subtitles.vanguard-spirits.golden_chest.ward", "The ward answers")
 

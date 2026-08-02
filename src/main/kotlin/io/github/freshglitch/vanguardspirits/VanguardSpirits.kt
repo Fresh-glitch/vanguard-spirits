@@ -4,6 +4,7 @@ import io.github.freshglitch.vanguardspirits.charm.Attunement
 import io.github.freshglitch.vanguardspirits.charm.CharmTicker
 import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
 import io.github.freshglitch.vanguardspirits.registry.ModBlocks
+import io.github.freshglitch.vanguardspirits.registry.ModComponents
 import io.github.freshglitch.vanguardspirits.registry.ModEntities
 import io.github.freshglitch.vanguardspirits.registry.ModItemGroups
 import io.github.freshglitch.vanguardspirits.registry.ModItems
@@ -30,6 +31,8 @@ object VanguardSpirits : ModInitializer {
 		ModBlocks.register()
 		ModBlockEntities.register()
 		ModMenus.register()
+		// Before the items: a charm reads its own hushed component.
+		ModComponents.register()
 		ModSounds.register()
 		ModParticles.register()
 		// Entities before items: the spawn eggs name the type they hatch, so the

@@ -21,6 +21,7 @@ object CharmTooltip {
 	private const val ATTUNED_KEY = "tooltip.vanguard-spirits.charm.attuned"
 	private const val DORMANT_KEY = "tooltip.vanguard-spirits.charm.dormant"
 	private const val GENERIC_KEY = "tooltip.vanguard-spirits.charm.generic"
+	const val HUSHED_KEY: String = "tooltip.vanguard-spirits.charm.hushed"
 
 	fun register() {
 		ItemTooltipCallback.EVENT.register { stack, _, _, lines ->
@@ -31,6 +32,13 @@ object CharmTooltip {
 	}
 
 	private fun stateLine(player: Player, stack: ItemStack): Component {
+		// Switched off by hand, which is worth saying wherever the stack is --
+		// including in a chest or the creative menu, where there is no slot to
+		// find and the generic line would otherwise hide the setting.
+		if (CharmItem.isHushed(stack)) {
+			return Component.translatable(HUSHED_KEY).withStyle(ChatFormatting.GRAY)
+		}
+
 		val slot = slotOf(player, stack)
 			?: return Component.translatable(GENERIC_KEY).withStyle(ChatFormatting.DARK_GRAY)
 
