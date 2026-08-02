@@ -19,6 +19,28 @@
       }
     ]
   },
+  "block.golden_chest.reject": {
+    "subtitle": "subtitles.vanguard-spirits.golden_chest.reject",
+    "sounds": [
+      {
+        "name": "minecraft:block.beacon.deactivate",
+        "type": "event",
+        "volume": 1.2,
+        "pitch": 0.6
+      }
+    ]
+  },
+  "block.golden_chest.ward": {
+    "subtitle": "subtitles.vanguard-spirits.golden_chest.ward",
+    "sounds": [
+      {
+        "name": "minecraft:entity.elder_guardian.curse",
+        "type": "event",
+        "volume": 1.4,
+        "pitch": 0.8
+      }
+    ]
+  },
   "entity.mourner.call": {
     "subtitle": "subtitles.vanguard-spirits.mourner.call",
     "sounds": [

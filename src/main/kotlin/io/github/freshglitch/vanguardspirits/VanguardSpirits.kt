@@ -14,6 +14,7 @@ import io.github.freshglitch.vanguardspirits.registry.ModSpawns
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
 import io.github.freshglitch.vanguardspirits.worldgen.RuinAmbience
 import io.github.freshglitch.vanguardspirits.worldgen.RuinBeacon
+import io.github.freshglitch.vanguardspirits.worldgen.RuinSeal
 import io.github.freshglitch.vanguardspirits.worldgen.RuinVigil
 import net.fabricmc.api.ModInitializer
 import net.minecraft.resources.Identifier
@@ -44,6 +45,7 @@ object VanguardSpirits : ModInitializer {
 		RuinAmbience.register()
 		RuinBeacon.register()
 		RuinVigil.register()
+		RuinSeal.register()
 
 		LOGGER.info("Vanguard Spirits awakened with {} items.", ModItems.ALL.size)
 	}

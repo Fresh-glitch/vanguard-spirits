@@ -3,7 +3,9 @@ package io.github.freshglitch.vanguardspirits.block
 import com.mojang.serialization.MapCodec
 import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
 import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
+import io.github.freshglitch.vanguardspirits.worldgen.RuinSeal
 import net.minecraft.core.BlockPos
+import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.item.context.BlockPlaceContext
 import net.minecraft.world.entity.player.Player
@@ -65,7 +67,9 @@ class GoldenChestBlock(props: Properties) : BaseEntityBlock(props) {
 		if (level.isClientSide) {
 			createTickerHelper(type, ModBlockEntities.GOLDEN_CHEST, GoldenChestBlockEntity::clientTick)
 		} else {
-			null
+			// Idle almost always: it does nothing until a refusal is playing out,
+			// and there is one Reliquary per ruin.
+			createTickerHelper(type, ModBlockEntities.GOLDEN_CHEST, GoldenChestBlockEntity::serverTick)
 		}
 
 	/**
@@ -91,6 +95,17 @@ class GoldenChestBlock(props: Properties) : BaseEntityBlock(props) {
 		hit: BlockHitResult,
 	): InteractionResult {
 		if (level.isClientSide) return InteractionResult.SUCCESS
+
+		// The ruin's own guardian is the price of admission. Anyone who dug past
+		// it is turned away here rather than at the loot, so the refusal happens
+		// where they can see the reason for it.
+		//
+		// Creative walks through: a builder placing one of these in their own
+		// world has no Sentinel to fight and no business being locked out.
+		if (level is ServerLevel && !player.isCreative && !RuinSeal.isCleared(level, pos)) {
+			(level.getBlockEntity(pos) as? GoldenChestBlockEntity)?.refuse(level, player)
+			return InteractionResult.CONSUME
+		}
 
 		val menu = state.getMenuProvider(level, pos) ?: return InteractionResult.PASS
 		player.openMenu(menu)
