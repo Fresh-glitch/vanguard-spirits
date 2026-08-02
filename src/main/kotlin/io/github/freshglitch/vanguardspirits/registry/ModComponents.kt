@@ -32,6 +32,25 @@ object ModComponents {
 				.build(),
 		)
 
+	/**
+	 * Set on an Echo of Kinship the moment a Sentinel gives it up.
+	 *
+	 * Only one that came off a guardian hangs in the air; one a player throws on
+	 * the floor is just an item, and should land like one. The distinction has
+	 * to live on the stack because the loot table is where it is decided, and it
+	 * is stripped again the moment anyone picks it up -- see
+	 * [io.github.freshglitch.vanguardspirits.item.EchoOfKinshipItem.inventoryTick].
+	 */
+	val KINSHIP_FREED: DataComponentType<Boolean> =
+		Registry.register(
+			BuiltInRegistries.DATA_COMPONENT_TYPE,
+			VanguardSpirits.id("kinship_freed"),
+			DataComponentType.Builder<Boolean>()
+				.persistent(Codec.BOOL)
+				.networkSynchronized(ByteBufCodecs.BOOL)
+				.build(),
+		)
+
 	/** Touching the object is what runs the registration above. */
 	fun register() = Unit
 }

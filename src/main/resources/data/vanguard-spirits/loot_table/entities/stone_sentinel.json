@@ -40,7 +40,15 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "vanguard-spirits:echo_of_kinship"
+          "name": "vanguard-spirits:echo_of_kinship",
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "vanguard-spirits:kinship_freed": true
+              }
+            }
+          ]
         }
       ],
       "conditions": [

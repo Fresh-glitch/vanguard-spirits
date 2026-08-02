@@ -34,6 +34,12 @@ object ModSounds {
 	/** A ward turning a shot aside. Ours, not a shield. */
 	val CHARM_DEFLECT: SoundEvent = register("item.charm.deflect")
 
+	/** An Echo of Kinship coming loose, heard once as it is dropped. */
+	val KINSHIP_RELEASE: SoundEvent = register("item.echo_of_kinship.release")
+
+	/** And the answer, once somebody finally takes it. */
+	val KINSHIP_CLAIM: SoundEvent = register("item.echo_of_kinship.claim")
+
 	/**
 	 * The Remnant's voice.
 	 *
