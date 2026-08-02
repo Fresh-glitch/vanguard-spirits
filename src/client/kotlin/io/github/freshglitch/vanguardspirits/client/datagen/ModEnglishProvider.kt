@@ -63,6 +63,8 @@ class ModEnglishProvider(
 		builder.add("subtitles.vanguard-spirits.charm.wake", "Charm answers")
 		builder.add("subtitles.vanguard-spirits.charm.hush", "Charm falls quiet")
 		builder.add("subtitles.vanguard-spirits.charm.deflect", "Ward turns a shot")
+		builder.add("subtitles.vanguard-spirits.echo_of_kinship.release", "An echo comes loose")
+		builder.add("subtitles.vanguard-spirits.echo_of_kinship.claim", "An echo is claimed")
 
 		builder.add(CharmItem.WOKEN_KEY, "The charm answers you.")
 		builder.add(CharmItem.HUSHED_KEY, "The charm falls quiet.")

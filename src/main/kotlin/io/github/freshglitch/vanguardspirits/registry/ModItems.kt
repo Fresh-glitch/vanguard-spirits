@@ -61,6 +61,10 @@ object ModItems {
 		EchoOfKinshipItem(
 			props.stacksTo(1)
 				.rarity(Rarity.EPIC)
+				// Worn permanently, the way the Nether Star wears it. The shimmer
+				// is vanilla's glint, so it costs nothing and matches what a
+				// player already reads as "this is not an ordinary object".
+				.component(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true)
 				.component(DataComponents.LORE, flavour("echo_of_kinship")),
 		)
 	}
