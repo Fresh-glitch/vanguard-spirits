@@ -52,18 +52,11 @@ nor quite the older official set. Do not write code against remembered API.
 Export the dev classpath once per session, then read real signatures:
 
 ```bash
-./gradlew -q -I cp.gradle printClientCp
+./gradlew -q -I tools/cp.gradle printClientCp
 ```
 
-where `cp.gradle` is an init script containing:
-
-```groovy
-allprojects {
-    tasks.register("printClientCp") {
-        doLast { println(project.configurations.getByName("clientRuntimeClasspath").files.join(File.pathSeparator)) }
-    }
-}
-```
+`tools/cp.gradle` is a tracked init script that registers `printClientCp`. It
+only ever runs when passed with `-I`, so it has no effect on an ordinary build.
 
 Then: `javap -cp "<that classpath>" net.minecraft.world.item.Item`. Use the JDK 25
 `javap` at `%JAVA_HOME%\bin\javap.exe`, not the JRE on `PATH`.
