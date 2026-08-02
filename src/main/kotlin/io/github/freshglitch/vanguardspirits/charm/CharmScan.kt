@@ -26,7 +26,17 @@ object CharmScan {
 		val active = LinkedHashSet<Int>(cap)
 		for (slot in 0 until inventory.containerSize) {
 			if (active.size >= cap) break
-			if (inventory.getItem(slot).item is CharmItem) active += slot
+
+			val stack = inventory.getItem(slot)
+			if (stack.item !is CharmItem) continue
+
+			// A charm switched off does not merely go dormant, it stops queueing:
+			// it gives up its place so a charm further down the inventory takes
+			// the attunement instead. Otherwise silencing one would waste the
+			// slot rather than free it.
+			if (CharmItem.isHushed(stack)) continue
+
+			active += slot
 		}
 		return active
 	}

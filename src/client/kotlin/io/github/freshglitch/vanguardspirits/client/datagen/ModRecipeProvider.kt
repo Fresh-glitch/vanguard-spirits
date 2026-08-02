@@ -23,18 +23,25 @@ class ModRecipeProvider(
 
 		override fun buildRecipes() {
 			// Four memories ringing a core that matches the spirit being bound.
-			charm(ModItems.CHARM_OF_THE_SENTINEL, Items.IRON_INGOT)
+			charm(ModItems.CHARM_OF_THE_LEAPER, Items.RABBIT_FOOT)
 			charm(ModItems.CHARM_OF_THE_WANDERER, Items.FEATHER)
 			charm(ModItems.CHARM_OF_THE_DELVER, Items.GOLDEN_CARROT)
 		}
 
+		/**
+		 * Memories in a cross, ruin masonry at the corners, and the core between.
+		 *
+		 * The deepslate is what the ruins are built from, so a charm now costs a
+		 * piece of the place it came out of rather than the memories alone.
+		 */
 		private fun charm(result: ItemLike, core: ItemLike) {
 			shaped(RecipeCategory.MISC, result)
 				.define('M', ModItems.FRACTURED_MEMORY)
+				.define('B', Items.DEEPSLATE_BRICKS)
 				.define('C', core)
-				.pattern(" M ")
+				.pattern("BMB")
 				.pattern("MCM")
-				.pattern(" M ")
+				.pattern("BMB")
 				.unlockedBy("has_fractured_memory", has(ModItems.FRACTURED_MEMORY))
 				.save(recipeOutput)
 		}

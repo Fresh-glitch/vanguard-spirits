@@ -1,15 +1,16 @@
 {
   "type": "minecraft:crafting_shaped",
   "key": {
-    "C": "minecraft:iron_ingot",
+    "B": "minecraft:deepslate_bricks",
+    "C": "minecraft:rabbit_foot",
     "M": "vanguard-spirits:fractured_memory"
   },
   "pattern": [
-    " M ",
+    "BMB",
     "MCM",
-    " M "
+    "BMB"
   ],
   "result": {
-    "id": "vanguard-spirits:charm_of_the_sentinel"
+    "id": "vanguard-spirits:charm_of_the_leaper"
   }
 }

@@ -21,6 +21,17 @@ object ModSounds {
 	val RELIQUARY_WARD: SoundEvent = register("block.golden_chest.ward")
 
 	/**
+	 * Switching a charm off and on again.
+	 *
+	 * [CHARM_WAKE] is the note the Echo of Kinship uses, and [CHARM_HUSH] is
+	 * that same file played backwards -- not a different sound chosen to feel
+	 * opposite, but literally the inverse, so the pair reads as one action
+	 * undoing the other.
+	 */
+	val CHARM_WAKE: SoundEvent = register("item.charm.wake")
+	val CHARM_HUSH: SoundEvent = register("item.charm.hush")
+
+	/**
 	 * The Remnant's voice.
 	 *
 	 * These are the only sounds in the mod that are not vanilla samples: the

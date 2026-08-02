@@ -27,9 +27,9 @@ object ModItems {
 		Item(props.stacksTo(16).rarity(Rarity.UNCOMMON))
 	}
 
-	val CHARM_OF_THE_SENTINEL: CharmItem = registerCharm(
-		path = "charm_of_the_sentinel",
-		aura = CharmAura(MobEffects.RESISTANCE),
+	val CHARM_OF_THE_LEAPER: CharmItem = registerCharm(
+		path = "charm_of_the_leaper",
+		aura = CharmAura(MobEffects.JUMP_BOOST),
 	)
 
 	val CHARM_OF_THE_WANDERER: CharmItem = registerCharm(
