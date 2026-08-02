@@ -31,6 +31,9 @@ object ModSounds {
 	val CHARM_WAKE: SoundEvent = register("item.charm.wake")
 	val CHARM_HUSH: SoundEvent = register("item.charm.hush")
 
+	/** A ward turning a shot aside. Ours, not a shield. */
+	val CHARM_DEFLECT: SoundEvent = register("item.charm.deflect")
+
 	/**
 	 * The Remnant's voice.
 	 *

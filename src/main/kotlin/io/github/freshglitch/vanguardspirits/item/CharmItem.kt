@@ -23,6 +23,15 @@ import net.minecraft.world.level.Level
 class CharmItem(
 	props: Item.Properties,
 	val aura: CharmAura,
+	/**
+	 * How much of the holder's attunement this charm takes up.
+	 *
+	 * One for almost everything. A charm worth more than the others costs more
+	 * than the others, which is the only lever that makes a strong aura a choice
+	 * rather than a strict addition -- at the cap of four, a charm costing three
+	 * leaves room for exactly one more.
+	 */
+	val cost: Int = 1,
 ) : Item(props) {
 
 	/**

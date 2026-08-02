@@ -22,11 +22,21 @@ object CharmTooltip {
 	private const val DORMANT_KEY = "tooltip.vanguard-spirits.charm.dormant"
 	private const val GENERIC_KEY = "tooltip.vanguard-spirits.charm.generic"
 	const val HUSHED_KEY: String = "tooltip.vanguard-spirits.charm.hushed"
+	const val COST_KEY: String = "tooltip.vanguard-spirits.charm.cost"
 
 	fun register() {
 		ItemTooltipCallback.EVENT.register { stack, _, _, lines ->
-			if (stack.item !is CharmItem) return@register
+			val charm = stack.item as? CharmItem ?: return@register
 			val player = Minecraft.getInstance().player ?: return@register
+
+			// Only the expensive ones say so. Printing "costs 1" on every charm
+			// would be noise on the case that is already the assumption.
+			if (charm.cost > 1) {
+				lines.add(
+					Component.translatable(COST_KEY, charm.cost).withStyle(ChatFormatting.DARK_PURPLE),
+				)
+			}
+
 			lines.add(stateLine(player, stack))
 		}
 	}

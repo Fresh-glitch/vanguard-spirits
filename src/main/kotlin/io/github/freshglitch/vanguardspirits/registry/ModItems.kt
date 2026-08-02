@@ -42,6 +42,20 @@ object ModItems {
 		aura = CharmAura(MobEffects.NIGHT_VISION),
 	)
 
+	/**
+	 * Sends back what is thrown at you, and eats three quarters of a full
+	 * attunement doing it.
+	 *
+	 * The cost is the design. At the cap of four it leaves room for exactly one
+	 * other charm, so taking this is a decision about what to give up rather
+	 * than another thing to carry.
+	 */
+	val CHARM_OF_THE_RETURNED: CharmItem = registerCharm(
+		path = "charm_of_the_returned",
+		aura = CharmAura(ModEffects.DEFLECTION),
+		cost = 3,
+	)
+
 	/** Deep-ruin loot. Consumed to raise the holder's attunement cap. */
 	val ECHO_OF_KINSHIP: Item = register("echo_of_kinship") { props ->
 		EchoOfKinshipItem(
@@ -76,13 +90,14 @@ object ModItems {
 	/** Touching the object is what actually runs the registrations above. */
 	fun register() = Unit
 
-	private fun registerCharm(path: String, aura: CharmAura): CharmItem =
+	private fun registerCharm(path: String, aura: CharmAura, cost: Int = 1): CharmItem =
 		register(path) { props ->
 			CharmItem(
 				props.stacksTo(1)
-					.rarity(Rarity.RARE)
+					.rarity(if (cost > 1) Rarity.EPIC else Rarity.RARE)
 					.component(DataComponents.LORE, flavour(path)),
 				aura,
+				cost,
 			)
 		}
 

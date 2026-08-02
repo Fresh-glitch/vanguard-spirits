@@ -28,6 +28,7 @@ class ModEnglishProvider(
 		builder.add(ModItems.CHARM_OF_THE_LEAPER, "Charm of the Leaper")
 		builder.add(ModItems.CHARM_OF_THE_WANDERER, "Charm of the Wanderer")
 		builder.add(ModItems.CHARM_OF_THE_DELVER, "Charm of the Delver")
+		builder.add(ModItems.CHARM_OF_THE_RETURNED, "Charm of the Returned")
 		builder.add(ModItems.ECHO_OF_KINSHIP, "Echo of Kinship")
 
 		builder.add(ModItems.STONE_SENTINEL_SPAWN_EGG, "Stone Sentinel Spawn Egg")
@@ -47,6 +48,10 @@ class ModEnglishProvider(
 			"They dug deep, and something remembered them.",
 		)
 		builder.add(
+			ModItems.loreKey("charm_of_the_returned"),
+			"Everything sent at them came back.",
+		)
+		builder.add(
 			ModItems.loreKey("echo_of_kinship"),
 			"Two spirits who never met, and remember each other anyway.",
 		)
@@ -57,6 +62,7 @@ class ModEnglishProvider(
 		builder.add("subtitles.vanguard-spirits.golden_chest.close", "Reliquary seals")
 		builder.add("subtitles.vanguard-spirits.charm.wake", "Charm answers")
 		builder.add("subtitles.vanguard-spirits.charm.hush", "Charm falls quiet")
+		builder.add("subtitles.vanguard-spirits.charm.deflect", "Ward turns a shot")
 
 		builder.add(CharmItem.WOKEN_KEY, "The charm answers you.")
 		builder.add(CharmItem.HUSHED_KEY, "The charm falls quiet.")
@@ -97,6 +103,9 @@ class ModEnglishProvider(
 		builder.add("tooltip.vanguard-spirits.charm.attuned", "Attuned")
 		builder.add("tooltip.vanguard-spirits.charm.dormant", "Dormant — attunement %s in use")
 		builder.add("tooltip.vanguard-spirits.charm.generic", "Attunes while carried")
+		builder.add(CharmTooltip.COST_KEY, "Costs %s attunement")
+
+		builder.add("effect.vanguard-spirits.deflection", "Deflection")
 
 		builder.add(EchoOfKinshipItem.RAISED_KEY, "Attunement deepens — %s of %s")
 		builder.add(EchoOfKinshipItem.MAXED_KEY, "You can hold no deeper echo.")

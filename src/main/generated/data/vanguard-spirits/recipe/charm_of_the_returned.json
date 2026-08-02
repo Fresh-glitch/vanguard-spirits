@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "B": "minecraft:deepslate_bricks",
+    "C": "minecraft:shield",
+    "M": "vanguard-spirits:fractured_memory"
+  },
+  "pattern": [
+    "BMB",
+    "MCM",
+    "BMB"
+  ],
+  "result": {
+    "id": "vanguard-spirits:charm_of_the_returned"
+  }
+}
