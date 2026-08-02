@@ -7,6 +7,11 @@ Minecraft **Fabric 26.2** mod in **Kotlin**, built for a CurseForge modjam theme
 Core mechanic: **Guarded Ruins** yield **Fractured Memories**, which are crafted
 into **charms** that grant passive auras.
 
+A ruin is two pieces of one structure: the sanctum, buried in a cavern it
+hollows for itself, and a **graveyard** on the surface directly above, whose
+mausoleum holds the only stair down. Mourners circling overhead are what marks
+it from a distance.
+
 ## Build and run
 
 Always drive the game through **Gradle**:
@@ -83,6 +88,17 @@ A worked list from this repo:
 - The Bulwark would not trigger from a tower. Three mechanisms were theorised
   from bytecode, all plausible, none right. One temporary `LOGGER.info` printed
   `stalled=20` and the real cause was visible immediately.
+- The graveyard's spiral stair was going to end part way up a wall, for every
+  ruin whose depth was not a multiple of the ring. Nothing about the code looked
+  wrong and a playthrough would have blamed the exit carving. Forty lines of
+  Python re-implementing the ring arithmetic found it before the game was ever
+  launched — and then found the *second* one, where carving the whole well left
+  seven open cells to fall down at the entrance.
+- A Sentinel woke through a wall the moment the player reached the bottom of that
+  stair. The obvious reading is that the shaft is simply too close to the
+  Sentinel. It is not: `watch()` measures from `wardPos` — the stairwell it
+  guards, seven blocks from the altar it stands on — so what mattered was the
+  distance to something the Sentinel was not standing on.
 
 So reach for the instrument early, not after the third theory:
 
@@ -94,6 +110,7 @@ So reach for the instrument early, not after the third theory:
 | Is this process working or stuck? | `jstack`, and process CPU time |
 | Is this `.ogg` the right length? | `ffprobe`, or granule position over sample rate |
 | Is this PNG intact? | walk the chunk list; `file` will happily bless a truncated one |
+| Does this generated geometry close up? | re-implement the coordinate maths in a throwaway script and assert on it, before generating a world |
 
 Two corollaries worth their own line. **A comment is not evidence** — several in
 this repo confidently described the opposite of what the code did. And **silence
@@ -176,6 +193,25 @@ not explain. They are listed in the order they will bite.
   random. Geometry that must agree across a chunk border cannot be shaped by
   random draws — make it a pure function of position (a positional hash gives
   variation without the disagreement).
+- **A piece may only *read* the chunk it is writing.** 26.2 checks this and logs
+  `Detected unsafe terrain read during worldgen … (distance: 2, write radius: 1)`,
+  so the mistake announces itself — but only if the log is being watched, and it
+  does not stop generation. Anything wider than a chunk therefore has to fence
+  its own reads: compare `getWorldX`/`getWorldZ` against the `box` argument, which
+  is the chunk currently being written, and skip columns it does not cover.
+  `placeBlock` already drops out-of-box *writes*, which is what makes this easy
+  to miss — `level.getHeight` and `getBlock` have no such guard. The same guard
+  is a large saving, since a plot spanning four chunks otherwise runs every
+  heightmap lookup four times.
+- **Anything a piece cannot recompute from its bounding box has to be persisted.**
+  The box and the piece random are saved by the base class, so a layout derived
+  purely from those needs no `addAdditionalSaveData` at all — which is the reason
+  to derive from them wherever possible. A fact about the *world* rather than the
+  geometry (which biome the site is in, and so which palette to build from) has
+  nowhere to be recovered from and must go in the tag.
+- **Pieces `postProcess` in the order they were added.** Two pieces that overlap
+  resolve last-writer-wins, so a shaft that has to cut through another piece's
+  work is added after it.
 - **Surface structures anchor to the noise-predicted terrain height**, which
   excludes snow, topsoil and everything else the surface rules add afterwards. A
   solid platform placed at that height ends up sealed under the finished ground.
@@ -187,6 +223,15 @@ not explain. They are listed in the order they will bite.
 - **Face a shaft before cutting it, not after.** Patching the walls of a cut
   never covers the back wall or the ground under the treads. Cast the volume as
   solid masonry, then carve the passage out of it.
+- **A structure-placed connecting block does not connect.** `placeBlock` writes
+  with flag 2 — clients only, no neighbour update — so nothing recalculates
+  shape afterwards *except* for the blocks in `StructurePiece.SHAPE_CHECK_BLOCKS`,
+  which get `markPosForPostProcessing`. That set is fences, iron bars, ladders and
+  torches. **Walls are not in it**, so a cobblestone wall generates as a row of
+  loose posts and a fence generates correctly — the opposite way round to what
+  the two blocks feel like. Iron bars are the connecting block to reach for.
+  Stairs are fine because only their `shape` is derived, and `straight` is the
+  usual look anyway.
 - **`TagAppender.addTag` validates that the target is defined by the same
   provider.** Referencing a vanilla tag needs `addOptionalTag`, or datagen fails
   outright.
@@ -229,6 +274,20 @@ needed a screenshot to diagnose.
 - **Declaring a `FACING` property does nothing on its own.** Without
   `getStateForPlacement`, the state keeps its default forever and every block
   faces the same way no matter how it was placed.
+- **To answer a block being destroyed, override
+  `affectNeighborsAfterRemoval`, not `playerWillDestroy`.** `LevelChunk.setBlockState`
+  is what calls it, so every route to removal arrives there — pick, explosion,
+  piston, `/setblock` — and it is handed a `ServerLevel`, so there is no side to
+  check. `playerWillDestroy` misses everything that is not a player *and* fires
+  client-side for prediction. Its `movedByPiston` flag is worth honouring: a
+  pushed block has not been destroyed, only moved, and it takes its blockstate
+  with it. (Found by disassembling to see who calls it; the name suggests
+  neighbour bookkeeping and reads like the wrong hook.)
+- **A trap in a block belongs in its blockstate, not in an assumption about
+  where the block came from.** The Grave carries `OCCUPIED`: worldgen lays
+  occupied ones, the `BlockItem` in a player's hand places empty ones, so a
+  stack carried home is not a portable spawner and an emptied grave can still be
+  left standing as a plain mound.
 - **Screens register per `MenuType`.** Styling a screen for a *vanilla* menu type
   restyles every vanilla block using it — reusing `GENERIC_3x3` would have given
   the Reliquary's panel to every dispenser in the game. Custom interface means a
