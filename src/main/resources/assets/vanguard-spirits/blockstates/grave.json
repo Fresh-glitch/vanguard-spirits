@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "occupied=false": {
+      "model": "vanguard-spirits:block/grave"
+    },
+    "occupied=true": {
+      "model": "vanguard-spirits:block/grave"
+    }
+  }
+}

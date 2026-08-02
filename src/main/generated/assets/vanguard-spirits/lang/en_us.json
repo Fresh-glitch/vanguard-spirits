@@ -1,5 +1,6 @@
 {
   "block.vanguard-spirits.golden_chest": "Gilded Reliquary",
+  "block.vanguard-spirits.grave": "Grave",
   "container.vanguard-spirits.golden_chest": "Gilded Reliquary",
   "effect.vanguard-spirits.deflection": "Deflection",
   "entity.vanguard-spirits.mourner": "Mourner",
@@ -34,6 +35,7 @@
   "subtitles.vanguard-spirits.golden_chest.open": "Reliquary creaks open",
   "subtitles.vanguard-spirits.golden_chest.reject": "Runes gather",
   "subtitles.vanguard-spirits.golden_chest.ward": "The ward answers",
+  "subtitles.vanguard-spirits.grave.disturb": "A grave comes open",
   "subtitles.vanguard-spirits.mourner.call": "Mourner calls",
   "subtitles.vanguard-spirits.mourner.hurt": "Mourner cries out",
   "subtitles.vanguard-spirits.remnant.death": "Remnant comes apart",

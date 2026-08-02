@@ -58,6 +58,8 @@ class ModEnglishProvider(
 
 		builder.add(ModBlocks.GOLDEN_CHEST, "Gilded Reliquary")
 		builder.add(GoldenChestBlockEntity.NAME_KEY, "Gilded Reliquary")
+		builder.add(ModBlocks.GRAVE, "Grave")
+		builder.add("subtitles.vanguard-spirits.grave.disturb", "A grave comes open")
 		builder.add("subtitles.vanguard-spirits.golden_chest.open", "Reliquary creaks open")
 		builder.add("subtitles.vanguard-spirits.golden_chest.close", "Reliquary seals")
 		builder.add("subtitles.vanguard-spirits.charm.wake", "Charm answers")
