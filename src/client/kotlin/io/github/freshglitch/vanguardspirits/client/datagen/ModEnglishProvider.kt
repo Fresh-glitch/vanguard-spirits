@@ -28,6 +28,10 @@ class ModEnglishProvider(
 		builder.add(ModItems.CHARM_OF_THE_DELVER, "Charm of the Delver")
 		builder.add(ModItems.ECHO_OF_KINSHIP, "Echo of Kinship")
 
+		builder.add(ModItems.STONE_SENTINEL_SPAWN_EGG, "Stone Sentinel Spawn Egg")
+		builder.add(ModItems.REMNANT_SPAWN_EGG, "Remnant Spawn Egg")
+		builder.add(ModItems.MOURNER_SPAWN_EGG, "Mourner Spawn Egg")
+
 		builder.add(
 			ModItems.loreKey("charm_of_the_sentinel"),
 			"The last watch never stood down.",
