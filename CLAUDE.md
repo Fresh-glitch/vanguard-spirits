@@ -68,6 +68,46 @@ allprojects {
 Then: `javap -cp "<that classpath>" net.minecraft.world.item.Item`. Use the JDK 25
 `javap` at `%JAVA_HOME%\bin\javap.exe`, not the JRE on `PATH`.
 
+## Measure it; the guess is usually wrong
+
+The rule above generalises, and it is the single biggest time saver in this
+project. **When something behaves unexpectedly, the first plausible explanation
+has been wrong nearly every time.** Not vaguely wrong either — wrong in a way
+that still explains the symptom perfectly, which is what makes it so expensive.
+A worked list from this repo:
+
+- Arms vanished into the torso. The code said `-SHOULDER_ROLL` and the comment
+  beside it said "roll out", so reading the code confirmed the wrong answer.
+  One Blockbench export settled it: `z = +90` on `arm_right` emits
+  `zRot = 1.5708`, and four shipped animations had been inverted for months.
+- The Sentinel walked into walls. Obvious cause: bad pathfinding weights. Actual
+  cause: `NodeEvaluator.prepare` sizes with `Mth.floor`, so a 2.6 block mob is
+  planned for as 2.
+- The Sentinel would not walk home. Obvious cause: one bug. Actual cause: two
+  independent ones, and fixing either alone changed nothing.
+- Datagen hung for ten minutes. Obvious cause: a bad provider. Actual cause: a
+  stale daemon — 2.3 s of CPU over 13 minutes said *blocked*, not *computing*.
+- The Bulwark would not trigger from a tower. Three mechanisms were theorised
+  from bytecode, all plausible, none right. One temporary `LOGGER.info` printed
+  `stalled=20` and the real cause was visible immediately.
+
+So reach for the instrument early, not after the third theory:
+
+| Question | Instrument |
+| --- | --- |
+| What does this API actually do? | `javap -c` on the dev classpath |
+| Which way does this bone rotate? | pose it in Blockbench, read the Java export |
+| What is the server actually seeing? | temporary `LOGGER.info`, ask the player to trigger it |
+| Is this process working or stuck? | `jstack`, and process CPU time |
+| Is this `.ogg` the right length? | `ffprobe`, or granule position over sample rate |
+| Is this PNG intact? | walk the chunk list; `file` will happily bless a truncated one |
+
+Two corollaries worth their own line. **A comment is not evidence** — several in
+this repo confidently described the opposite of what the code did. And **silence
+is not confirmation**: when the Bulwark worked, the log went quiet, which looks
+identical to the feature never running. Decide in advance what success will
+*emit*.
+
 ## 26.2 API gotchas
 
 Each of these cost a compile cycle or a wrong guess:
