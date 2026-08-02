@@ -124,6 +124,12 @@ Each of these cost a compile cycle or a wrong guess:
   (action bar) or `sendSystemMessage` (chat).
 - `MobEffects` constants are `SPEED` / `HASTE`, not `MOVEMENT_SPEED` / `DIG_SPEED`,
   and are `Holder<MobEffect>`, not raw `MobEffect`.
+- **Goals can require attributes, and say so only by crashing.** `TemptGoal`
+  reads `Attributes.TEMPT_RANGE` inside `canUse`, so a mob built on
+  `createMobAttributes` rather than `createAnimalAttributes` dies with
+  `Can't find attribute minecraft:tempt_range` on the first tick the goal is
+  evaluated — nothing in the constructor hints at it. Checking a goal's
+  signature is not checking a goal; `javap -c` its `canUse` too.
 
 ## Worldgen gotchas
 

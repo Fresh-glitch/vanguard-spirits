@@ -10,6 +10,7 @@ import io.github.freshglitch.vanguardspirits.registry.ModItems
 import io.github.freshglitch.vanguardspirits.registry.ModMenus
 import io.github.freshglitch.vanguardspirits.registry.ModParticles
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
+import io.github.freshglitch.vanguardspirits.registry.ModSpawns
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
 import io.github.freshglitch.vanguardspirits.worldgen.RuinAmbience
 import io.github.freshglitch.vanguardspirits.worldgen.RuinBeacon
@@ -30,10 +31,14 @@ object VanguardSpirits : ModInitializer {
 		ModMenus.register()
 		ModSounds.register()
 		ModParticles.register()
+		// Entities before items: the spawn eggs name the type they hatch, so the
+		// types have to exist first. Kotlin would initialise them on first touch
+		// anyway, but leaving that to chance hides a real ordering requirement.
+		ModEntities.register()
 		ModItems.register()
 		ModItemGroups.register()
 		ModStructures.register()
-		ModEntities.register()
+		ModSpawns.register()
 		Attunement.register()
 		CharmTicker.register()
 		RuinAmbience.register()

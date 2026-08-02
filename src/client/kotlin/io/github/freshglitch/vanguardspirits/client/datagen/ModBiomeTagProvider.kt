@@ -7,6 +7,7 @@ import net.minecraft.core.HolderLookup
 import net.minecraft.core.registries.Registries
 import net.minecraft.tags.BiomeTags
 import net.minecraft.world.level.biome.Biome
+import net.minecraft.world.level.biome.Biomes
 import java.util.concurrent.CompletableFuture
 
 /**
@@ -31,5 +32,12 @@ class ModBiomeTagProvider(
 		// fails datagen outright.
 		builder(ModTags.GUARDED_RUINS_BIOMES)
 			.addOptionalTag(BiomeTags.IS_OVERWORLD)
+
+		// Named outright rather than by a vanilla forest tag, which would sweep in
+		// birch, flower, taiga and the two nether forests as well. A Mourner over
+		// crimson fungus is not the picture.
+		builder(ModTags.MOURNER_BIOMES)
+			.add(Biomes.FOREST)
+			.add(Biomes.DARK_FOREST)
 	}
 }
