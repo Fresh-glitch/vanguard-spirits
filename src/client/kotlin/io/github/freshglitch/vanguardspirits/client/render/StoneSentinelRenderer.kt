@@ -40,6 +40,7 @@ class StoneSentinelRenderer(context: EntityRendererProvider.Context) :
 		state.attackTick = entity.attackTick
 		state.eyeGlow = entity.glow / 100.0f
 		state.gyreTick = entity.gyreTick
+		state.bulwarkTick = entity.bulwarkTick
 	}
 
 	override fun getTextureLocation(state: StoneSentinelRenderState): Identifier = TEXTURE

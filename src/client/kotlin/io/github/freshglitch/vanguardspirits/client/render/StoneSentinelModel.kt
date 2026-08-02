@@ -58,12 +58,46 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 		when {
 			state.dormant -> return
 			state.wakeTick > 0 -> waking(state)
+			state.bulwarkTick > 0 -> curled(state)
 			state.gyreTick > 0 -> spinning(state)
 			else -> {
 				hunting(state)
 				if (state.attackKind != StoneSentinel.NO_ATTACK) attacking(state)
 			}
 		}
+	}
+
+	/**
+	 * The bulwark: down on its knees with its arms over its head.
+	 *
+	 * Everything folds toward the middle -- the one pose in the whole set where
+	 * the inward sign on the arms is what is wanted, since they are meant to
+	 * close over the skull rather than open away from it.
+	 *
+	 * The root sinks as it closes, so the silhouette loses most of its height.
+	 * That is the read at a distance: a thing that was two and a half blocks
+	 * tall is suddenly a boulder, and arrows are coming off it.
+	 */
+	private fun curled(state: StoneSentinelRenderState) {
+		val shut = ease((state.bulwarkTick / StoneSentinel.BULWARK_CURL.toFloat()).coerceIn(0.0f, 1.0f))
+
+		body.xRot = HUDDLE_BODY * shut
+		head.xRot = HUDDLE_HEAD * shut
+
+		armRight.xRot = -HUDDLE_ARM * shut
+		armLeft.xRot = -HUDDLE_ARM * shut
+		armRight.zRot = -HUDDLE_WRAP * shut
+		armLeft.zRot = HUDDLE_WRAP * shut
+
+		// Legs stay planted and straight. Bending them read as a crouch on top of
+		// a hunch, which is two ideas at once and looked like neither -- the shell
+		// is something the upper body does while the legs simply hold it up.
+
+		// A slow tremor once it is shut, so the shell reads as something holding
+		// itself together rather than as a paused animation.
+		val strain = Mth.cos((state.ageInTicks * STRAIN_RATE).toDouble()) * STRAIN * shut
+		body.xRot += strain
+		head.xRot -= strain
 	}
 
 	/**
@@ -95,10 +129,9 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 		head.xRot = -T_LOOK * out
 		body.xRot = 0.0f
 
-		// Winds up over the flare and holds. Both terms rise, so the angle only
-		// ever goes one way round -- an accelerating spin, never a stutter.
-		val ramp = ((t - StoneSentinel.GYRE_FLARE) / SPIN_RAMP).coerceIn(0.0f, 1.0f)
-		root().yRot = state.ageInTicks * SPIN_RATE * ramp
+		// Shared with the entity rather than worked out here: the wake particles
+		// are placed on the fists, and the fists are wherever this puts them.
+		root().yRot = StoneSentinel.spinAngle(state.gyreTick, state.ageInTicks)
 	}
 
 	/** The statue pose, and the base every other pose is written over. */
@@ -358,6 +391,26 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 		private const val RECKON_HAUL = 0.70f
 		private const val RECKON_STOOP = 0.35f
 
+		// ---- bulwark ----
+
+		/**
+		 * Kept small, and that is not a matter of taste.
+		 *
+		 * The bones are flat siblings, so the head and arms do not ride on the
+		 * torso -- folding the body past about half a radian swings it out from
+		 * under them and opens a visible gap at the neck. At 1.15 the model comes
+		 * apart outright. The huddle is therefore built from the parts that pivot
+		 * where they attach, and the body only leans.
+		 */
+		private const val HUDDLE_BODY = 0.40f
+
+		private const val HUDDLE_HEAD = 1.25f
+		private const val HUDDLE_ARM = 2.65f
+		private const val HUDDLE_WRAP = 0.55f
+
+		private const val STRAIN_RATE = 0.13f
+		private const val STRAIN = 0.035f
+
 		// ---- gyre ----
 
 		/** Arms level with the shoulders. A quarter turn is exactly horizontal. */
@@ -365,12 +418,6 @@ class StoneSentinelModel(root: ModelPart) : EntityModel<StoneSentinelRenderState
 
 		/** Chin up. It is not looking at anything in particular any more. */
 		private const val T_LOOK = 0.25f
-
-		/** Radians per tick at full speed: a whole turn every eight ticks. */
-		private const val SPIN_RATE = 0.785f
-
-		/** Ticks after the flare before it is turning at full speed. */
-		private const val SPIN_RAMP = 20.0f
 
 		/** Sunder: winding the arm back, then putting it through the wall. */
 		private const val SUNDER_STRIKE = 2.5f

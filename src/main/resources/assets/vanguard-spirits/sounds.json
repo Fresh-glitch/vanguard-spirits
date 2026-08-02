@@ -197,6 +197,28 @@
       }
     ]
   },
+  "entity.stone_sentinel.shell": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.shell",
+    "sounds": [
+      {
+        "name": "minecraft:block.piston.contract",
+        "type": "event",
+        "volume": 1.6,
+        "pitch": 0.4
+      }
+    ]
+  },
+  "entity.stone_sentinel.mend": {
+    "subtitle": "subtitles.vanguard-spirits.stone_sentinel.mend",
+    "sounds": [
+      {
+        "name": "minecraft:entity.iron_golem.repair",
+        "type": "event",
+        "volume": 0.9,
+        "pitch": 0.65
+      }
+    ]
+  },
   "entity.stone_sentinel.hurt": {
     "subtitle": "subtitles.vanguard-spirits.stone_sentinel.hurt",
     "sounds": [

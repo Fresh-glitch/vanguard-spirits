@@ -30,6 +30,15 @@ object ModParticles {
 	 */
 	val ECHO_RUNE: SimpleParticleType = register("echo_rune", alwaysShow = true)
 
+	/**
+	 * Air torn off the Sentinel's fists and greaves while it spins.
+	 *
+	 * Left to the limiter rather than forced. Unlike the runes these come in
+	 * their hundreds, and on a machine already struggling with the fight they
+	 * are the first thing that should go.
+	 */
+	val STONE_WAKE: SimpleParticleType = register("stone_wake")
+
 	private fun register(path: String, alwaysShow: Boolean = false): SimpleParticleType =
 		Registry.register(
 			BuiltInRegistries.PARTICLE_TYPE,
