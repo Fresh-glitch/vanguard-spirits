@@ -3,6 +3,7 @@ package io.github.freshglitch.vanguardspirits.entity
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import io.github.freshglitch.vanguardspirits.registry.ModParticles
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
+import io.github.freshglitch.vanguardspirits.worldgen.RuinSeal
 import net.minecraft.core.BlockPos
 import net.minecraft.core.particles.BlockParticleOption
 import net.minecraft.core.particles.ParticleTypes
@@ -1406,6 +1407,20 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 
 	/** Which kind of unfairness the sentinel decided it was looking at. */
 	private enum class Answer { RECKONING, SUNDER, GYRE, BULWARK }
+
+	/**
+	 * Its death is what unseals the Reliquary in the vault below.
+	 *
+	 * Recorded against the altar rather than wherever it happened to fall, so a
+	 * sentinel chased out of its own ruin still lifts the right seal -- the
+	 * lookup wants a point inside the structure, and the altar always is one.
+	 */
+	override fun die(source: DamageSource) {
+		val level = level()
+		val altar = homePos
+		if (level is ServerLevel && altar != null) RuinSeal.markFelled(level, altar)
+		super.die(source)
+	}
 
 	/** Placed deliberately; it should still be there when the player comes back. */
 	override fun removeWhenFarAway(distance: Double): Boolean = false

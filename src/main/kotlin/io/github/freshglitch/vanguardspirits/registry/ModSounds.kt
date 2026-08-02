@@ -16,6 +16,10 @@ object ModSounds {
 	val GOLDEN_CHEST_OPEN: SoundEvent = register("block.golden_chest.open")
 	val GOLDEN_CHEST_CLOSE: SoundEvent = register("block.golden_chest.close")
 
+	/** Turning away someone who has not earned it: the runes gathering, then the ward. */
+	val RELIQUARY_REJECT: SoundEvent = register("block.golden_chest.reject")
+	val RELIQUARY_WARD: SoundEvent = register("block.golden_chest.ward")
+
 	/**
 	 * The Remnant's voice.
 	 *

@@ -53,6 +53,10 @@ class ModEnglishProvider(
 		builder.add(GoldenChestBlockEntity.NAME_KEY, "Gilded Reliquary")
 		builder.add("subtitles.vanguard-spirits.golden_chest.open", "Reliquary creaks open")
 		builder.add("subtitles.vanguard-spirits.golden_chest.close", "Reliquary seals")
+		builder.add("subtitles.vanguard-spirits.golden_chest.reject", "Runes gather")
+		builder.add("subtitles.vanguard-spirits.golden_chest.ward", "The ward answers")
+
+		builder.add(GoldenChestBlockEntity.REJECT_KEY, "The Runes reject your claim.")
 
 		builder.add("subtitles.vanguard-spirits.mourner.call", "Mourner calls")
 		builder.add("subtitles.vanguard-spirits.mourner.hurt", "Mourner cries out")

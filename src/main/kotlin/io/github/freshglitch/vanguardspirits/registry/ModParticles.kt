@@ -39,6 +39,18 @@ object ModParticles {
 	 */
 	val STONE_WAKE: SimpleParticleType = register("stone_wake")
 
+	/**
+	 * The same six glyphs as [ECHO_RUNE], at a fraction of the size and gone in
+	 * well under a second. Thrown in their dozens by a Reliquary turning
+	 * somebody away, where the echo rune's size and four-second hold would set
+	 * into a solid ball instead of reading as a shell going past.
+	 *
+	 * Forced past the limiter: this one only ever fires as a direct answer to
+	 * something the player just did, and silently dropping it would leave the
+	 * refusal looking broken.
+	 */
+	val WARD_RUNE: SimpleParticleType = register("ward_rune", alwaysShow = true)
+
 	private fun register(path: String, alwaysShow: Boolean = false): SimpleParticleType =
 		Registry.register(
 			BuiltInRegistries.PARTICLE_TYPE,
