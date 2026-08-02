@@ -18,6 +18,7 @@ class MournerRenderer(context: EntityRendererProvider.Context) :
 	override fun extractRenderState(entity: Mourner, state: MournerRenderState, partialTick: Float) {
 		super.extractRenderState(entity, state, partialTick)
 		state.perched = entity.isPerched
+		state.afoot = entity.isWild && entity.onGround()
 	}
 
 	override fun getTextureLocation(state: MournerRenderState): Identifier = TEXTURE

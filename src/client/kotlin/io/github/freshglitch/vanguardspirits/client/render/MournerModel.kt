@@ -29,6 +29,17 @@ class MournerModel(root: ModelPart) : EntityModel<MournerRenderState>(root) {
 	override fun setupAnim(state: MournerRenderState) {
 		super.setupAnim(state)
 
+		// The model was authored as a bird in flight: its feet sit at Blockbench
+		// y = 5, not 0, so it renders a third of a block above the entity's own
+		// footing. In the air nobody can tell. Standing on something, it hovers,
+		// so the whole thing drops onto its feet whenever it is on a surface.
+		if (state.perched || state.afoot) root().y = FOOT_DROP
+
+		if (state.afoot && !state.perched) {
+			walking(state)
+			return
+		}
+
 		if (state.perched) {
 			// Folded, level, and standing on its feet. Only a faint shuffle, so
 			// it is still clearly alive without looking like it is about to go.
@@ -62,8 +73,63 @@ class MournerModel(root: ModelPart) : EntityModel<MournerRenderState>(root) {
 		legLeft.xRot = TUCK
 	}
 
+	/**
+	 * Walking about on the ground.
+	 *
+	 * Wings stay folded -- a bird that flaps while its feet are down looks like
+	 * it is trying to take off and failing. The read comes from the legs and from
+	 * the head, which pumps back and forward against the stride the way a bird's
+	 * does; without that it walks like a wind-up toy.
+	 */
+	private fun walking(state: MournerRenderState) {
+		val stride = state.walkAnimationPos * STEP_RATE
+		val amount = state.walkAnimationSpeed
+
+		legRight.xRot = Mth.cos(stride.toDouble()) * STEP_SWING * amount
+		legLeft.xRot = Mth.cos((stride + Mth.PI).toDouble()) * STEP_SWING * amount
+
+		// Swept back along the body rather than folded up. The perched pose uses
+		// zRot for this, which on a wing twelve units long stands it vertically
+		// over the back -- fine as a bird settling onto a branch, wrong on one
+		// walking about. Sweeping on yRot lays it over the tail instead, wingtips
+		// past the end, which is how a corvid actually carries them.
+		wingRight.yRot = FOLD_SWEEP
+		wingRight.zRot = FOLD_LIFT
+		wingLeft.yRot = -FOLD_SWEEP
+		wingLeft.zRot = -FOLD_LIFT
+
+		// Rocks forward over its feet as it goes, and stands level when it stops.
+		body.xRot = TIP * amount
+
+		// Twice the stride rate: the head goes out and back once per footfall,
+		// not once per pair of them.
+		head.xRot = state.xRot * Mth.DEG_TO_RAD * HEAD_STEADY
+		head.yRot = state.yRot * Mth.DEG_TO_RAD
+		head.z = HEAD_Z + Mth.cos((stride * 2.0f).toDouble()) * BOB_REACH * amount
+	}
+
 	companion object {
 		val LAYER: ModelLayerLocation = ModelLayerLocation(VanguardSpirits.id("mourner"), "main")
+
+		/**
+		 * Model units the bird drops to stand on its own feet.
+		 *
+		 * The gap between where the model's legs end and where the entity's
+		 * footing is. Model space runs +y downward, so this sinks it.
+		 */
+		private const val FOOT_DROP = 5.0f
+
+		/** Where the head bone sits at rest, for the walk's bob to work from. */
+		private const val HEAD_Z = -5.0f
+
+		private const val STEP_RATE = 0.9f
+		private const val STEP_SWING = 1.1f
+		private const val TIP = 0.22f
+		private const val BOB_REACH = 0.8f
+
+		/** Wings laid back over the tail while it walks. Verified in Blockbench. */
+		private const val FOLD_SWEEP = 1.35f
+		private const val FOLD_LIFT = 0.35f
 
 		private const val BEAT_RATE = 0.16f
 		private const val BEAT_UP = 0.55f

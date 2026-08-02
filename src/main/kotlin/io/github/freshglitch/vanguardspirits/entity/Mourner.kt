@@ -3,19 +3,30 @@ package io.github.freshglitch.vanguardspirits.entity
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import io.github.freshglitch.vanguardspirits.worldgen.RuinVigil
 import net.minecraft.core.BlockPos
+import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.network.syncher.EntityDataSerializers
 import net.minecraft.network.syncher.SynchedEntityData
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.tags.BlockTags
+import net.minecraft.tags.ItemTags
+import net.minecraft.world.InteractionHand
+import net.minecraft.world.InteractionResult
 import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.phys.Vec3
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.EntityType
-import net.minecraft.world.entity.Mob
+import net.minecraft.world.entity.PathfinderMob
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier
 import net.minecraft.world.entity.ai.attributes.Attributes
+import net.minecraft.world.entity.ai.goal.FloatGoal
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal
+import net.minecraft.world.entity.ai.goal.PanicGoal
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal
+import net.minecraft.world.entity.ai.goal.TemptGoal
+import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal
+import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.storage.ValueInput
 import net.minecraft.world.level.storage.ValueOutput
@@ -32,8 +43,14 @@ import net.minecraft.world.level.storage.ValueOutput
  * It flies on an orbit rather than by pathfinding. A navigator would wander,
  * get distracted, or settle in a tree, and the whole point is that this bird is
  * a landmark and has to stay put.
+ *
+ * **Only while it has a ruin to watch.** One with no anchor -- summoned, or from
+ * a spawn egg -- is not a landmark and has no circle to hold, so it is an
+ * ordinary ground bird instead: it walks, it panics, it follows seeds. Without
+ * that it simply hung in the air with its wings beating and nothing to do.
+ * [becomeSentry] is where the one turns into the other.
  */
-class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
+class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type, level) {
 
 	/** The point it circles: directly over the ruin, well above the treeline. */
 	private var anchor: BlockPos? = null
@@ -50,13 +67,35 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 	/** Ticks left of sitting. Counts only once it has actually arrived. */
 	private var roost = 0
 
-	init {
-		isNoGravity = true
+	/**
+	 * What an unanchored bird does with itself.
+	 *
+	 * Registered for every Mourner, because goals are built in the constructor
+	 * and whether this one has a ruin is not known until the beacon says so or
+	 * its save data loads. [becomeSentry] throws them all away at that point,
+	 * which is cheaper than teaching six goals to check an anchor apiece.
+	 */
+	override fun registerGoals() {
+		goalSelector.addGoal(0, FloatGoal(this))
+		goalSelector.addGoal(1, PanicGoal(this, PANIC_SPEED))
+		goalSelector.addGoal(2, TemptGoal(this, TEMPT_SPEED, { it.`is`(ItemTags.PARROT_FOOD) }, false))
+		goalSelector.addGoal(3, WaterAvoidingRandomStrollGoal(this, STROLL_SPEED))
+		goalSelector.addGoal(4, LookAtPlayerGoal(this, Player::class.java, WATCH_RANGE))
+		goalSelector.addGoal(5, RandomLookAroundGoal(this))
 	}
 
-	override fun registerGoals() {
-		// None. Movement is driven outright in customServerAiStep, because every
-		// goal worth having would take it somewhere else.
+	/**
+	 * Turns a bird into a landmark, for good.
+	 *
+	 * Everything the ground behaviour needs is dropped rather than suppressed:
+	 * the goals go, the navigator stops, and gravity comes off, because from
+	 * here on the orbit in [customServerAiStep] owns its movement outright and
+	 * anything else touching it would only fight.
+	 */
+	private fun becomeSentry() {
+		goalSelector.removeAllGoals { true }
+		navigation.stop()
+		isNoGravity = true
 	}
 
 	override fun defineSynchedData(builder: SynchedEntityData.Builder) {
@@ -72,7 +111,12 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 	fun setAnchor(pos: BlockPos, startAngle: Float) {
 		anchor = pos
 		orbit = startAngle
+		becomeSentry()
 	}
+
+	/** Whether it is walking the ground rather than holding a circle over a ruin. */
+	val isWild: Boolean
+		get() = anchor == null
 
 	fun anchoredNear(pos: BlockPos): Boolean {
 		val home = anchor ?: return false
@@ -276,8 +320,42 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 		super.die(source)
 	}
 
-	/** Nothing about a landmark should be edible or worth attacking. */
-	override fun isPushable(): Boolean = false
+	/**
+	 * Takes seeds from the hand, and mends on them.
+	 *
+	 * The same tag vanilla feeds parrots on, so it is the seeds a player already
+	 * expects a bird to want rather than a list to look up. Works on a sentry as
+	 * well as a wild one -- they stoop low enough to reach, and a player who has
+	 * worked out they can patch up the thing they shot deserves to.
+	 */
+	override fun mobInteract(player: Player, hand: InteractionHand): InteractionResult {
+		val held = player.getItemInHand(hand)
+		if (!held.`is`(ItemTags.PARROT_FOOD)) return super.mobInteract(player, hand)
+
+		// Nothing to mend. Passing rather than eating leaves the seeds in hand,
+		// which is what a player expects when the bird is already whole.
+		if (health >= maxHealth) return super.mobInteract(player, hand)
+
+		if (!player.hasInfiniteMaterials()) held.shrink(1)
+
+		val level = level()
+		if (level is ServerLevel) {
+			heal(SEED_MEND)
+			level.sendParticles(
+				ParticleTypes.HAPPY_VILLAGER,
+				x, y + bbHeight * 0.7, z,
+				6,
+				0.3, 0.3, 0.3,
+				0.0,
+			)
+			playSound(ModSounds.MOURNER_CALL, 0.4f, 1.4f)
+		}
+
+		return InteractionResult.SUCCESS
+	}
+
+	/** A landmark cannot be shoved off its circle. One on foot is just a bird. */
+	override fun isPushable(): Boolean = isWild
 
 	override fun causeFallDamage(distance: Double, multiplier: Float, source: DamageSource): Boolean = false
 
@@ -300,6 +378,10 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 		} else {
 			null
 		}
+
+		// Goals were registered by the constructor, before there was any way to
+		// know this one had a ruin. Now there is.
+		if (anchor != null) becomeSentry()
 	}
 
 	companion object {
@@ -372,9 +454,23 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : Mob(type, level) {
 		/** How close someone has to get before it gives up the branch. */
 		private const val FLUSH_RANGE = 8.0
 
+		// ---- on foot, with no ruin to watch ----
+
+		private const val PANIC_SPEED = 1.4
+		private const val TEMPT_SPEED = 1.1
+		private const val STROLL_SPEED = 0.9
+		private const val WATCH_RANGE = 6.0f
+
+		/** Two hearts a seed. Eight health means four seeds from the brink. */
+		private const val SEED_MEND = 4.0f
+
 		fun createAttributes(): AttributeSupplier.Builder = createMobAttributes()
 			.add(Attributes.MAX_HEALTH, 8.0)
 			.add(Attributes.MOVEMENT_SPEED, 0.3)
 			.add(Attributes.FLYING_SPEED, 0.6)
+			// Required by TemptGoal, which reads it in canUse and throws if it is
+			// missing. Only createAnimalAttributes declares it, and this is not an
+			// Animal, so it has to be added by hand.
+			.add(Attributes.TEMPT_RANGE, 10.0)
 	}
 }
