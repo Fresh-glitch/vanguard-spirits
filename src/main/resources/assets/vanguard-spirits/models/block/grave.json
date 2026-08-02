@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "particle": "vanguard-spirits:block/grave_side",
+    "top": "vanguard-spirits:block/grave_top",
+    "side": "vanguard-spirits:block/grave_side",
+    "bottom": "vanguard-spirits:block/grave_side"
+  }
+}

@@ -21,6 +21,15 @@ object ModSounds {
 	val RELIQUARY_WARD: SoundEvent = register("block.golden_chest.ward")
 
 	/**
+	 * A grave mound coming open, and whoever was under it arriving.
+	 *
+	 * Its own event rather than the Remnant's notice cry, because the two land on
+	 * different frames and mean different things: this is the earth giving way,
+	 * and the cry follows once it has seen you.
+	 */
+	val GRAVE_DISTURB: SoundEvent = register("block.grave.disturb")
+
+	/**
 	 * Switching a charm off and on again.
 	 *
 	 * [CHARM_WAKE] is the note the Echo of Kinship uses, and [CHARM_HUSH] is

@@ -2,6 +2,7 @@ package io.github.freshglitch.vanguardspirits.registry
 
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import io.github.freshglitch.vanguardspirits.block.GoldenChestBlock
+import io.github.freshglitch.vanguardspirits.block.GraveBlock
 import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
@@ -29,6 +30,20 @@ object ModBlocks {
 			.noOcclusion()
 	}
 
+	/**
+	 * A grave mound. Soft on purpose.
+	 *
+	 * Dirt's own hardness, no tool needed: springing this should be something a
+	 * player does by accident in the second before they think better of it, not
+	 * a decision they have time to reconsider halfway through.
+	 */
+	val GRAVE: Block = register("grave", ::GraveBlock, rarity = Rarity.COMMON) {
+		BlockBehaviour.Properties.of()
+			.mapColor(MapColor.PODZOL)
+			.strength(0.6f)
+			.sound(SoundType.ROOTED_DIRT)
+	}
+
 	/** Every block this mod registers, in display order. */
 	val ALL: List<Block> get() = ordered
 
@@ -38,24 +53,25 @@ object ModBlocks {
 	private fun <T : Block> register(
 		path: String,
 		factory: (BlockBehaviour.Properties) -> T,
+		rarity: Rarity = Rarity.RARE,
 		properties: () -> BlockBehaviour.Properties,
 	): T {
 		val key = ResourceKey.create(Registries.BLOCK, VanguardSpirits.id(path))
 		@Suppress("UNCHECKED_CAST")
 		val block = Blocks.register(key, factory as (BlockBehaviour.Properties) -> Block, properties()) as T
 		ordered += block
-		registerItem(path, block)
+		registerItem(path, block, rarity)
 		return block
 	}
 
 	/** Blocks need a matching BlockItem before they can be held or given. */
-	private fun registerItem(path: String, block: Block) {
+	private fun registerItem(path: String, block: Block, rarity: Rarity) {
 		val key = ResourceKey.create(Registries.ITEM, VanguardSpirits.id(path))
 		val item = BlockItem(
 			block,
 			Item.Properties()
 				.setId(key)
-				.rarity(Rarity.RARE)
+				.rarity(rarity)
 				.useBlockDescriptionPrefix(),
 		)
 		Registry.register(BuiltInRegistries.ITEM, key, item)

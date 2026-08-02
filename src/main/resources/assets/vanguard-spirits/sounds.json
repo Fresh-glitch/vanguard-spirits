@@ -313,5 +313,14 @@
         "pitch": 0.5
       }
     ]
+  },
+  "block.grave.disturb": {
+    "subtitle": "subtitles.vanguard-spirits.grave.disturb",
+    "sounds": [
+      {
+        "name": "vanguard-spirits:block/grave/disturb",
+        "volume": 1.0
+      }
+    ]
   }
 }
