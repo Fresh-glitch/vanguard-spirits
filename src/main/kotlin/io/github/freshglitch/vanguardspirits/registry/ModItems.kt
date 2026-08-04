@@ -4,6 +4,7 @@ import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import io.github.freshglitch.vanguardspirits.charm.CharmAura
 import io.github.freshglitch.vanguardspirits.item.CharmItem
 import io.github.freshglitch.vanguardspirits.item.EchoOfKinshipItem
+import io.github.freshglitch.vanguardspirits.item.FracturedMemoryItem
 import net.minecraft.core.Registry
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
@@ -24,7 +25,7 @@ object ModItems {
 
 	/** Dropped by Guarded Ruins. The raw material every charm is forged from. */
 	val FRACTURED_MEMORY: Item = register("fractured_memory") { props ->
-		Item(props.stacksTo(16).rarity(Rarity.UNCOMMON))
+		FracturedMemoryItem(props.stacksTo(16).rarity(Rarity.UNCOMMON))
 	}
 
 	val CHARM_OF_THE_LEAPER: CharmItem = registerCharm(
