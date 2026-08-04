@@ -99,6 +99,16 @@ A worked list from this repo:
   Sentinel. It is not: `watch()` measures from `wardPos` — the stairwell it
   guards, seven blocks from the altar it stands on — so what mattered was the
   distance to something the Sentinel was not standing on.
+- The Fractured Memory's name was tied to its animated texture by counting client
+  ticks, on the stated grounds that sprites tick once per client tick. They do
+  not. `TextureManager.tick` is called from `Minecraft.**runTick**`, not
+  `Minecraft.tick` — once per rendered *frame*, guarded by a game tick being due
+  and the level running normally. This one is worth reading twice, because of
+  *how* it was got wrong: the method-scoped `javap | awk` that was supposed to
+  prove the caller returned nothing, and rather than fix the query the search was
+  widened to the whole class, the call found, and **the expected enclosing method
+  written down instead of the real one**. A failed instrument is not a licence to
+  fall back on the guess; it is the point at which the instrument gets fixed.
 
 So reach for the instrument early, not after the third theory:
 
@@ -111,12 +121,23 @@ So reach for the instrument early, not after the third theory:
 | Is this `.ogg` the right length? | `ffprobe`, or granule position over sample rate |
 | Is this PNG intact? | walk the chunk list; `file` will happily bless a truncated one |
 | Does this generated geometry close up? | re-implement the coordinate maths in a throwaway script and assert on it, before generating a world |
+| Which method contains this call? | disassemble to a file and walk back to the last signature line — a `grep` over the whole class finds the call and tells you nothing about its caller |
 
-Two corollaries worth their own line. **A comment is not evidence** — several in
-this repo confidently described the opposite of what the code did. And **silence
+Three corollaries worth their own line. **A comment is not evidence** — several in
+this repo confidently described the opposite of what the code did. **Silence
 is not confirmation**: when the Bulwark worked, the log went quiet, which looks
 identical to the feature never running. Decide in advance what success will
 *emit*.
+
+And the newest, which is the most expensive of the three: **a passing playtest
+can confirm a wrong mechanism.** The name-to-texture sync was checked in game,
+looked perfect, and was built on a false premise — because above twenty frames a
+second the wrong clock and the right clock tick at the same rate. The test and
+the bug shared a condition, so the test could only ever agree. Before treating a
+green run as proof, ask what the test would have to look like *if the mechanism
+were wrong*; if the answer is "the same", it has confirmed nothing. Here the
+distinguishing conditions were a pause and a frame rate under twenty, and both
+had to be provoked deliberately.
 
 ## 26.2 API gotchas
 
@@ -161,6 +182,27 @@ Each of these cost a compile cycle or a wrong guess:
   `tick` stops incrementing once it holds that value. Anything timed off `age`
   — a bob, a repeating sound — stops dead the moment it is called. Use
   `level.gameTime`, which also survives a reload.
+- **`Item.getName(stack)` is not a hook for naming an item — it is the *reader*
+  of `DataComponents.ITEM_NAME`.** Vanilla's body is one line:
+  `stack.getComponents().getOrDefault(ITEM_NAME, EMPTY)`. Overriding it to
+  return a fresh `translatable(descriptionId)` therefore throws away every
+  per-stack rename — `/give …[item_name=…]`, a loot table's `set_components`,
+  anything a data pack set — and silently shows the default. Build on `super`
+  instead. Worth knowing what routes through it: `ItemStack.getItemName` calls
+  it, `getHoverName` calls that, so one override reaches the tooltip title *and*
+  the hotbar popup. And `getStyledHoverName` appends the result as a **child** of
+  a parent styled with the rarity colour, so a colour set on the child survives —
+  rarity does not overwrite it.
+- **Sprite animations do not advance once per client tick.** `TextureManager.tick`
+  runs from `Minecraft.runTick`, once per rendered *frame*, and only when a game
+  tick is due and `isLevelRunningNormally()`. So anything that has to stay in
+  step with an animated texture cannot count `ClientTickEvents` — below twenty
+  frames a second several ticks land in one frame, and a pause stops the sprite
+  while client ticks keep arriving. Ride `TextureManager.tick` itself with a
+  mixin and the guards come for free. Reading the live frame is not an option:
+  `SpriteContents.AnimationState.frame` is private, and the states live in a
+  private list on `TextureAtlas` rather than on the sprite, so there is nothing
+  to reach from a `TextureAtlasSprite`.
 - **A sound cannot be stopped by the level.** `ClientboundStopSoundPacket` is
   per listener, so everyone in earshot has to be told individually.
 - **Sound volume above 1 is also its reach**: a variable-range event carries
