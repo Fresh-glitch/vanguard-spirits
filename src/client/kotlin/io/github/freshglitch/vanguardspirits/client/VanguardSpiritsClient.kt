@@ -27,6 +27,7 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderers
 object VanguardSpiritsClient : ClientModInitializer {
 	override fun onInitializeClient() {
 		CharmTooltip.register()
+		MemoryHueTicker.register()
 
 		ModelLayerRegistry.registerModelLayer(ChestParts.LAYER) { ChestParts.createLayer() }
 		BlockEntityRenderers.register(ModBlockEntities.GOLDEN_CHEST, ::GoldenChestRenderer)
