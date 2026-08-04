@@ -3,7 +3,8 @@
 	"package": "io.github.freshglitch.vanguardspirits.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
-		"ExampleClientMixin"
+		"ExampleClientMixin",
+		"TextureManagerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
