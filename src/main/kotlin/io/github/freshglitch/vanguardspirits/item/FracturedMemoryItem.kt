@@ -23,7 +23,20 @@ class FracturedMemoryItem(properties: Properties) : Item(properties) {
 	 * Called every frame a tooltip is up, so this allocates per frame -- the same
 	 * bargain vanilla already makes for any item whose name is not a constant,
 	 * and the alternative is caching a value whose whole purpose is to change.
+	 *
+	 * Built on `super` rather than on a fresh `translatable(descriptionId)`.
+	 * Vanilla's implementation reads `DataComponents.ITEM_NAME` off the stack,
+	 * which is where a `/give …[item_name=…]`, a loot table's `set_components`
+	 * or any other per-stack rename lives -- fabricating the name here threw all
+	 * of that away and silently showed the default instead.
+	 *
+	 * A name that already carries a colour keeps it. Someone who went to the
+	 * trouble of styling a specific stack meant that colour, and overriding it
+	 * with the drift would make the rename look broken.
 	 */
-	override fun getName(stack: ItemStack): Component =
-		Component.translatable(descriptionId).withColor(MemoryHue.current())
+	override fun getName(stack: ItemStack): Component {
+		val base = super.getName(stack)
+		if (base.style.color != null) return base
+		return base.copy().withColor(MemoryHue.current())
+	}
 }

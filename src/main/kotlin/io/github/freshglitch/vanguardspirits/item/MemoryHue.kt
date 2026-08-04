@@ -9,17 +9,19 @@ package io.github.freshglitch.vanguardspirits.item
  *
  * ## Why the phase is a plain counter
  *
- * The sprite animation is driven by `Minecraft.tick` calling
- * `TextureManager.tick`, which walks the atlas and ticks each
- * `SpriteContents.AnimationState`. That state holds a private `frame` with no
- * accessor, so the current frame cannot simply be read -- reaching it would take
- * a mixin for something purely cosmetic.
+ * Sprite animation is driven by `TextureManager.tick`, which walks the atlas and
+ * ticks each `SpriteContents.AnimationState`. That state holds a private `frame`
+ * with no accessor and is not reachable from the sprite -- the atlas keeps the
+ * states in a private list of its own -- so the live frame cannot simply be read.
  *
- * It does not need one. The state is built when the atlas is stitched and
- * advances exactly once per client tick, so a counter that starts at zero on
- * every resource reload and increments on every client tick is in step with it
- * by construction. [advance] and [reset] are called from the client; nothing
- * else touches them.
+ * A counter kept in step with it is the cheaper answer, but *only* if it is
+ * driven by the same call. It is: `TextureManagerMixin` advances this from
+ * `TextureManager.tick` itself. An earlier version counted client ticks instead
+ * and was wrong -- sprites advance once per rendered *frame*, gated on a game
+ * tick being due and the level running normally, so the two came apart below
+ * twenty frames a second and every time the game was paused.
+ *
+ * [advance] and [reset] are called from the client; nothing else touches them.
  *
  * ## Why it lives in the common source set
  *
@@ -40,7 +42,12 @@ object MemoryHue {
 	@Volatile
 	private var phase: Int = 0
 
-	/** Called once per client tick. */
+	/**
+	 * Called from `TextureManagerMixin`, on the same call that advances every
+	 * sprite animation. `@JvmStatic` because an object's members are instance
+	 * methods to Java, the same reason `EchoOfKinshipItem` carries it.
+	 */
+	@JvmStatic
 	fun advance() {
 		phase = (phase + 1) % CYCLE
 	}

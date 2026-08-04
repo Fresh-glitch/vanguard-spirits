@@ -60,6 +60,13 @@ GLOW_DEEP = (0xB1, 0x7D, 0x2A)
 # as four colours taking turns.
 #
 # So: interpolate straight between the stops, and HOLD each one. See [PLATEAU].
+#
+# ** These four colours, STEPS, FRAMETIME and the hold figures are duplicated in
+# src/main/kotlin/io/github/freshglitch/vanguardspirits/item/MemoryHue.kt, which
+# colours the item's NAME to match the frame showing here. Change either side and
+# you must change the other, or the word and the picture drift apart. Nothing
+# checks it -- but this script prints its cycle length on every run, and
+# MemoryHue states the same figure, so the two are a glance apart. **
 GLOW_STOPS = [
     ((0xFD, 0xF0, 0xBD), (0xEC, 0xCD, 0x76)),   # Delver, gold
     ((0xDC, 0xF7, 0xFF), (0x9F, 0xE4, 0xF2)),   # Leaper, blue
