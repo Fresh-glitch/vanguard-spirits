@@ -30,10 +30,19 @@ object ModAdvancements {
 
 	data class Entry(val path: String, val title: String, val description: String)
 
+	/**
+	 * The tab's own name, so it reads as the mod rather than as one achievement
+	 * in it -- vanilla titles `story.root` "Minecraft" for the same reason.
+	 *
+	 * Roots are also the one place a description is *not* an instruction. Every
+	 * vanilla root carries a tagline instead -- "Bring summer clothes", "Or the
+	 * beginning?", "The heart and story of the game" -- so the line that used to
+	 * be this advancement's title lands here rather than being lost.
+	 */
 	val ROOT = Entry(
 		"root",
-		"Something Circles Above",
-		"Enter a Guarded Ruin",
+		"Vanguard Spirits",
+		"Something circles above",
 	)
 
 	val FEATHER = Entry(
