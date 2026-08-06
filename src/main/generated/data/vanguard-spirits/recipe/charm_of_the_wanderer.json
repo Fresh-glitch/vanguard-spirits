@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shaped",
   "key": {
     "B": "minecraft:deepslate_bricks",
-    "C": "minecraft:feather",
+    "C": "vanguard-spirits:mourner_feather",
     "M": "vanguard-spirits:fractured_memory"
   },
   "pattern": [

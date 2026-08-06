@@ -28,6 +28,20 @@ object ModItems {
 		FracturedMemoryItem(props.stacksTo(16).rarity(Rarity.UNCOMMON))
 	}
 
+	/**
+	 * Shed by a startled Mourner, and the reason not to shoot one.
+	 *
+	 * Killing a Mourner ends its ruin's vigil for good, so the mod must never
+	 * make the kill the profitable move. This is the way round that: the bird
+	 * leaves one behind when it is put up off a perch, so a player who works out
+	 * they can flush the same bird every few minutes does better than one who
+	 * shoots it once. An anchored Mourner drops nothing at all when it dies --
+	 * see `Mourner.shouldDropLoot`.
+	 */
+	val MOURNER_FEATHER: Item = register("mourner_feather") { props ->
+		Item(props.component(DataComponents.LORE, flavour("mourner_feather")))
+	}
+
 	val CHARM_OF_THE_LEAPER: CharmItem = registerCharm(
 		path = "charm_of_the_leaper",
 		aura = CharmAura(MobEffects.JUMP_BOOST),
