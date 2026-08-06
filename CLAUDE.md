@@ -421,6 +421,53 @@ transcription of Blockbench's Java export, never hand-authored.
   inside `risky_eval` writes the real bytes. Verify by walking the chunk list;
   a good PNG ends IHDR … IDAT … IEND.
 
+## Item art
+
+- **An item that came off a mob must be drawn in that mob's palette.** Skin,
+  bone, feather, shell, scale — anything the fiction says was part of the
+  creature. Sample the entity texture and build the ramp out of what is actually
+  in it; do not pick values that merely look good in isolation. The player sees
+  the two together — a dropped item lands beside the thing that dropped it — and
+  a mismatch reads instantly as belonging to a different animal, no matter how
+  well the sprite works on its own. The Mourner's Feather shipped a draft whose
+  lightest tone was `0xBF` against a bird topping out at `0x44`, and it was
+  spotted in one screenshot.
+  **This is worth a hard check in the generator**, because hex does not look
+  wrong when read: `make_mourner_feather.py` asserts no vane tone exceeds the
+  bird's lightest and prints the two numbers side by side on every run.
+- **Do not generalise a legibility rule from an item that is part of nothing.**
+  The above was got wrong by reasoning from the Fractured Memory, which vanished
+  into the inventory slot when drawn dark — so the rule written down was "lift
+  the hue until it reads at sixteen pixels". The Memory is a shard of a ruin and
+  answers to no other texture; it is free to be whatever value reads best. A
+  body part is not. And the diagnosis was wrong anyway: what killed the Memory
+  was darkness *with no internal spread*, not darkness. The silhouette was never
+  at risk, since both inventory greys are `0x8B` and `0xC6` and anything dark
+  clears them easily. Spend the range on contrast *within* the sprite.
+- **The mod's outline convention is a plate technique, not a house style.** Every
+  charm is a solid mass inside an unbroken near-black ring, and that ring is
+  what lets them hold a slot at either grey — but it is a *proportion*, not a
+  fixed cost. Around a shape five pixels across it leaves three pixels of
+  interior and there is nowhere to draw anything. Three drafts of the feather
+  tried to keep it and read as a lozenge on a stick, a spruce tree, and a knife.
+  Vanilla's own `feather.png` is **sixty-five pixels, four greys and no outline
+  anywhere**, laid on a diagonal and full of holes. For a thin organic subject,
+  follow that idiom instead: the gaps in the silhouette are what say *barbs*, and
+  without them a tapered blob is a leaf.
+- **Check a value structure against vanilla's before inverting it by instinct.**
+  A dark vane with a pale spine down the middle is a *knife* at this scale, and
+  an amber calamus at the base finishes it as a pommel. Vanilla has it the other
+  way round — light vane, rachis as the darkest line — because a spine is a
+  shadow between two banks of barbs, not a highlight along a blade.
+- **A hole one pixel off a shaft reads as a missing pixel, not as detail.** The
+  shaft is the one line the eye follows end to end, so a gap touching it is
+  damage to the spine. Keep splits two or more pixels out. Also caught in game
+  rather than in a diff, and now asserted.
+- Render candidates at **1:1 on both inventory greys** (`0x8B8B8B` and
+  `0xC6C6C6`) *and* beside the related art before shipping. Every failure above
+  looked fine at 40x. A contact sheet of two or three candidate ramps against
+  the mob texture settles in one look what argument does not.
+
 ## Particles
 
 26.2 rebuilt this area, so almost nothing remembered about particles is true.
