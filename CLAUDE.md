@@ -624,6 +624,13 @@ Mechanics, each of which cost a lookup:
   colours — and the panel darkens it at draw time. So `minecraft:block/<whatever>`
   works directly as a `background`, which means no asset to draw and, for a jam
   entry, no copy of a Mojang texture in the jar.
+- **The root is named after the tab, and its description is a tagline.** Two
+  separate conventions, both off vanilla: `story.root` is titled "Minecraft", not
+  after its criterion, so a mod's root takes the mod's name. And roots are the
+  one exception to the instruction rule above — every vanilla root carries a
+  mood line instead ("Bring summer clothes", "Or the beginning?", "The heart and
+  story of the game"). An evocative title displaced from a root has somewhere to
+  go.
 - **Parents are display only.** A child can complete before its parent and the
   tab will happily show it, so the parent must be the *actual* prerequisite, not
   the narratively tidy one. Ours got this wrong: Two Who Never Met hung off the
