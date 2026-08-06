@@ -161,8 +161,14 @@ class ModAdvancementProvider(
 			)
 		}
 
+		// Hangs off the Sentinel, not the Reliquary. Its loot table drops an Echo
+		// at fifty per cent, so felling one is the actual prerequisite and a
+		// Fractured Memory is not needed at all. Parented under the Reliquary at
+		// first, and a playthrough earned this six seconds *before* its parent --
+		// advancement parents are display-only, so nothing broke, but the tab
+		// showed a finished child under an unfinished one.
 		val kinship = child(
-			consumer, memory, ModAdvancements.KINSHIP,
+			consumer, sentinel, ModAdvancements.KINSHIP,
 			ModItems.ECHO_OF_KINSHIP, AdvancementType.GOAL,
 		) { builder ->
 			builder.addCriterion(
