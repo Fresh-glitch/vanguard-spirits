@@ -1,0 +1,38 @@
+{
+  "criteria": {
+    "entered_ruin": {
+      "conditions": {
+        "player": [
+          {
+            "condition": "minecraft:entity_properties",
+            "entity": "this",
+            "predicate": {
+              "minecraft:location": {
+                "structures": "vanguard-spirits:guarded_ruins"
+              }
+            }
+          }
+        ]
+      },
+      "trigger": "minecraft:location"
+    }
+  },
+  "display": {
+    "background": "minecraft:block/deepslate_bricks",
+    "description": {
+      "translate": "advancements.vanguard-spirits.root.description"
+    },
+    "icon": {
+      "id": "vanguard-spirits:grave"
+    },
+    "title": {
+      "translate": "advancements.vanguard-spirits.root.title"
+    }
+  },
+  "requirements": [
+    [
+      "entered_ruin"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

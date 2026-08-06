@@ -1,0 +1,37 @@
+{
+  "parent": "vanguard-spirits:root",
+  "criteria": {
+    "killed_sentinel": {
+      "conditions": {
+        "entity": [
+          {
+            "condition": "minecraft:entity_properties",
+            "entity": "this",
+            "predicate": {
+              "minecraft:entity_type": "vanguard-spirits:stone_sentinel"
+            }
+          }
+        ]
+      },
+      "trigger": "minecraft:player_killed_entity"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.vanguard-spirits.stone_remembers.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "id": "vanguard-spirits:stone_sentinel_spawn_egg"
+    },
+    "title": {
+      "translate": "advancements.vanguard-spirits.stone_remembers.title"
+    }
+  },
+  "requirements": [
+    [
+      "killed_sentinel"
+    ]
+  ],
+  "sends_telemetry_event": true
+}
