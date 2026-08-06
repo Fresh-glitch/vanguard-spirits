@@ -123,21 +123,44 @@ So reach for the instrument early, not after the third theory:
 | Does this generated geometry close up? | re-implement the coordinate maths in a throwaway script and assert on it, before generating a world |
 | Which method contains this call? | disassemble to a file and walk back to the last signature line — a `grep` over the whole class finds the call and tells you nothing about its caller |
 
-Three corollaries worth their own line. **A comment is not evidence** — several in
+Four corollaries worth their own line. **A comment is not evidence** — several in
 this repo confidently described the opposite of what the code did. **Silence
 is not confirmation**: when the Bulwark worked, the log went quiet, which looks
 identical to the feature never running. Decide in advance what success will
 *emit*.
 
-And the newest, which is the most expensive of the three: **a passing playtest
-can confirm a wrong mechanism.** The name-to-texture sync was checked in game,
-looked perfect, and was built on a false premise — because above twenty frames a
-second the wrong clock and the right clock tick at the same rate. The test and
-the bug shared a condition, so the test could only ever agree. Before treating a
-green run as proof, ask what the test would have to look like *if the mechanism
-were wrong*; if the answer is "the same", it has confirmed nothing. Here the
-distinguishing conditions were a pause and a frame rate under twenty, and both
-had to be provoked deliberately.
+Third, and the most expensive: **a passing playtest can confirm a wrong
+mechanism.** The name-to-texture sync was checked in game, looked perfect, and
+was built on a false premise — because above twenty frames a second the wrong
+clock and the right clock tick at the same rate. The test and the bug shared a
+condition, so the test could only ever agree. Before treating a green run as
+proof, ask what the test would have to look like *if the mechanism were wrong*;
+if the answer is "the same", it has confirmed nothing. Here the distinguishing
+conditions were a pause and a frame rate under twenty, and both had to be
+provoked deliberately.
+
+Fourth, and the one that keeps recurring: **an instrument can fail in a way that
+looks like a result.** Every case below happened in a single session, and in
+every one the broken tool produced output that read as an answer:
+
+- A method-scoped `javap | awk` matched nothing, so the search was widened to the
+  whole class. It found the call and said nothing about the caller — and the
+  expected method got written down instead of the real one.
+- A probe logging `bulwark up` tested `bulwarkTick == 1`, but `beginBulwark`
+  already sets it to 1 and `advanceBulwark` increments before the check. It could
+  never fire, so a working shell looked like a shell that never went up.
+- A filter for "spawns outside the allowed biomes" anchored on `$`, which the
+  log's ANSI reset codes broke. It matched nothing and printed everything, under
+  a heading that said finding nothing meant the tag held.
+- A `cmd1 && cmd2` chain silently skipped the compile, because `grep -c` exits 1
+  when it finds zero matches — and zero matches was the *good* outcome.
+
+So: check what the instrument said before believing what it meant. A filter that
+matches nothing and a filter that is broken are the same empty output; a probe
+that never fires and a condition that never happened are the same silence. The
+cheap guard is to make the instrument prove itself — run it once against a case
+you know is positive, or have it print totals that must add up, which is what
+finally settled the biome question.
 
 ## 26.2 API gotchas
 
