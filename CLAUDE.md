@@ -597,6 +597,59 @@ is a temporary `LOGGER.info` the player can trigger.
 Good things to hand the player: `/give @s vanguard-spirits:<item>`, checking a
 creative tab, confirming a recipe shows in the recipe book.
 
+## Advancements
+
+**Flavour goes in the title. The description is a plain instruction.** This is
+the rule the first tree broke, and it is worth stating as a measurement rather
+than a taste: vanilla ships **127 advancement descriptions, median seven words
+and thirty-four characters, and not one of them adds a second sentence.** "Enter
+a Bastion Remnant." "Kill any hostile monster." "Upgrade your Pickaxe." All the
+wit is in names like *Isn't It Iron Pick* and *Those Were the Days*, and the line
+underneath stays flat. Our first draft ran half again as long because every
+description carried an editorial clause the title had already earned — "Stand
+inside a Guarded Ruin. **The birds were the sign.**" A description may name the
+route when that is genuinely useful, the way "Brush a Suspicious block to obtain
+a Pottery Sherd" does, but it stops there.
+
+The general form is worth keeping, because it is the same lesson as the item-art
+palette: **when authoring content that sits inside a vanilla surface, measure
+vanilla's own corpus before writing to taste.** The lang file is right there and
+`json.load` plus a median takes a minute. A sentence full stop in a description
+is the cheap tell that a second clause has crept back in — assert on it.
+
+Mechanics, each of which cost a lookup:
+
+- **Backgrounds are just block textures.** `backgrounds/stone.png` is
+  byte-for-byte the stone block — same 16x16, same `0x68`-`0x8F` range, same four
+  colours — and the panel darkens it at draw time. So `minecraft:block/<whatever>`
+  works directly as a `background`, which means no asset to draw and, for a jam
+  entry, no copy of a Mojang texture in the jar.
+- **Parents are display only.** A child can complete before its parent and the
+  tab will happily show it, so the parent must be the *actual* prerequisite, not
+  the narratively tidy one. Ours got this wrong: Two Who Never Met hung off the
+  Reliquary when the Echo of Kinship in fact drops from the Sentinel at 50%, and
+  a playthrough duly earned the child six seconds before the parent.
+- **Vanilla suppresses `show_toast` and `announce_to_chat` on roots** because its
+  roots are trivial — everyone gets a crafting table. A modded root usually fires
+  on something worth noticing, and silence there reads as the feature not working.
+- **State the game cannot see needs a custom `CriterionTrigger`**, registered into
+  `BuiltInRegistries.TRIGGER_TYPES` at mod init. Attunement is a data attachment,
+  so nothing vanilla can watch it. Have the instance carry a *minimum* rather than
+  an exact value and one trigger serves every threshold. Fire it from the state
+  change itself (`Attunement.raise`), not from the item that happens to cause it.
+- **A criterion naming an unregistered trigger generates perfectly happily** and
+  then never fires. Build the criterion through the registry object so datagen
+  and the firing site cannot name different things.
+- Two free instruments. `Loaded N advancements` reconciles exactly against
+  vanilla's file count plus ours, so a rejected advancement shows up as a number
+  that is one short. And the **announcement wording reveals the frame** — "has
+  made the advancement" / "has reached the goal" / "has completed the challenge"
+  — which is the only confirmation from a log that `AdvancementType` took.
+- Generate the tree and its lang strings from **one shared list**
+  (`ModAdvancements`). An untranslated key is a perfectly valid key, so a
+  mismatch cannot fail datagen and surfaces only as raw
+  `advancements.vanguard-spirits.foo.title` in game.
+
 ## Datagen
 
 Providers are registered in `VanguardSpiritsDataGenerator`. After changing items,
