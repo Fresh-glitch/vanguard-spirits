@@ -25,6 +25,7 @@ class ModEnglishProvider(
 		builder.add(ModItemGroups.TITLE_KEY, "Vanguard Spirits")
 
 		builder.add(ModItems.FRACTURED_MEMORY, "Fractured Memory")
+		builder.add(ModItems.MOURNER_FEATHER, "Mourner's Feather")
 		builder.add(ModItems.CHARM_OF_THE_LEAPER, "Charm of the Leaper")
 		builder.add(ModItems.CHARM_OF_THE_WANDERER, "Charm of the Wanderer")
 		builder.add(ModItems.CHARM_OF_THE_DELVER, "Charm of the Delver")
@@ -54,6 +55,10 @@ class ModEnglishProvider(
 		builder.add(
 			ModItems.loreKey("echo_of_kinship"),
 			"Two spirits who never met, and remember each other anyway.",
+		)
+		builder.add(
+			ModItems.loreKey("mourner_feather"),
+			"It let this go rather than let you closer.",
 		)
 
 		builder.add(ModBlocks.GOLDEN_CHEST, "Gilded Reliquary")

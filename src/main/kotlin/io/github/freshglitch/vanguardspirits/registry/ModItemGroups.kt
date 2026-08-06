@@ -40,6 +40,7 @@ object ModItemGroups {
 	private fun addToVanillaTabs() {
 		CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.INGREDIENTS).register { output ->
 			output.accept(ModItems.FRACTURED_MEMORY)
+			output.accept(ModItems.MOURNER_FEATHER)
 		}
 
 		CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.TOOLS_AND_UTILITIES).register { output ->

@@ -23,8 +23,14 @@ class ModRecipeProvider(
 
 		override fun buildRecipes() {
 			// Four memories ringing a core that matches the spirit being bound.
+			//
+			// The Wanderer's used to be a plain vanilla feather, which made it
+			// the one charm whose core cost nothing next to a rabbit's foot, a
+			// golden carrot and a shield. A Mourner's feather is the same idea
+			// and an actual errand -- and it is an errand that sends the player
+			// to a ruin rather than to a chicken.
 			charm(ModItems.CHARM_OF_THE_LEAPER, Items.RABBIT_FOOT)
-			charm(ModItems.CHARM_OF_THE_WANDERER, Items.FEATHER)
+			charm(ModItems.CHARM_OF_THE_WANDERER, ModItems.MOURNER_FEATHER)
 			charm(ModItems.CHARM_OF_THE_DELVER, Items.GOLDEN_CARROT)
 			charm(ModItems.CHARM_OF_THE_RETURNED, Items.SHIELD)
 		}

@@ -1,5 +1,6 @@
 package io.github.freshglitch.vanguardspirits.entity
 
+import io.github.freshglitch.vanguardspirits.registry.ModItems
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import io.github.freshglitch.vanguardspirits.worldgen.RuinVigil
 import net.minecraft.core.BlockPos
@@ -68,6 +69,14 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 	private var roost = 0
 
 	/**
+	 * Ticks before it can lose another feather.
+	 *
+	 * Not saved, like [alarm] -- a bird that has just loaded in owes nobody a
+	 * cooldown, and the worst a reload can buy is one feather early.
+	 */
+	private var shedCooldown = 0
+
+	/**
 	 * What an unanchored bird does with itself.
 	 *
 	 * Registered for every Mourner, because goals are built in the constructor
@@ -126,8 +135,13 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 	override fun customServerAiStep(level: ServerLevel) {
 		super.customServerAiStep(level)
 
-		val home = anchor ?: return
+		// Above the anchor check, because both of these belong to any Mourner.
+		// A wild one can be startled too, and until this moved up its alarm
+		// never wound back down.
 		if (alarm > 0) alarm--
+		if (shedCooldown > 0) shedCooldown--
+
+		val home = anchor ?: return
 
 		// Perching takes priority over the circle entirely: a bird heading for a
 		// branch has stopped patrolling.
@@ -230,7 +244,7 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 		// or somebody standing underneath it.
 		val stillLeaves = level.getBlockState(seat.below()).`is`(BlockTags.LEAVES)
 		if (alarm > 0 || !stillLeaves) {
-			takeOff()
+			takeOff(level, startled = true)
 			return
 		}
 
@@ -264,15 +278,34 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 			yHeadRot = yRot
 		}
 
-		if (roost <= 0 || level.getNearestPlayer(cx, cy, cz, FLUSH_RANGE, null) != null) takeOff()
+		// A bird whose time on the branch simply ran out has not been startled;
+		// one that a player walked up on has. Only the second sheds, or every
+		// roost would pay out on its own and standing still would be the way to
+		// farm feathers.
+		val flushed = level.getNearestPlayer(cx, cy, cz, FLUSH_RANGE, null) != null
+		if (roost <= 0 || flushed) takeOff(level, startled = flushed)
 	}
 
-	/** Back to the circle. */
-	private fun takeOff() {
+	/**
+	 * Back to the circle, and sometimes a feather short.
+	 *
+	 * The shed is deliberately the *only* worthwhile thing a Mourner gives up,
+	 * because [die] ends its ruin's vigil for good and a kill that paid better
+	 * than a fright would make shooting the landmark the correct play. Flushing
+	 * the same bird off its branch every few minutes is meant to beat killing it
+	 * once, and [SHED_COOLDOWN] is what stops that becoming a fast farm.
+	 */
+	private fun takeOff(level: ServerLevel, startled: Boolean) {
 		if (isPerched) deltaMovement = deltaMovement.add(0.0, TAKEOFF_KICK, 0.0)
 		perch = null
 		roost = 0
 		isPerched = false
+
+		if (!startled || shedCooldown > 0) return
+		if (random.nextFloat() >= SHED_CHANCE) return
+
+		shedCooldown = SHED_COOLDOWN
+		spawnAtLocation(level, ModItems.MOURNER_FEATHER)
 	}
 
 	override fun getAmbientSound(): SoundEvent = ModSounds.MOURNER_CALL
@@ -297,7 +330,7 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 		val hurt = super.hurtServer(level, source, amount)
 		if (hurt && isAlive) {
 			alarm = ALARM_TICKS
-			takeOff()
+			takeOff(level, startled = true)
 		}
 		return hurt
 	}
@@ -319,6 +352,24 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 		if (home != null && !level.isClientSide) RuinVigil.breakVigil(level, home)
 		super.die(source)
 	}
+
+	/**
+	 * A bird on foot leaves feathers. A landmark leaves a ruin nobody can find.
+	 *
+	 * The vigil is what killing an anchored Mourner costs, and paying out on top
+	 * of that would make the loss look like a price rather than a mistake. So the
+	 * two halves of the mob are split here: [isWild] ones drop like any other
+	 * bird, and the ones circling a ruin drop nothing at all.
+	 *
+	 * `shouldDropLoot` rather than a second loot table, because `Mob.getLootTable`
+	 * is final and cannot be swapped per entity. The bytecode of
+	 * `LivingEntity.dropAllDeathLoot` shows this gates `dropFromLootTable` and
+	 * `dropCustomDeathLoot` while leaving `dropEquipment` and `dropExperience`
+	 * alone -- which is exactly the seam wanted, since the kill should still be
+	 * worth the ordinary experience.
+	 */
+	override fun shouldDropLoot(level: ServerLevel): Boolean =
+		isWild && super.shouldDropLoot(level)
 
 	/**
 	 * Takes seeds from the hand, and mends on them.
@@ -453,6 +504,28 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 
 		/** How close someone has to get before it gives up the branch. */
 		private const val FLUSH_RANGE = 8.0
+
+		// ---- shedding ----
+
+		/**
+		 * How often a fright actually costs it a feather.
+		 *
+		 * Better than one in three, so a player who has noticed the trick is
+		 * rewarded within a couple of attempts rather than left wondering
+		 * whether the mechanic exists at all.
+		 */
+		private const val SHED_CHANCE = 0.4f
+
+		/**
+		 * Two and a half minutes between feathers.
+		 *
+		 * The long pole in the whole design. Without it a bow and a perched bird
+		 * is an unlimited feather machine, and the [SHED_CHANCE] above would be
+		 * meaningless -- any roll repeats until it passes. With it, farming one
+		 * Mourner has a hard ceiling and finding several is the faster route,
+		 * which means going and looking at more ruins.
+		 */
+		private const val SHED_COOLDOWN = 3000
 
 		// ---- on foot, with no ruin to watch ----
 
