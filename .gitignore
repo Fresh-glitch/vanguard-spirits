@@ -47,3 +47,7 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# Python bytecode from the generators in tools/
+__pycache__/
+*.pyc
