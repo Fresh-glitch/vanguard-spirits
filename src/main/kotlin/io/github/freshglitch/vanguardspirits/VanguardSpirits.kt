@@ -15,6 +15,7 @@ import io.github.freshglitch.vanguardspirits.registry.ModParticles
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import io.github.freshglitch.vanguardspirits.registry.ModSpawns
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
+import io.github.freshglitch.vanguardspirits.registry.ModTriggers
 import io.github.freshglitch.vanguardspirits.worldgen.RuinAmbience
 import io.github.freshglitch.vanguardspirits.worldgen.RuinBeacon
 import io.github.freshglitch.vanguardspirits.worldgen.RuinSeal
@@ -48,6 +49,7 @@ object VanguardSpirits : ModInitializer {
 		ModStructures.register()
 		ModSpawns.register()
 		Attunement.register()
+		ModTriggers.register()
 		CharmTicker.register()
 		Deflection.register()
 		RuinAmbience.register()

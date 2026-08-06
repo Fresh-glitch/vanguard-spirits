@@ -1,0 +1,33 @@
+{
+  "parent": "vanguard-spirits:the_ward_lifts",
+  "criteria": {
+    "has_kinship": {
+      "conditions": {
+        "items": [
+          {
+            "items": "vanguard-spirits:echo_of_kinship"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.vanguard-spirits.two_who_never_met.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "id": "vanguard-spirits:echo_of_kinship"
+    },
+    "title": {
+      "translate": "advancements.vanguard-spirits.two_who_never_met.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_kinship"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

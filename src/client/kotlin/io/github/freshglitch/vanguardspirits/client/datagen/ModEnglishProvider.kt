@@ -118,5 +118,13 @@ class ModEnglishProvider(
 
 		builder.add(EchoOfKinshipItem.RAISED_KEY, "Attunement deepens — %s of %s")
 		builder.add(EchoOfKinshipItem.MAXED_KEY, "You can hold no deeper echo.")
+
+		// Driven off the same list the tree is built from, so an advancement can
+		// never generate without its text. An untranslated key is a valid key, so
+		// nothing downstream would have caught the mismatch.
+		ModAdvancements.ALL.forEach { entry ->
+			builder.add(ModAdvancements.titleKey(entry), entry.title)
+			builder.add(ModAdvancements.descriptionKey(entry), entry.description)
+		}
 	}
 }

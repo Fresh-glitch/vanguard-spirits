@@ -2,10 +2,12 @@ package io.github.freshglitch.vanguardspirits.charm
 
 import com.mojang.serialization.Codec
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
+import io.github.freshglitch.vanguardspirits.registry.ModTriggers
 import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry
 import net.fabricmc.fabric.api.attachment.v1.AttachmentSyncPredicate
 import net.fabricmc.fabric.api.attachment.v1.AttachmentType
 import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.player.Player
 
 /**
@@ -31,11 +33,19 @@ object Attunement {
 
 	fun of(player: Player): Int = player.getAttachedOrCreate(TYPE)
 
-	/** Raises the cap by one. Returns false if already at [MAX]. */
+	/**
+	 * Raises the cap by one. Returns false if already at [MAX].
+	 *
+	 * The advancement trigger fires from here rather than from the Echo of
+	 * Kinship, so any future route to deeper attunement is credited without
+	 * anyone having to remember to come back and add it.
+	 */
 	fun raise(player: Player): Boolean {
 		val current = of(player)
 		if (current >= MAX) return false
-		player.setAttached(TYPE, current + 1)
+		val raised = current + 1
+		player.setAttached(TYPE, raised)
+		if (player is ServerPlayer) ModTriggers.ATTUNEMENT.fire(player, raised)
 		return true
 	}
 

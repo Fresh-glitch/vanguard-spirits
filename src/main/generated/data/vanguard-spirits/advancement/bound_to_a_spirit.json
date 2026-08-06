@@ -1,0 +1,65 @@
+{
+  "parent": "vanguard-spirits:the_ward_lifts",
+  "criteria": {
+    "has_charm_of_the_delver": {
+      "conditions": {
+        "items": [
+          {
+            "items": "vanguard-spirits:charm_of_the_delver"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_charm_of_the_leaper": {
+      "conditions": {
+        "items": [
+          {
+            "items": "vanguard-spirits:charm_of_the_leaper"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_charm_of_the_returned": {
+      "conditions": {
+        "items": [
+          {
+            "items": "vanguard-spirits:charm_of_the_returned"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_charm_of_the_wanderer": {
+      "conditions": {
+        "items": [
+          {
+            "items": "vanguard-spirits:charm_of_the_wanderer"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.vanguard-spirits.bound_to_a_spirit.description"
+    },
+    "icon": {
+      "id": "vanguard-spirits:charm_of_the_wanderer"
+    },
+    "title": {
+      "translate": "advancements.vanguard-spirits.bound_to_a_spirit.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_charm_of_the_leaper",
+      "has_charm_of_the_wanderer",
+      "has_charm_of_the_delver",
+      "has_charm_of_the_returned"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

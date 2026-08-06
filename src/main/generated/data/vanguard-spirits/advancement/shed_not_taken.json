@@ -1,0 +1,32 @@
+{
+  "parent": "vanguard-spirits:root",
+  "criteria": {
+    "has_feather": {
+      "conditions": {
+        "items": [
+          {
+            "items": "vanguard-spirits:mourner_feather"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.vanguard-spirits.shed_not_taken.description"
+    },
+    "icon": {
+      "id": "vanguard-spirits:mourner_feather"
+    },
+    "title": {
+      "translate": "advancements.vanguard-spirits.shed_not_taken.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_feather"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

@@ -1,0 +1,32 @@
+{
+  "parent": "vanguard-spirits:stone_remembers",
+  "criteria": {
+    "has_memory": {
+      "conditions": {
+        "items": [
+          {
+            "items": "vanguard-spirits:fractured_memory"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.vanguard-spirits.the_ward_lifts.description"
+    },
+    "icon": {
+      "id": "vanguard-spirits:fractured_memory"
+    },
+    "title": {
+      "translate": "advancements.vanguard-spirits.the_ward_lifts.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_memory"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

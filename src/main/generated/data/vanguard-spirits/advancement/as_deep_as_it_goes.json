@@ -1,0 +1,29 @@
+{
+  "parent": "vanguard-spirits:two_who_never_met",
+  "criteria": {
+    "attunement_maxed": {
+      "conditions": {
+        "attunement": 4
+      },
+      "trigger": "vanguard-spirits:attunement"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.vanguard-spirits.as_deep_as_it_goes.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "id": "vanguard-spirits:charm_of_the_returned"
+    },
+    "title": {
+      "translate": "advancements.vanguard-spirits.as_deep_as_it_goes.title"
+    }
+  },
+  "requirements": [
+    [
+      "attunement_maxed"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

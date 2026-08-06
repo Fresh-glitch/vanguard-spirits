@@ -1,0 +1,36 @@
+{
+  "parent": "vanguard-spirits:root",
+  "criteria": {
+    "killed_remnant": {
+      "conditions": {
+        "entity": [
+          {
+            "condition": "minecraft:entity_properties",
+            "entity": "this",
+            "predicate": {
+              "minecraft:entity_type": "vanguard-spirits:remnant"
+            }
+          }
+        ]
+      },
+      "trigger": "minecraft:player_killed_entity"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.vanguard-spirits.they_are_still_here.description"
+    },
+    "icon": {
+      "id": "minecraft:rotten_flesh"
+    },
+    "title": {
+      "translate": "advancements.vanguard-spirits.they_are_still_here.title"
+    }
+  },
+  "requirements": [
+    [
+      "killed_remnant"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

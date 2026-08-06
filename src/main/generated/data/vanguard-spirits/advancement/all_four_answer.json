@@ -1,0 +1,42 @@
+{
+  "parent": "vanguard-spirits:bound_to_a_spirit",
+  "criteria": {
+    "has_every_charm": {
+      "conditions": {
+        "items": [
+          {
+            "items": "vanguard-spirits:charm_of_the_leaper"
+          },
+          {
+            "items": "vanguard-spirits:charm_of_the_wanderer"
+          },
+          {
+            "items": "vanguard-spirits:charm_of_the_delver"
+          },
+          {
+            "items": "vanguard-spirits:charm_of_the_returned"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.vanguard-spirits.all_four_answer.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "id": "vanguard-spirits:charm_of_the_delver"
+    },
+    "title": {
+      "translate": "advancements.vanguard-spirits.all_four_answer.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_every_charm"
+    ]
+  ],
+  "sends_telemetry_event": true
+}
