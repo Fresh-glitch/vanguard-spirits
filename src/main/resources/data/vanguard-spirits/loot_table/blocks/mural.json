@@ -1,0 +1,28 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "vanguard-spirits:mural",
+          "functions": [
+            {
+              "function": "minecraft:copy_state",
+              "block": "vanguard-spirits:mural",
+              "properties": [
+                "passage"
+              ]
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@ package io.github.freshglitch.vanguardspirits.client.datagen
 
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import io.github.freshglitch.vanguardspirits.charm.Attunement
+import io.github.freshglitch.vanguardspirits.lore.MuralLore
 import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModEntities
 import io.github.freshglitch.vanguardspirits.registry.ModItems
@@ -110,6 +111,27 @@ class ModAdvancementProvider(
 						.entityType(EntityTypePredicate.of(entityTypes, ModEntities.REMNANT)),
 				),
 			)
+		}
+
+		// The third thing available without going down: the mausoleum carries two
+		// passages, so a player who never finds the stair can still start reading.
+		//
+		// Parented on the root rather than on anything below it because that is
+		// the true prerequisite -- reading needs a ruin and nothing else. The same
+		// correctness the Echo of Kinship had to be moved for.
+		val mural = child(consumer, root, ModAdvancements.MURAL, ModBlocks.MURAL) { builder ->
+			builder.addCriterion("read_a_mural", ModTriggers.muralsRead(1))
+		}
+
+		// A challenge rather than a goal: the last passage is inside the vault on
+		// the lowest floor of the deeps, which in practice means going through
+		// the Sentinel first. Still hangs off the first mural, not the Sentinel,
+		// because reading one is what this actually extends.
+		child(
+			consumer, mural, ModAdvancements.ALL_MURALS,
+			ModBlocks.MURAL, AdvancementType.CHALLENGE,
+		) { builder ->
+			builder.addCriterion("read_every_mural", ModTriggers.muralsRead(MuralLore.COUNT))
 		}
 
 		val sentinel = child(

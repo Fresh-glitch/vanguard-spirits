@@ -1,6 +1,7 @@
 package io.github.freshglitch.vanguardspirits.worldgen
 
 import io.github.freshglitch.vanguardspirits.block.GoldenChestBlock
+import io.github.freshglitch.vanguardspirits.block.MuralBlock
 import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
 import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModEntities
@@ -80,8 +81,90 @@ class GuardedRuinsPiece : StructurePiece {
 		placeBraziers(level, box)
 		cutStairwell(level, box, random)
 		breakCryptFloor(level, box, random)
+		setMurals(level, box)
 		setSentinel(level, box)
 	}
+
+	// --------------------------------------------------------------- murals
+
+	/**
+	 * The six passages below ground, one per level of the descent.
+	 *
+	 * Placed last of the block work, so nothing that runs after can write over
+	 * them. Each sits in a wall the chamber has *already* cast solid -- both the
+	 * crypt and the deeps build a shell and then hollow it, so the outer faces
+	 * are known to exist and the only choice left is which one.
+	 *
+	 * ## Why these positions and not a scatter
+	 *
+	 * Descending is the reading order. The sanctum gets III, the crypt IV, and
+	 * the two deeps levels V and VI, so a player who simply keeps going down
+	 * reads the account in the order it was written. VII and VIII sit at the
+	 * bottom: VII on the wall the vault door is cut through, so the reveal of
+	 * who the Sentinel was lands *after* the fight rather than before it, and
+	 * VIII inside the vault beside the Reliquary it gives permission to open.
+	 *
+	 * ## Two constraints that are not obvious
+	 *
+	 * Every coordinate here is a constant. `postProcess` runs once per chunk and
+	 * hands each one its own random, so a position drawn from [RandomSource]
+	 * would disagree with itself across a chunk border -- the mural would be
+	 * placed twice, in two different blocks, or not at all. `placeBlock` already
+	 * drops writes outside the chunk being built, so a fixed position is placed
+	 * exactly once, by whichever chunk happens to contain it.
+	 *
+	 * And every mural needs stone *behind* it, not just in front. That is what
+	 * ruled out the sanctum's colonnade, which is one block thick with open
+	 * cavern on the far side.
+	 */
+	private fun setMurals(level: WorldGenLevel, box: BoundingBox) {
+		val deepLower = FLOOR_PAD
+		val deepUpper = FLOOR_PAD + LEVEL_HEIGHT
+		val deepFar = SANCTUM_LAST - DEEP_INSET
+		val mid = SANCTUM_LAST / 2
+
+		// III -- the side wall of the stairwell, one step down from the mouth.
+		//
+		// Not the sanctum's own perimeter, which was the first choice and is
+		// wrong: the colonnade is a *ruined* wall one block thick standing in an
+		// open cavern, so a mural in it has the sanctum on one face and the
+		// cavern on the other and reads as a loose slab someone propped up. The
+		// stairwell is cast as a solid block of masonry before its steps are cut
+		// out, so its walls have rock behind them -- and it is on the way down,
+		// which the perimeter is not.
+		val stairTread = SURFACE - 1 - 1
+		putMural(level, box, 2, Direction.SOUTH, STAIR_HEAD - 1, stairTread + MURAL_EYE, mid - 3)
+
+		// IV -- the crypt.
+		putMural(level, box, 3, Direction.EAST, CRYPT_INSET, CRYPT_FLOOR + MURAL_EYE, mid)
+
+		// V and VI -- the two deeps levels, on the near wall of each.
+		putMural(level, box, 4, Direction.EAST, DEEP_INSET, deepUpper + MURAL_EYE, 5)
+		putMural(level, box, 5, Direction.EAST, DEEP_INSET, deepLower + MURAL_EYE, 5)
+
+		// VII -- the far wall of the lowest floor, the one the vault is cut
+		// through. Clear of the vault passage, which owns z 7..9.
+		putMural(level, box, 6, Direction.WEST, deepFar, deepLower + MURAL_EYE, 5)
+
+		// VIII -- inside the vault, on the side wall beside the Reliquary.
+		putMural(level, box, 7, Direction.SOUTH, VAULT_MURAL_X, deepLower + MURAL_EYE, mid - 4)
+	}
+
+	private fun putMural(
+		level: WorldGenLevel,
+		box: BoundingBox,
+		passage: Int,
+		facing: Direction,
+		x: Int,
+		y: Int,
+		z: Int,
+	) = put(
+		level, box,
+		ModBlocks.MURAL.defaultBlockState()
+			.setValue(MuralBlock.FACING, facing)
+			.setValue(MuralBlock.PASSAGE, passage),
+		x, y, z,
+	)
 
 	// -------------------------------------------------------------- sentinel
 
@@ -809,6 +892,22 @@ class GuardedRuinsPiece : StructurePiece {
 
 		/** Yaw for east, the direction the stairwell lies in. */
 		private const val FACING_STAIRWELL = -90.0f
+
+		/**
+		 * Height of a mural above the floor it is read from.
+		 *
+		 * Shared with the graveyard's own two, so every mural in the mod sits at
+		 * the same height off its floor.
+		 */
+		private const val MURAL_EYE = GraveyardPiece.MURAL_EYE
+
+		/**
+		 * Sanctum X of the vault's mural, between the vault door and its far
+		 * wall. The vault room runs from `chamberEdge + 4` to `chamberEdge +
+		 * VAULT_REACH - 1`, which is 18 to 23, so this is the middle of the
+		 * side wall and not behind the Reliquary standing at 22.
+		 */
+		private const val VAULT_MURAL_X = 20
 
 		private const val GAP_CHANCE = 0.40f
 		private const val SCULK_CHANCE = 0.18f

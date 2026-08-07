@@ -4,6 +4,7 @@ import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
 import io.github.freshglitch.vanguardspirits.client.CharmTooltip
 import io.github.freshglitch.vanguardspirits.item.CharmItem
 import io.github.freshglitch.vanguardspirits.item.EchoOfKinshipItem
+import io.github.freshglitch.vanguardspirits.lore.MuralLore
 import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModEntities
 import io.github.freshglitch.vanguardspirits.registry.ModItemGroups
@@ -64,7 +65,10 @@ class ModEnglishProvider(
 		builder.add(ModBlocks.GOLDEN_CHEST, "Gilded Reliquary")
 		builder.add(GoldenChestBlockEntity.NAME_KEY, "Gilded Reliquary")
 		builder.add(ModBlocks.GRAVE, "Grave")
+		builder.add(ModBlocks.MURAL, "Deepslate Mural")
 		builder.add("subtitles.vanguard-spirits.grave.disturb", "A grave comes open")
+		builder.add("subtitles.vanguard-spirits.mural.read", "The carving answers")
+		builder.add("subtitles.vanguard-spirits.mural.turn", "Stone ticks")
 		builder.add("subtitles.vanguard-spirits.golden_chest.open", "Reliquary creaks open")
 		builder.add("subtitles.vanguard-spirits.golden_chest.close", "Reliquary seals")
 		builder.add("subtitles.vanguard-spirits.charm.wake", "Charm answers")
@@ -118,6 +122,19 @@ class ModEnglishProvider(
 
 		builder.add(EchoOfKinshipItem.RAISED_KEY, "Attunement deepens — %s of %s")
 		builder.add(EchoOfKinshipItem.MAXED_KEY, "You can hold no deeper echo.")
+
+		// The mural screen's footer. Two forms so a single-page passage does not
+		// carry a pointless "1/1".
+		builder.add("gui.vanguard-spirits.mural.marker", "%s of %s")
+		builder.add("gui.vanguard-spirits.mural.marker.paged", "%s of %s  ·  %s/%s")
+
+		// Every passage, from the same list the block and the screen read. The
+		// count is asserted in MuralLore, so a missing body cannot slip through
+		// as a raw key on a wall thirty blocks underground.
+		for (passage in 0 until MuralLore.COUNT) {
+			builder.add(MuralLore.titleKey(passage), MuralLore.TITLES[passage])
+			builder.add(MuralLore.bodyKey(passage), MuralLore.BODIES[passage])
+		}
 
 		// Driven off the same list the tree is built from, so an advancement can
 		// never generate without its text. An untranslated key is a valid key, so

@@ -93,8 +93,21 @@ object ModAdvancements {
 		"Raise your attunement to four",
 	)
 
+	val MURAL = Entry(
+		"in_their_own_hand",
+		"In Their Own Hand",
+		"Read a mural in a Guarded Ruin",
+	)
+
+	val ALL_MURALS = Entry(
+		"the_whole_account",
+		"The Whole Account",
+		"Read all eight murals",
+	)
+
 	val ALL: List<Entry> = listOf(
 		ROOT, FEATHER, REMNANT, SENTINEL, MEMORY, CHARM, ALL_CHARMS, KINSHIP, ATTUNED,
+		MURAL, ALL_MURALS,
 	)
 
 	fun titleKey(entry: Entry): String = "advancements.vanguard-spirits.${entry.path}.title"

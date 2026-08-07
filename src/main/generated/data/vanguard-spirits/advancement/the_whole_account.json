@@ -1,0 +1,29 @@
+{
+  "parent": "vanguard-spirits:in_their_own_hand",
+  "criteria": {
+    "read_every_mural": {
+      "conditions": {
+        "read": 8
+      },
+      "trigger": "vanguard-spirits:murals_read"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.vanguard-spirits.the_whole_account.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "id": "vanguard-spirits:mural"
+    },
+    "title": {
+      "translate": "advancements.vanguard-spirits.the_whole_account.title"
+    }
+  },
+  "requirements": [
+    [
+      "read_every_mural"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

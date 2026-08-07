@@ -3,6 +3,8 @@ package io.github.freshglitch.vanguardspirits.registry
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import io.github.freshglitch.vanguardspirits.block.GoldenChestBlock
 import io.github.freshglitch.vanguardspirits.block.GraveBlock
+import io.github.freshglitch.vanguardspirits.block.MuralBlock
+import io.github.freshglitch.vanguardspirits.block.entity.MuralBlockEntity
 import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
@@ -42,6 +44,28 @@ object ModBlocks {
 			.mapColor(MapColor.PODZOL)
 			.strength(0.6f)
 			.sound(SoundType.ROOTED_DIRT)
+	}
+
+	/**
+	 * A carved passage from the ruin's own account of itself.
+	 *
+	 * Deepslate's own numbers, because that is what it is -- a wall block that
+	 * happens to be worth stopping at. Nothing here hints at the reading; a
+	 * player finds that by clicking it, which is the right order.
+	 */
+	val MURAL: Block = register("mural", ::MuralBlock) {
+		BlockBehaviour.Properties.of()
+			.mapColor(MapColor.DEEPSLATE)
+			.strength(3.5f, 6.0f)
+			.requiresCorrectToolForDrops()
+			.sound(SoundType.DEEPSLATE_BRICKS)
+			// Dark until somebody comes near. The block entity walks GLOW up and
+			// down from player distance; this is the only place that value can be
+			// read from, because the light engine is handed a BlockState and
+			// nothing else.
+			.lightLevel { state ->
+				state.getValue(MuralBlock.GLOW) * MuralBlockEntity.LIGHT_PER_STEP
+			}
 	}
 
 	/** Every block this mod registers, in display order. */

@@ -3,6 +3,7 @@ package io.github.freshglitch.vanguardspirits
 import io.github.freshglitch.vanguardspirits.charm.Attunement
 import io.github.freshglitch.vanguardspirits.charm.CharmTicker
 import io.github.freshglitch.vanguardspirits.charm.Deflection
+import io.github.freshglitch.vanguardspirits.lore.MuralCodex
 import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
 import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModComponents
@@ -11,6 +12,7 @@ import io.github.freshglitch.vanguardspirits.registry.ModEntities
 import io.github.freshglitch.vanguardspirits.registry.ModItemGroups
 import io.github.freshglitch.vanguardspirits.registry.ModItems
 import io.github.freshglitch.vanguardspirits.registry.ModMenus
+import io.github.freshglitch.vanguardspirits.registry.ModNetworking
 import io.github.freshglitch.vanguardspirits.registry.ModParticles
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import io.github.freshglitch.vanguardspirits.registry.ModSpawns
@@ -49,7 +51,9 @@ object VanguardSpirits : ModInitializer {
 		ModStructures.register()
 		ModSpawns.register()
 		Attunement.register()
+		MuralCodex.register()
 		ModTriggers.register()
+		ModNetworking.register()
 		CharmTicker.register()
 		Deflection.register()
 		RuinAmbience.register()

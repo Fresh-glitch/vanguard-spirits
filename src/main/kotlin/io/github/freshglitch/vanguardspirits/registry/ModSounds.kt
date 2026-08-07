@@ -30,6 +30,23 @@ object ModSounds {
 	val GRAVE_DISTURB: SoundEvent = register("block.grave.disturb")
 
 	/**
+	 * Putting a hand to a mural and the carving answering.
+	 *
+	 * Quiet on purpose. It plays every time a passage is opened, including the
+	 * eighth re-read, so anything with a swell to it would wear through fast.
+	 */
+	val MURAL_READ: SoundEvent = register("block.mural.read")
+
+	/**
+	 * Turning a page in the mural screen.
+	 *
+	 * Played client-side straight into the UI channel rather than at the block:
+	 * the sound belongs to the interface, not the world, so it should not fall
+	 * off with distance or be audible to anyone else standing in the room.
+	 */
+	val MURAL_TURN: SoundEvent = register("block.mural.turn")
+
+	/**
 	 * Switching a charm off and on again.
 	 *
 	 * [CHARM_WAKE] is the note the Echo of Kinship uses, and [CHARM_HUSH] is

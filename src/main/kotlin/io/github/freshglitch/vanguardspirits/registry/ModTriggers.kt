@@ -2,6 +2,7 @@ package io.github.freshglitch.vanguardspirits.registry
 
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import io.github.freshglitch.vanguardspirits.charm.AttunementTrigger
+import io.github.freshglitch.vanguardspirits.lore.MuralTrigger
 import net.minecraft.advancements.triggers.Criterion
 import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
@@ -10,10 +11,10 @@ import java.util.Optional
 /**
  * Criterion triggers the mod fires itself.
  *
- * Only one so far. Everything else the tree asks about -- items held, mobs
- * killed, standing inside a structure -- vanilla already watches; attunement is
- * the exception, because it is a data attachment and nothing in the game looks
- * at it but us.
+ * Everything else the tree asks about -- items held, mobs killed, standing
+ * inside a structure -- vanilla already watches. Both of these are exceptions
+ * for the same reason: attunement and the mural codex are data attachments, and
+ * nothing in the game looks at either but us.
  *
  * Registered into `BuiltInRegistries.TRIGGER_TYPES` like any other content, so
  * the id has to exist before a datapack referencing it loads. Common source set,
@@ -27,6 +28,12 @@ object ModTriggers {
 		AttunementTrigger(),
 	)
 
+	val MURALS: MuralTrigger = Registry.register(
+		BuiltInRegistries.TRIGGER_TYPES,
+		VanguardSpirits.id("murals_read"),
+		MuralTrigger(),
+	)
+
 	/**
 	 * A criterion satisfied once the player's attunement reaches [level].
 	 *
@@ -38,6 +45,12 @@ object ModTriggers {
 	fun attunementReached(level: Int): Criterion<AttunementTrigger.TriggerInstance> =
 		ATTUNEMENT.createCriterion(
 			AttunementTrigger.TriggerInstance(Optional.empty(), level),
+		)
+
+	/** A criterion satisfied once the player has read [count] distinct passages. */
+	fun muralsRead(count: Int): Criterion<MuralTrigger.TriggerInstance> =
+		MURALS.createCriterion(
+			MuralTrigger.TriggerInstance(Optional.empty(), count),
 		)
 
 	/** Touching the object is what actually runs the registration above. */

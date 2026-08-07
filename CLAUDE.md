@@ -121,6 +121,7 @@ So reach for the instrument early, not after the third theory:
 | Is this `.ogg` the right length? | `ffprobe`, or granule position over sample rate |
 | Is this PNG intact? | walk the chunk list; `file` will happily bless a truncated one |
 | Does this generated geometry close up? | re-implement the coordinate maths in a throwaway script and assert on it, before generating a world |
+| Is this block set into a wall, or floating in one? | model the chamber's fills in the order `postProcess` writes them, then assert solid-behind and air-in-front |
 | Which method contains this call? | disassemble to a file and walk back to the last signature line — a `grep` over the whole class finds the call and tells you nothing about its caller |
 
 Four corollaries worth their own line. **A comment is not evidence** — several in
@@ -154,6 +155,19 @@ every one the broken tool produced output that read as an answer:
   a heading that said finding nothing meant the tag held.
 - A `cmd1 && cmd2` chain silently skipped the compile, because `grep -c` exits 1
   when it finds zero matches — and zero matches was the *good* outcome.
+- `./gradlew clientClasses | tail -30 && echo COMPILE-OK` printed **COMPILE-OK
+  under a failing build**. In a pipeline the exit status is the *last* command's,
+  and `tail` always succeeds. Use `set -o pipefail`, or read `${PIPESTATUS[0]}`.
+- A log watcher filtering for player chat with `<[A-Za-z0-9_]+>` matched
+  `CrashReport.<init>` and buried the real messages under stack frames. Anchor
+  on `\[CHAT\]`.
+- A watcher was armed to catch missing block models, and its pattern listed
+  `missing` but not `Unknown` — which is the word Minecraft actually uses for a
+  blockstate variant nobody generated. It would have sat silent through exactly
+  the failure it was put there for.
+- Two greps in a pipeline, and only the *first* had `--line-buffered`. The
+  second buffered in 4 KB blocks, so a watch that was working perfectly reported
+  nothing for a whole seventeen-minute play session.
 
 So: check what the instrument said before believing what it meant. A filter that
 matches nothing and a filter that is broken are the same empty output; a probe
@@ -235,6 +249,33 @@ Each of these cost a compile cycle or a wrong guess:
   enters the world but not when one ticks, and the behaviour belongs to the
   `ItemEntity` rather than the `Item`. See `ItemEntityMixin`, which is kept to
   an injection point and calls straight out to Kotlin.
+- **`requiresCorrectToolForDrops()` without a `mineable/*` tag means the block
+  drops nothing, to anything, ever.** `ServerPlayerGameMode.destroyBlock` only
+  calls `playerDestroy` — the method that rolls the loot table — when
+  `Player.hasCorrectToolForDrops` passes, and that is two lines:
+  `!state.requiresCorrectToolForDrops() || held.isCorrectToolForDrops(state)`.
+  The second resolves through the held item's `TOOL` component, whose rules are
+  all written against **block tags**, so a block in no tag matches no rule and a
+  diamond pickaxe is worth exactly as much as a bare hand. Nothing reports it:
+  the loot table is valid, the block breaks at the right speed, the drop is just
+  skipped. The Gilded Reliquary shipped like this from the day it was added and
+  it was only noticed when a second block did the same thing.
+- **`CustomPacketPayload.createType(String)` claims the `minecraft` namespace.**
+  Its body is `new Type<>(Identifier.withDefaultNamespace(s))`, so the
+  convenient-looking `createType("mural_open")` registers `minecraft:mural_open`.
+  Use the `Type` constructor with our own `Identifier`.
+- **`DirectionProperty` no longer exists** — `HorizontalDirectionalBlock.FACING`
+  is an `EnumProperty<Direction>`.
+- **A block's light level is a function of `BlockState` and nothing else.**
+  `Properties.lightLevel` is handed a `ToIntFunction<BlockState>`, so anything
+  dynamic — a glow that answers to a nearby player — has to live in the
+  blockstate, not on the block entity. That multiplies the state count, which is
+  the real cost: the mural's four glow steps took it from 32 blockstate variants
+  to 128, and a variant nobody generated renders as a missing model.
+- **Implementing `EntityBlock` directly is usually better than extending
+  `BaseEntityBlock`.** The base class overrides `getRenderShape` to `INVISIBLE`,
+  which has to be undone for any block you still want drawn. The only thing lost
+  is `createTickerHelper`, which is four lines: check `type == ours`, then cast.
 - **Goals can require attributes, and say so only by crashing.** `TemptGoal`
   reads `Attributes.TEMPT_RANGE` inside `canUse`, so a mob built on
   `createMobAttributes` rather than `createAnimalAttributes` dies with
@@ -300,6 +341,15 @@ not explain. They are listed in the order they will bite.
 - **`TagAppender.addTag` validates that the target is defined by the same
   provider.** Referencing a vanilla tag needs `addOptionalTag`, or datagen fails
   outright.
+- **Anything set into a wall needs stone *behind* it, not just air in front.**
+  The obvious home for the sanctum's murals was its own perimeter, and it is
+  wrong: the colonnade is a ruined wall one block thick standing in an open
+  cavern, so a block in it has a room on one face and the cavern on the other
+  and reads as a loose slab somebody propped up. The masses that actually work
+  are the ones cast solid and then carved — the stairwell, the crypt and deeps
+  shells, the vault. Note that *untouched world rock* counts: the test is
+  whether there is material behind the face, not whether the structure wrote it.
+  A one-block building wall backing onto the outdoors is the honest exception.
 
 ## Block entity rendering gotchas
 
@@ -362,6 +412,27 @@ needed a screenshot to diagnose.
 - 26.2 screens draw in **`extractBackground(GuiGraphicsExtractor, ...)`** with
   `extractor.blit(RenderPipelines.GUI_TEXTURED, ...)`. There is no `renderBg` and
   no `GuiGraphics.blit`.
+- **`GuiGraphics` does not exist at all** — the class is `GuiGraphicsExtractor`,
+  and `Screen` implements `Renderable`, whose one method is
+  **`extractRenderState(GuiGraphicsExtractor, mouseX, mouseY, partialTick)`**.
+  That is the `render` replacement. The extractor carries `text`,
+  `centeredText`, `textWithWordWrap`, `fill` and `blit`, so a hand-laid panel
+  needs nothing else. Input moved to record types too: `keyPressed(KeyEvent)`
+  and **`mouseClicked(MouseButtonEvent, Boolean)`**, not the old int triples.
+  And the screen is opened with **`Minecraft.setScreenAndShow`**; `setScreen` is
+  gone.
+- **A screen that pauses the game pauses the sound engine with it.** Anything
+  the server played on the same tick the screen opened is queued and only
+  arrives when the player closes it — which reads exactly like the block failing
+  to play its sound, and sent us looking at the block. Vanilla's read-only book
+  screen returns `false` from `isPauseScreen`; any screen that expects a sound
+  alongside it must do the same.
+- **A read-only screen wants a payload, not a menu.** `AbstractContainerMenu`
+  buys nothing when there is nothing to hold: you get a slotless menu, a
+  `stillValid` that always says yes, and a data slot smuggling the one number
+  across. A `CustomPacketPayload` from the server, received in `src/client`,
+  says what it means — and respects the source-set split, which is the real
+  reason common code cannot just open a screen itself.
 - Container panels are **176x166 in the top-left of a 256x256 sheet**. Player
   inventory at `(8, 84)`, hotbar at `(8, 142)`. Match those or the artwork and
   the real slots disagree.
