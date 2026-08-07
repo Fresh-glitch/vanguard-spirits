@@ -44,8 +44,9 @@ import kotlin.math.max
  *
  * **Nothing structural is drawn from the piece random**, for the same reason --
  * each chunk gets its own. Grave positions, which graves have already been
- * opened, which stones are cracked: all of it is a hash of the position, so
- * every chunk computes the same answer about the parts it can see.
+ * opened, which stones are cracked: all of it goes through [chance] in
+ * `PositionalHash.kt`, so every chunk computes the same answer about the parts
+ * it can see.
  *
  * **The stair comes out on the far side of the cavern from the crypt.** The
  * Sentinel's trigger is measured from the stairwell it wards, not from itself,
@@ -747,21 +748,5 @@ class GraveyardPiece : StructurePiece {
 
 		/** Air cut above each tread. Two would do; three stops it feeling like a crawl. */
 		private const val HEADROOM = 3
-
-		/**
-		 * Positional hash. Every structural decision in this file goes through it
-		 * rather than through the piece random, because `postProcess` hands each
-		 * chunk its own random and geometry drawn from one would not agree with
-		 * itself across a chunk border.
-		 */
-		private fun hash(a: Int, b: Int, salt: Int): Int {
-			var h = (a * 73_856_093) xor (b * 19_349_663) xor (salt * 83_492_791)
-			h = h xor (h ushr 13)
-			h *= 1_274_126_177
-			return h xor (h ushr 16)
-		}
-
-		private fun chance(a: Int, b: Int, salt: Int, p: Float): Boolean =
-			(hash(a, b, salt) ushr 8 and 0xFFFF) < (p * 0xFFFF).toInt()
 	}
 }

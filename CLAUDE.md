@@ -299,6 +299,27 @@ not explain. They are listed in the order they will bite.
   random. Geometry that must agree across a chunk border cannot be shaped by
   random draws — make it a pure function of position (a positional hash gives
   variation without the disagreement).
+- **Where a chunk border falls inside a piece is fixed, not luck.** A structure
+  that sites itself on `chunkPos.middleBlockX` puts its box at
+  `chunkX * 16 + 8 - WIDTH / 2`, so local coordinate *n* lands on
+  `chunkX * 16 + (n - WIDTH / 2 + 8)` — the same residue mod 16 in every
+  instance in the world. For the Guarded Ruin that works out at local 9 always
+  on a chunk edge and local 24 always one short of one, which is why three of
+  the four corner pillars straddle a border in *every* ruin and the fourth never
+  does. Worth computing before hunting for a case in game: it says which part to
+  look at, and it turns "some of them are broken" into a number.
+  It also gives a free landmark. `/locate` reports
+  `StructurePlacement.getLocatePos`, which is the structure chunk's *min* corner
+  (`chunkX * 16`, not the centre — the centre would end in 8), and that is
+  exactly where the local-9 corner pillar stands. So the located coordinate is
+  the chunk-clean control pillar, and the one with four chunks meeting inside it
+  is always **+15, +15** from it. No flying about looking for a case.
+  This is also a trap for the checking script. A first pass over the colonnade
+  bug sampled arbitrary box positions and reported 23% of ruins affected; the
+  real figure was 100%, because arbitrary centres were not the population the
+  structure actually generates. **Sample the sites the code really produces, not
+  a convenient stand-in** — a plausible percentage is much harder to distrust
+  than an obviously wrong one.
 - **A piece may only *read* the chunk it is writing.** 26.2 checks this and logs
   `Detected unsafe terrain read during worldgen … (distance: 2, write radius: 1)`,
   so the mistake announces itself — but only if the log is being watched, and it

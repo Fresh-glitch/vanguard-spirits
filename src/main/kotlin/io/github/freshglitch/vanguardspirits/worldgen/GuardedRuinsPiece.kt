@@ -617,8 +617,15 @@ class GuardedRuinsPiece : StructurePiece {
 
 		// Corners are 2x2 shafts. A one-block column at this height reads as a
 		// fence post, not a pillar.
+		//
+		// Height is hashed from where the pillar stands rather than drawn from
+		// the piece random, and it is keyed off the pillar's own corner so all
+		// four of its columns ask the same question. A 2x2 shaft can straddle a
+		// chunk boundary, and `postProcess` runs once per chunk with its own
+		// random -- two columns of one pillar would then come out at different
+		// heights and it would generate stepped.
 		for ((cx, cz) in listOf(0 to 0, 0 to inner, inner to 0, inner to inner)) {
-			val top = PILLAR_TALL - random.nextInt(3)
+			val top = PILLAR_TALL - rangeAt(cx, cz, PILLAR_SALT, PILLAR_LOSS)
 			for (dx in 0..1) {
 				for (dz in 0..1) {
 					for (y in 1..top) {
@@ -633,7 +640,7 @@ class GuardedRuinsPiece : StructurePiece {
 		}
 
 		for ((x, z) in listOf(mid to 0, mid to SANCTUM_LAST, 0 to mid, SANCTUM_LAST to mid)) {
-			val top = PILLAR_SHORT - random.nextInt(3)
+			val top = PILLAR_SHORT - rangeAt(x, z, PILLAR_SALT, PILLAR_LOSS)
 			for (y in 1..top) {
 				put(level, box, deepslate(random), x, SURFACE + y, z)
 			}
@@ -644,6 +651,18 @@ class GuardedRuinsPiece : StructurePiece {
 	/**
 	 * One wall column. The bottom [SOLID_COURSES] are never skipped, so the
 	 * perimeter reads as a collapsed wall rather than a row of loose stones.
+	 *
+	 * Gap and height are hashed for the same reason the pillars are, though
+	 * nothing here was visibly broken: a column is one block across, so only the
+	 * chunk that owns it ever writes it and it could not disagree with itself.
+	 * What it could do is disagree with the *other* time it was asked. The four
+	 * perimeter corners are visited twice each by [raiseColonnade], once from
+	 * the run along X and once from the run along Z, and since placement here
+	 * only ever adds blocks the old draws combined rather than replaced -- the
+	 * taller of the two heights stood, and a corner went gapped only when both
+	 * draws gapped, so 0.16 rather than [GAP_CHANCE]. All four sit under a
+	 * corner pillar and were buried before anyone could see it. The hash makes
+	 * the second visit agree with the first instead.
 	 */
 	private fun ruinedWall(
 		level: WorldGenLevel,
@@ -656,9 +675,9 @@ class GuardedRuinsPiece : StructurePiece {
 			put(level, box, deepslate(random), x, SURFACE + y, z)
 		}
 
-		if (random.nextFloat() < GAP_CHANCE) return
+		if (chanceAt(x, z, WALL_GAP_SALT, GAP_CHANCE)) return
 
-		val height = SOLID_COURSES + 1 + random.nextInt(WALL_MAX)
+		val height = SOLID_COURSES + 1 + rangeAt(x, z, WALL_HEIGHT_SALT, WALL_MAX)
 		for (y in (SOLID_COURSES + 1)..height) {
 			put(level, box, deepslate(random), x, SURFACE + y, z)
 		}
@@ -786,6 +805,21 @@ class GuardedRuinsPiece : StructurePiece {
 		y: Int,
 		z: Int,
 	) = placeBlock(level, state, MARGIN + x, y, MARGIN + z, box)
+
+	/**
+	 * A positional `nextInt`, for a spot given in sanctum coordinates.
+	 *
+	 * Hashed on the *world* position rather than the local one. Either is stable
+	 * across chunks, which is the whole point, but a local key would give every
+	 * Guarded Ruin in the world the same handful of pillar heights -- the local
+	 * coordinates of a corner are the same in all of them.
+	 */
+	private fun rangeAt(x: Int, z: Int, salt: Int, bound: Int): Int =
+		range(getWorldX(MARGIN + x, MARGIN + z), getWorldZ(MARGIN + x, MARGIN + z), salt, bound)
+
+	/** As [rangeAt], for a yes or no. */
+	private fun chanceAt(x: Int, z: Int, salt: Int, p: Float): Boolean =
+		chance(getWorldX(MARGIN + x, MARGIN + z), getWorldZ(MARGIN + x, MARGIN + z), salt, p)
 
 	/** Fills a solid box in sanctum coordinates. */
 	private fun fill(
@@ -922,6 +956,18 @@ class GuardedRuinsPiece : StructurePiece {
 		private const val SOLID_COURSES = 2
 		private const val PILLAR_TALL = 10
 		private const val PILLAR_SHORT = 6
+
+		/** How many courses a pillar can have lost off the top. */
+		private const val PILLAR_LOSS = 3
+
+		/**
+		 * Salts for [rangeAt] and [chanceAt]. Distinct so the three decisions are
+		 * independent of one another: sharing one between a wall's gap and its
+		 * height would tie every surviving column to the same height.
+		 */
+		private const val PILLAR_SALT = 101
+		private const val WALL_GAP_SALT = 111
+		private const val WALL_HEIGHT_SALT = 112
 
 		private fun boxAround(centre: BlockPos): BoundingBox {
 			val half = WIDTH / 2
