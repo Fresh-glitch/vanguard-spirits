@@ -1,0 +1,40 @@
+<h1>1.9.1 &mdash; The murals</h1>
+
+<p>The ruins now answer the question they have been posing since the first release: who dug this, and why is there a graveyard sitting on the lid.</p>
+
+<p><em>Includes everything from 1.9.0, which was not published separately.</em></p>
+
+<h2>Added</h2>
+
+<ul>
+  <li><strong>Mural</strong> &mdash; a carved deepslate block holding one of <strong>eight passages</strong> of a first-hand account, written by the last of the people who built the ruin.</li>
+  <li>Passages are placed <strong>by depth, so descending is the reading order</strong> &mdash; two in the mausoleum, then the stairwell, the crypt, both levels of the deeps, and the eighth inside the vault, beside the Reliquary it gives you permission to open.</li>
+  <li>Murals are <strong>dark until somebody comes near</strong>, then light and carving ramp up together over four steps.</li>
+  <li>Reading one opens a stone panel that also pages back through <strong>every passage you have already found</strong>, so the murals double as a codex you assemble on the way down. It does not pause the game.</li>
+  <li>A mural can be mined with any pickaxe and <strong>keeps its passage</strong> &mdash; carry one home, place it, and it still carries the same text.</li>
+  <li>Two advancements: <strong>In Their Own Hand</strong> and <strong>The Whole Account</strong>.</li>
+  <li>Sounds for putting a hand to a mural and for turning a page.</li>
+</ul>
+
+<h2>Fixed</h2>
+
+<ul>
+  <li><strong>Neither the Gilded Reliquary nor a mural dropped anything when mined, to any tool.</strong> The mod shipped with no block tags at all, so the "requires the correct tool" gate could never be satisfied &mdash; the block broke at full speed and the drop was simply skipped. The Reliquary had been that way since it was added.</li>
+  <li><strong>The sanctum's corner pillars generated stepped.</strong> Their heights were drawn from a per-chunk random, and because of where the structure sites itself, three of the four corner pillars straddle a chunk border in <em>every</em> ruin. Heights now come from the world position, so a pillar is one height however many chunks it spans, and ruins still differ from one another.</li>
+</ul>
+
+<h2>Notes</h2>
+
+<ul>
+  <li>Murals only appear in <strong>Guarded Ruins generated after updating</strong>. Existing ruins are already written to disk and will not gain them.</li>
+</ul>
+
+<h2>Requires</h2>
+
+<ul>
+  <li>Minecraft 26.2</li>
+  <li>Fabric Loader 0.19.3 or newer</li>
+  <li>Fabric API</li>
+  <li>Fabric Language Kotlin</li>
+  <li>Java 25</li>
+</ul>
