@@ -1,0 +1,484 @@
+{
+  "variants": {
+    "facing=north,passage=0,glow=0": {
+      "model": "vanguard-spirits:block/mural_0_0"
+    },
+    "facing=north,passage=0,glow=1": {
+      "model": "vanguard-spirits:block/mural_0_1"
+    },
+    "facing=north,passage=0,glow=2": {
+      "model": "vanguard-spirits:block/mural_0_2"
+    },
+    "facing=north,passage=0,glow=3": {
+      "model": "vanguard-spirits:block/mural_0_3"
+    },
+    "facing=east,passage=0,glow=0": {
+      "model": "vanguard-spirits:block/mural_0_0",
+      "y": 90
+    },
+    "facing=east,passage=0,glow=1": {
+      "model": "vanguard-spirits:block/mural_0_1",
+      "y": 90
+    },
+    "facing=east,passage=0,glow=2": {
+      "model": "vanguard-spirits:block/mural_0_2",
+      "y": 90
+    },
+    "facing=east,passage=0,glow=3": {
+      "model": "vanguard-spirits:block/mural_0_3",
+      "y": 90
+    },
+    "facing=south,passage=0,glow=0": {
+      "model": "vanguard-spirits:block/mural_0_0",
+      "y": 180
+    },
+    "facing=south,passage=0,glow=1": {
+      "model": "vanguard-spirits:block/mural_0_1",
+      "y": 180
+    },
+    "facing=south,passage=0,glow=2": {
+      "model": "vanguard-spirits:block/mural_0_2",
+      "y": 180
+    },
+    "facing=south,passage=0,glow=3": {
+      "model": "vanguard-spirits:block/mural_0_3",
+      "y": 180
+    },
+    "facing=west,passage=0,glow=0": {
+      "model": "vanguard-spirits:block/mural_0_0",
+      "y": 270
+    },
+    "facing=west,passage=0,glow=1": {
+      "model": "vanguard-spirits:block/mural_0_1",
+      "y": 270
+    },
+    "facing=west,passage=0,glow=2": {
+      "model": "vanguard-spirits:block/mural_0_2",
+      "y": 270
+    },
+    "facing=west,passage=0,glow=3": {
+      "model": "vanguard-spirits:block/mural_0_3",
+      "y": 270
+    },
+    "facing=north,passage=1,glow=0": {
+      "model": "vanguard-spirits:block/mural_1_0"
+    },
+    "facing=north,passage=1,glow=1": {
+      "model": "vanguard-spirits:block/mural_1_1"
+    },
+    "facing=north,passage=1,glow=2": {
+      "model": "vanguard-spirits:block/mural_1_2"
+    },
+    "facing=north,passage=1,glow=3": {
+      "model": "vanguard-spirits:block/mural_1_3"
+    },
+    "facing=east,passage=1,glow=0": {
+      "model": "vanguard-spirits:block/mural_1_0",
+      "y": 90
+    },
+    "facing=east,passage=1,glow=1": {
+      "model": "vanguard-spirits:block/mural_1_1",
+      "y": 90
+    },
+    "facing=east,passage=1,glow=2": {
+      "model": "vanguard-spirits:block/mural_1_2",
+      "y": 90
+    },
+    "facing=east,passage=1,glow=3": {
+      "model": "vanguard-spirits:block/mural_1_3",
+      "y": 90
+    },
+    "facing=south,passage=1,glow=0": {
+      "model": "vanguard-spirits:block/mural_1_0",
+      "y": 180
+    },
+    "facing=south,passage=1,glow=1": {
+      "model": "vanguard-spirits:block/mural_1_1",
+      "y": 180
+    },
+    "facing=south,passage=1,glow=2": {
+      "model": "vanguard-spirits:block/mural_1_2",
+      "y": 180
+    },
+    "facing=south,passage=1,glow=3": {
+      "model": "vanguard-spirits:block/mural_1_3",
+      "y": 180
+    },
+    "facing=west,passage=1,glow=0": {
+      "model": "vanguard-spirits:block/mural_1_0",
+      "y": 270
+    },
+    "facing=west,passage=1,glow=1": {
+      "model": "vanguard-spirits:block/mural_1_1",
+      "y": 270
+    },
+    "facing=west,passage=1,glow=2": {
+      "model": "vanguard-spirits:block/mural_1_2",
+      "y": 270
+    },
+    "facing=west,passage=1,glow=3": {
+      "model": "vanguard-spirits:block/mural_1_3",
+      "y": 270
+    },
+    "facing=north,passage=2,glow=0": {
+      "model": "vanguard-spirits:block/mural_2_0"
+    },
+    "facing=north,passage=2,glow=1": {
+      "model": "vanguard-spirits:block/mural_2_1"
+    },
+    "facing=north,passage=2,glow=2": {
+      "model": "vanguard-spirits:block/mural_2_2"
+    },
+    "facing=north,passage=2,glow=3": {
+      "model": "vanguard-spirits:block/mural_2_3"
+    },
+    "facing=east,passage=2,glow=0": {
+      "model": "vanguard-spirits:block/mural_2_0",
+      "y": 90
+    },
+    "facing=east,passage=2,glow=1": {
+      "model": "vanguard-spirits:block/mural_2_1",
+      "y": 90
+    },
+    "facing=east,passage=2,glow=2": {
+      "model": "vanguard-spirits:block/mural_2_2",
+      "y": 90
+    },
+    "facing=east,passage=2,glow=3": {
+      "model": "vanguard-spirits:block/mural_2_3",
+      "y": 90
+    },
+    "facing=south,passage=2,glow=0": {
+      "model": "vanguard-spirits:block/mural_2_0",
+      "y": 180
+    },
+    "facing=south,passage=2,glow=1": {
+      "model": "vanguard-spirits:block/mural_2_1",
+      "y": 180
+    },
+    "facing=south,passage=2,glow=2": {
+      "model": "vanguard-spirits:block/mural_2_2",
+      "y": 180
+    },
+    "facing=south,passage=2,glow=3": {
+      "model": "vanguard-spirits:block/mural_2_3",
+      "y": 180
+    },
+    "facing=west,passage=2,glow=0": {
+      "model": "vanguard-spirits:block/mural_2_0",
+      "y": 270
+    },
+    "facing=west,passage=2,glow=1": {
+      "model": "vanguard-spirits:block/mural_2_1",
+      "y": 270
+    },
+    "facing=west,passage=2,glow=2": {
+      "model": "vanguard-spirits:block/mural_2_2",
+      "y": 270
+    },
+    "facing=west,passage=2,glow=3": {
+      "model": "vanguard-spirits:block/mural_2_3",
+      "y": 270
+    },
+    "facing=north,passage=3,glow=0": {
+      "model": "vanguard-spirits:block/mural_3_0"
+    },
+    "facing=north,passage=3,glow=1": {
+      "model": "vanguard-spirits:block/mural_3_1"
+    },
+    "facing=north,passage=3,glow=2": {
+      "model": "vanguard-spirits:block/mural_3_2"
+    },
+    "facing=north,passage=3,glow=3": {
+      "model": "vanguard-spirits:block/mural_3_3"
+    },
+    "facing=east,passage=3,glow=0": {
+      "model": "vanguard-spirits:block/mural_3_0",
+      "y": 90
+    },
+    "facing=east,passage=3,glow=1": {
+      "model": "vanguard-spirits:block/mural_3_1",
+      "y": 90
+    },
+    "facing=east,passage=3,glow=2": {
+      "model": "vanguard-spirits:block/mural_3_2",
+      "y": 90
+    },
+    "facing=east,passage=3,glow=3": {
+      "model": "vanguard-spirits:block/mural_3_3",
+      "y": 90
+    },
+    "facing=south,passage=3,glow=0": {
+      "model": "vanguard-spirits:block/mural_3_0",
+      "y": 180
+    },
+    "facing=south,passage=3,glow=1": {
+      "model": "vanguard-spirits:block/mural_3_1",
+      "y": 180
+    },
+    "facing=south,passage=3,glow=2": {
+      "model": "vanguard-spirits:block/mural_3_2",
+      "y": 180
+    },
+    "facing=south,passage=3,glow=3": {
+      "model": "vanguard-spirits:block/mural_3_3",
+      "y": 180
+    },
+    "facing=west,passage=3,glow=0": {
+      "model": "vanguard-spirits:block/mural_3_0",
+      "y": 270
+    },
+    "facing=west,passage=3,glow=1": {
+      "model": "vanguard-spirits:block/mural_3_1",
+      "y": 270
+    },
+    "facing=west,passage=3,glow=2": {
+      "model": "vanguard-spirits:block/mural_3_2",
+      "y": 270
+    },
+    "facing=west,passage=3,glow=3": {
+      "model": "vanguard-spirits:block/mural_3_3",
+      "y": 270
+    },
+    "facing=north,passage=4,glow=0": {
+      "model": "vanguard-spirits:block/mural_4_0"
+    },
+    "facing=north,passage=4,glow=1": {
+      "model": "vanguard-spirits:block/mural_4_1"
+    },
+    "facing=north,passage=4,glow=2": {
+      "model": "vanguard-spirits:block/mural_4_2"
+    },
+    "facing=north,passage=4,glow=3": {
+      "model": "vanguard-spirits:block/mural_4_3"
+    },
+    "facing=east,passage=4,glow=0": {
+      "model": "vanguard-spirits:block/mural_4_0",
+      "y": 90
+    },
+    "facing=east,passage=4,glow=1": {
+      "model": "vanguard-spirits:block/mural_4_1",
+      "y": 90
+    },
+    "facing=east,passage=4,glow=2": {
+      "model": "vanguard-spirits:block/mural_4_2",
+      "y": 90
+    },
+    "facing=east,passage=4,glow=3": {
+      "model": "vanguard-spirits:block/mural_4_3",
+      "y": 90
+    },
+    "facing=south,passage=4,glow=0": {
+      "model": "vanguard-spirits:block/mural_4_0",
+      "y": 180
+    },
+    "facing=south,passage=4,glow=1": {
+      "model": "vanguard-spirits:block/mural_4_1",
+      "y": 180
+    },
+    "facing=south,passage=4,glow=2": {
+      "model": "vanguard-spirits:block/mural_4_2",
+      "y": 180
+    },
+    "facing=south,passage=4,glow=3": {
+      "model": "vanguard-spirits:block/mural_4_3",
+      "y": 180
+    },
+    "facing=west,passage=4,glow=0": {
+      "model": "vanguard-spirits:block/mural_4_0",
+      "y": 270
+    },
+    "facing=west,passage=4,glow=1": {
+      "model": "vanguard-spirits:block/mural_4_1",
+      "y": 270
+    },
+    "facing=west,passage=4,glow=2": {
+      "model": "vanguard-spirits:block/mural_4_2",
+      "y": 270
+    },
+    "facing=west,passage=4,glow=3": {
+      "model": "vanguard-spirits:block/mural_4_3",
+      "y": 270
+    },
+    "facing=north,passage=5,glow=0": {
+      "model": "vanguard-spirits:block/mural_5_0"
+    },
+    "facing=north,passage=5,glow=1": {
+      "model": "vanguard-spirits:block/mural_5_1"
+    },
+    "facing=north,passage=5,glow=2": {
+      "model": "vanguard-spirits:block/mural_5_2"
+    },
+    "facing=north,passage=5,glow=3": {
+      "model": "vanguard-spirits:block/mural_5_3"
+    },
+    "facing=east,passage=5,glow=0": {
+      "model": "vanguard-spirits:block/mural_5_0",
+      "y": 90
+    },
+    "facing=east,passage=5,glow=1": {
+      "model": "vanguard-spirits:block/mural_5_1",
+      "y": 90
+    },
+    "facing=east,passage=5,glow=2": {
+      "model": "vanguard-spirits:block/mural_5_2",
+      "y": 90
+    },
+    "facing=east,passage=5,glow=3": {
+      "model": "vanguard-spirits:block/mural_5_3",
+      "y": 90
+    },
+    "facing=south,passage=5,glow=0": {
+      "model": "vanguard-spirits:block/mural_5_0",
+      "y": 180
+    },
+    "facing=south,passage=5,glow=1": {
+      "model": "vanguard-spirits:block/mural_5_1",
+      "y": 180
+    },
+    "facing=south,passage=5,glow=2": {
+      "model": "vanguard-spirits:block/mural_5_2",
+      "y": 180
+    },
+    "facing=south,passage=5,glow=3": {
+      "model": "vanguard-spirits:block/mural_5_3",
+      "y": 180
+    },
+    "facing=west,passage=5,glow=0": {
+      "model": "vanguard-spirits:block/mural_5_0",
+      "y": 270
+    },
+    "facing=west,passage=5,glow=1": {
+      "model": "vanguard-spirits:block/mural_5_1",
+      "y": 270
+    },
+    "facing=west,passage=5,glow=2": {
+      "model": "vanguard-spirits:block/mural_5_2",
+      "y": 270
+    },
+    "facing=west,passage=5,glow=3": {
+      "model": "vanguard-spirits:block/mural_5_3",
+      "y": 270
+    },
+    "facing=north,passage=6,glow=0": {
+      "model": "vanguard-spirits:block/mural_6_0"
+    },
+    "facing=north,passage=6,glow=1": {
+      "model": "vanguard-spirits:block/mural_6_1"
+    },
+    "facing=north,passage=6,glow=2": {
+      "model": "vanguard-spirits:block/mural_6_2"
+    },
+    "facing=north,passage=6,glow=3": {
+      "model": "vanguard-spirits:block/mural_6_3"
+    },
+    "facing=east,passage=6,glow=0": {
+      "model": "vanguard-spirits:block/mural_6_0",
+      "y": 90
+    },
+    "facing=east,passage=6,glow=1": {
+      "model": "vanguard-spirits:block/mural_6_1",
+      "y": 90
+    },
+    "facing=east,passage=6,glow=2": {
+      "model": "vanguard-spirits:block/mural_6_2",
+      "y": 90
+    },
+    "facing=east,passage=6,glow=3": {
+      "model": "vanguard-spirits:block/mural_6_3",
+      "y": 90
+    },
+    "facing=south,passage=6,glow=0": {
+      "model": "vanguard-spirits:block/mural_6_0",
+      "y": 180
+    },
+    "facing=south,passage=6,glow=1": {
+      "model": "vanguard-spirits:block/mural_6_1",
+      "y": 180
+    },
+    "facing=south,passage=6,glow=2": {
+      "model": "vanguard-spirits:block/mural_6_2",
+      "y": 180
+    },
+    "facing=south,passage=6,glow=3": {
+      "model": "vanguard-spirits:block/mural_6_3",
+      "y": 180
+    },
+    "facing=west,passage=6,glow=0": {
+      "model": "vanguard-spirits:block/mural_6_0",
+      "y": 270
+    },
+    "facing=west,passage=6,glow=1": {
+      "model": "vanguard-spirits:block/mural_6_1",
+      "y": 270
+    },
+    "facing=west,passage=6,glow=2": {
+      "model": "vanguard-spirits:block/mural_6_2",
+      "y": 270
+    },
+    "facing=west,passage=6,glow=3": {
+      "model": "vanguard-spirits:block/mural_6_3",
+      "y": 270
+    },
+    "facing=north,passage=7,glow=0": {
+      "model": "vanguard-spirits:block/mural_7_0"
+    },
+    "facing=north,passage=7,glow=1": {
+      "model": "vanguard-spirits:block/mural_7_1"
+    },
+    "facing=north,passage=7,glow=2": {
+      "model": "vanguard-spirits:block/mural_7_2"
+    },
+    "facing=north,passage=7,glow=3": {
+      "model": "vanguard-spirits:block/mural_7_3"
+    },
+    "facing=east,passage=7,glow=0": {
+      "model": "vanguard-spirits:block/mural_7_0",
+      "y": 90
+    },
+    "facing=east,passage=7,glow=1": {
+      "model": "vanguard-spirits:block/mural_7_1",
+      "y": 90
+    },
+    "facing=east,passage=7,glow=2": {
+      "model": "vanguard-spirits:block/mural_7_2",
+      "y": 90
+    },
+    "facing=east,passage=7,glow=3": {
+      "model": "vanguard-spirits:block/mural_7_3",
+      "y": 90
+    },
+    "facing=south,passage=7,glow=0": {
+      "model": "vanguard-spirits:block/mural_7_0",
+      "y": 180
+    },
+    "facing=south,passage=7,glow=1": {
+      "model": "vanguard-spirits:block/mural_7_1",
+      "y": 180
+    },
+    "facing=south,passage=7,glow=2": {
+      "model": "vanguard-spirits:block/mural_7_2",
+      "y": 180
+    },
+    "facing=south,passage=7,glow=3": {
+      "model": "vanguard-spirits:block/mural_7_3",
+      "y": 180
+    },
+    "facing=west,passage=7,glow=0": {
+      "model": "vanguard-spirits:block/mural_7_0",
+      "y": 270
+    },
+    "facing=west,passage=7,glow=1": {
+      "model": "vanguard-spirits:block/mural_7_1",
+      "y": 270
+    },
+    "facing=west,passage=7,glow=2": {
+      "model": "vanguard-spirits:block/mural_7_2",
+      "y": 270
+    },
+    "facing=west,passage=7,glow=3": {
+      "model": "vanguard-spirits:block/mural_7_3",
+      "y": 270
+    }
+  }
+}

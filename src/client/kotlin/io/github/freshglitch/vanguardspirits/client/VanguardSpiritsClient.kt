@@ -13,11 +13,14 @@ import io.github.freshglitch.vanguardspirits.client.render.RemnantRenderer
 import io.github.freshglitch.vanguardspirits.client.render.StoneSentinelModel
 import io.github.freshglitch.vanguardspirits.client.render.StoneSentinelRenderer
 import io.github.freshglitch.vanguardspirits.client.screen.GoldenChestScreen
+import io.github.freshglitch.vanguardspirits.client.screen.MuralScreen
+import io.github.freshglitch.vanguardspirits.lore.MuralOpen
 import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
 import io.github.freshglitch.vanguardspirits.registry.ModEntities
 import io.github.freshglitch.vanguardspirits.registry.ModMenus
 import io.github.freshglitch.vanguardspirits.registry.ModParticles
 import net.fabricmc.api.ClientModInitializer
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry
 import net.minecraft.client.gui.screens.MenuScreens
@@ -41,6 +44,16 @@ object VanguardSpiritsClient : ClientModInitializer {
 		ModelLayerRegistry.registerModelLayer(MournerModel.LAYER) { MournerModel.createLayer() }
 		EntityRendererRegistry.register(ModEntities.MOURNER, ::MournerRenderer)
 		MenuScreens.register(ModMenus.GOLDEN_CHEST, ::GoldenChestScreen)
+
+		// The server decides a mural has been read and asks for the screen. The
+		// handler runs on the network thread, so the actual open is handed to
+		// the client executor -- touching Minecraft.screen from off-thread is
+		// the classic way to make this crash under load and never in testing.
+		ClientPlayNetworking.registerGlobalReceiver(MuralOpen.TYPE) { payload, context ->
+			context.client().execute {
+				context.client().setScreenAndShow(MuralScreen(payload.passage, payload.read))
+			}
+		}
 
 		// Registered pending: the sprite set for a particle does not exist until
 		// the particle atlas has been stitched, which is long after mod init.

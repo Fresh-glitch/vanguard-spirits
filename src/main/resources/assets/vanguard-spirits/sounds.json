@@ -322,5 +322,23 @@
         "volume": 1.0
       }
     ]
+  },
+  "block.mural.read": {
+    "subtitle": "subtitles.vanguard-spirits.mural.read",
+    "sounds": [
+      {
+        "name": "vanguard-spirits:block/mural/read",
+        "volume": 0.7
+      }
+    ]
+  },
+  "block.mural.turn": {
+    "subtitle": "subtitles.vanguard-spirits.mural.turn",
+    "sounds": [
+      {
+        "name": "vanguard-spirits:block/mural/turn",
+        "volume": 0.8
+      }
+    ]
   }
 }

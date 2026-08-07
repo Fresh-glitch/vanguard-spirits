@@ -1,6 +1,7 @@
 package io.github.freshglitch.vanguardspirits.worldgen
 
 import io.github.freshglitch.vanguardspirits.block.GraveBlock
+import io.github.freshglitch.vanguardspirits.block.MuralBlock
 import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModStructures
 import net.minecraft.core.BlockPos
@@ -119,7 +120,40 @@ class GraveyardPiece : StructurePiece {
 		digGraves(level, box, floor)
 		buildMausoleum(level, box, floor)
 		sinkShaft(level, box, floor)
+		setMurals(level, box, floor)
 	}
+
+	// --------------------------------------------------------------- murals
+
+	/**
+	 * The first two passages, on the inside walls of the mausoleum.
+	 *
+	 * Last, so nothing else can write over them. They replace wall blocks the
+	 * mausoleum has already laid, and the two guaranteed courses are the ones
+	 * either side of eye level, so there is no question of a mural ending up
+	 * inside the roof or behind the shaft.
+	 *
+	 * These are the only two a player reads *before* going down, and they are
+	 * deliberately the two that explain the place rather than the practice: what
+	 * this ground is, and why the way down runs through it. The rest are below,
+	 * in the order the descent meets them.
+	 *
+	 * Positions are constants, never draws from [random]. `postProcess` hands
+	 * each chunk its own random, so a mural placed from one would sit in a
+	 * different block depending on which chunk was being written -- and the
+	 * mausoleum spans a chunk border often enough that this would not be rare.
+	 */
+	private fun setMurals(level: WorldGenLevel, box: BoundingBox, floor: Int) {
+		// North wall, facing back into the room.
+		placeBlock(level, mural(0, Direction.SOUTH), MAUS_MURAL_X, floor + MURAL_EYE, MAUS_NORTH, box)
+		// South wall, opposite it.
+		placeBlock(level, mural(1, Direction.NORTH), MAUS_MURAL_X, floor + MURAL_EYE, MAUS_SOUTH, box)
+	}
+
+	private fun mural(passage: Int, facing: Direction): BlockState =
+		ModBlocks.MURAL.defaultBlockState()
+			.setValue(MuralBlock.FACING, facing)
+			.setValue(MuralBlock.PASSAGE, passage)
 
 	// ----------------------------------------------------------------- ground
 
@@ -657,6 +691,24 @@ class GraveyardPiece : StructurePiece {
 		private const val MAUS_NORTH = 9
 		private const val MAUS_SOUTH = 17
 		private const val MAUS_HEIGHT = 4
+
+		/**
+		 * Where the mausoleum's two murals sit along the north and south walls.
+		 *
+		 * Three is west of the doorway (which is at [MAUS_EAST]) and clear of the
+		 * lanterns flanking it, so both are read side-on as the player crosses to
+		 * the stair rather than being missed behind their own light.
+		 */
+		private const val MAUS_MURAL_X = 3
+
+		/**
+		 * Height of a mural above the floor it stands on.
+		 *
+		 * Two: the floor block is at `floor`, a player stands at `floor + 1`, and
+		 * their eyes are at `floor + 2`. One block lower and every mural in the
+		 * mod is read at shin height.
+		 */
+		const val MURAL_EYE: Int = 2
 
 		/**
 		 * Centre of the shaft, in plot-local coordinates.

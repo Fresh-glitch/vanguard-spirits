@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "vanguard-spirits:block/mural_3_0",
+    "north": "vanguard-spirits:block/mural_3_0",
+    "south": "minecraft:block/deepslate_bricks",
+    "east": "minecraft:block/deepslate_bricks",
+    "west": "minecraft:block/deepslate_bricks",
+    "up": "minecraft:block/deepslate_bricks",
+    "down": "minecraft:block/deepslate_bricks"
+  }
+}
