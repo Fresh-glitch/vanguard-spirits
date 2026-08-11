@@ -168,6 +168,14 @@ every one the broken tool produced output that read as an answer:
 - Two greps in a pipeline, and only the *first* had `--line-buffered`. The
   second buffered in 4 KB blocks, so a watch that was working perfectly reported
   nothing for a whole seventeen-minute play session.
+- `unzip 'net/minecraft/client/*'` to grep the client jar for who calls a
+  method. The glob did not recurse: 94 classes out of 3507, and the search came
+  back empty — which reads exactly like *nothing calls it*, and the next step
+  would have been building a mixin to do by hand what the engine already did.
+  Caught only by also grepping for a string that was certainly present and
+  getting zero for that too. **When a search over a corpus you extracted returns
+  nothing, prove the corpus before believing the result** — the count of what
+  you actually extracted is one line and settles it.
 
 So: check what the instrument said before believing what it meant. A filter that
 matches nothing and a filter that is broken are the same empty output; a probe
@@ -304,6 +312,41 @@ Each of these cost a compile cycle or a wrong guess:
   already this mod's panel convention, so the artwork lines up for free.
   `mayPlace` on an input slot is the right place to refuse an item outright,
   rather than accepting it and silently producing no result.
+- **…but an `ItemCombinerMenu` can never be *backed* by one.** `inputSlots` is
+  built in the constructor by a private `createContainer` returning an anonymous
+  `SimpleContainer`, and the field is final — so there is no way to point the
+  slots at a block entity's list, and a station that has to remember its inputs
+  has to lend and reclaim around the base class instead. Two consequences.
+  `removed` must empty the container **before** calling `super`, since the base's
+  own `clearContainer` hands the inputs to the player. And the handover must move
+  or lock, never copy: hand a copy to every menu that asks and two players at one
+  block can each carry off the same item.
+  Showing the block's contents while a screen is open then needs a third idea,
+  because the stacks are in the menu and not in the block. Keep them in the block
+  entity as a **mirror** the menu repaints on every change, and hold one rule:
+  **a mirror is a picture, never a source.** Anything that could hand an item to
+  a player — dropping on break, saving, lending to a second screen — has to check
+  the loan first, or the picture prints.
+- **`BlockEntity.preRemoveSideEffects` is what spills a block's contents**, not
+  the block's `affectNeighborsAfterRemoval` — which reads like the right hook and
+  is not: chest, hopper and dispenser all override it, and every one of them does
+  nothing but `Containers.updateNeighboursAfterDestroy`. The base
+  `preRemoveSideEffects` is three lines that check for a `Container` and call
+  `Containers.dropContents`, so **implementing `Container` gets the drop for
+  free** — at the price of the block becoming something a hopper can load and
+  empty. Overriding it directly gets the behaviour without the plumbing. Either
+  way `LevelChunk.setBlockState` calls it already guarded three ways: server side
+  only, skipped for `UPDATE_SUPPRESS_DROPS`, and skipped when
+  `shouldChangedStateKeepBlockEntity` says the entity survives — so a piston move
+  or a `FACING` change cannot spill it, and no guard of your own is needed.
+- **`setChanged()` does not reach clients.** It marks the chunk unsaved and
+  nothing else, so a block entity whose contents are *rendered* keeps drawing
+  whatever the client last heard — which looks exactly like the item failing to
+  go in. The pattern is vanilla's `CampfireBlockEntity.markUpdated`, which is
+  `setChanged()` then `level.sendBlockUpdated(pos, state, state, UPDATE_ALL)`,
+  passing the same state twice. Pair it with
+  `getUpdateTag(registries) = saveCustomOnly(registries)` and
+  `getUpdatePacket() = ClientboundBlockEntityDataPacket.create(this)`.
 
 ## Worldgen gotchas
 
@@ -393,11 +436,17 @@ not explain. They are listed in the order they will bite.
   shells, the vault. Note that *untouched world rock* counts: the test is
   whether there is material behind the face, not whether the structure wrote it.
   A one-block building wall backing onto the outdoors is the honest exception.
+- **`ProtoChunk.setBlockState` does not create block entities**, so every copy of
+  a structure already in a world was written without one. That matters when a
+  block *gains* an entity in an update: nothing needs migrating, because
+  `getBlockEntity` creates it on demand the first time anything asks — but until
+  something asks, the block has none, so anything that walks chunks looking for
+  them will find nothing and read as broken.
 
 ## Block entity rendering gotchas
 
-From building the Gilded Reliquary. None of these are visible from logs — each
-needed a screenshot to diagnose.
+From building the Gilded Reliquary and the Binding Altar. None of these are
+visible from logs — each needed a screenshot to diagnose.
 
 - **`ModelPart` divides by 16 internally.** Geometry arrives block-scaled, so an
   extra `scale(1/16)` renders at 1/256 size.
@@ -423,6 +472,72 @@ needed a screenshot to diagnose.
   `BlockEntityRenderers.register`.
 - **`sounds.json` treats every top-level key as a sound event.** A `_comment`
   string there fails the whole file and silences the mod.
+- **To draw an `ItemStack` from a renderer**, take `context.itemModelResolver()`,
+  call `updateForTopItem(state, stack, ItemDisplayContext.FIXED, level, null,
+  seed)` in `extractRenderState`, and `ItemStackRenderState.submit(pose,
+  collector, lightCoords, NO_OVERLAY, 0)` in `submit`. Two things vanilla's
+  `CampfireRenderer` obscures. `updateForTopItem` **clears the state first** —
+  that is the first line of its body — so one `ItemStackRenderState` can be a
+  field and reused every frame, rather than allocated per item per frame as the
+  campfire does; and the same resolved state can be submitted many times under
+  different poses, which is how one memory becomes a ring of them. Second, **the
+  model arrives centred on its own origin**: the campfire's
+  `translate(-0.3125, -0.3125, 0)` is putting food in a quadrant, not centring
+  it, so copying that line into a renderer that wants one centred item shifts it
+  off by five pixels.
+  **Which way up the sprite lands is not worth deriving.** Three transforms
+  compose here — the yaw from `FACING`, the quarter turn that lays it flat, and
+  the model's own `fixed` display transform, which for `item/generated` carries
+  an undocumented `rotation: [0, 180, 0]` — and the altar's charm came out
+  exactly backwards from a derivation that checked out line by line. Same trap as
+  the Blockbench bone signs, same answer: put it in the world and look at it.
+- **A `BlockEntityRenderer` composes with the block model; it does not replace
+  it.** Only `BaseEntityBlock` forces `RenderShape.INVISIBLE`. Implementing
+  `EntityBlock` on a plain `Block` leaves the shape MODEL, so the JSON model
+  still draws and the renderer adds to it — which is what you want for anything
+  that is a static block *plus* something lying on it.
+- **There is no coloured light in this game, and there is nowhere to put one.**
+  `LightLayer` has exactly two values, SKY and BLOCK; `DataLayer` stores each as
+  a **nibble**; and `Lightmap` is a 16x16 lookup indexed by the pair. Every lit
+  surface in the world is decided by two four-bit integers, so "emit a colour"
+  is not a hard feature but an impossible one — it is why shader packs replace
+  the lighting pipeline outright. What is achievable is (a) drawing a thing at
+  its own brightness so its *sprite's* colour reads in the dark, and (b) a
+  scalar block light, which is white. Together they pass for the request.
+  For (a), `LightCoordsUtil` is the packing helper: `pack(block, sky)` is
+  `(block << 4) | (sky << 20)`, `FULL_BRIGHT` is `0xF000F0`, and
+  `lightCoordsWithEmission(packed, n)` raises *both* channels to at least `n` —
+  a floor, not an override, so daylight still wins outdoors.
+- **A model element's `light_emission` is honoured for items, not just blocks —
+  and it is the whole feature.** `FaceBakery` bakes it into the quad's
+  `BakedQuad.MaterialInfo`, and `VertexConsumer.putBakedQuad` — the *`Pose`
+  taking* overload, which is where item and entity rendering both end up —
+  reads it back as the quad is drawn. (`putBlockBakedQuad` is the chunk path.)
+  So one line of data lights a detail **everywhere the item can appear**: held,
+  dropped, in a frame, in a `BlockEntityRenderer`. Reaching for a renderer or a
+  mixin instead buys a worse version of this, one context at a time.
+  Three things it costs. `light_emission` belongs to an **element**, and
+  `item/generated` builds its elements itself out of the sprite, so there is
+  nowhere to hang it — the glowing part has to be a **second model**, joined on
+  with the `minecraft:composite` item-model type. That second model needs its
+  own `display` block, because each composited model applies its own; copy it
+  out of the client jar's `assets/minecraft/models/item/generated.json` rather
+  than from memory, since the halves have to line up exactly and a few units out
+  shows in the hand and not in the inventory. And give it a `particle` texture,
+  or every load logs `Missing texture references` for it.
+- **`SubmitNodeCollector.submitCustomGeometry(pose, renderType, renderer)`** is
+  the way to hand-build a quad in a renderer: the callback gets a
+  `PoseStack.Pose` and a `VertexConsumer`, and `addVertex(pose, x, y, z)` plus
+  `setNormal(pose, …)` apply the transform for you. Reach for it over a
+  `ModelPart` when the geometry is a single flat face — a part means a *box*,
+  which means laying the sheet out to match the cube net and wasting three faces
+  of texture on something that will never be seen.
+- **Animate off `level.gameTime`, and reduce it modulo the period before it
+  becomes a float.** `gameTime` is a long, and a world a few weeks old has passed
+  the point where a float can hold it to tick precision — a spin driven by the
+  raw value visibly steps instead of turning. `((time % PERIOD) + partialTick) /
+  PERIOD` is exact forever and wraps seamlessly, since a whole period is a whole
+  revolution.
 
 ## Blocks, menus and screens
 
@@ -573,6 +688,16 @@ transcription of Blockbench's Java export, never hand-authored.
 
 ## Item art
 
+- **A sprite is not its texture.** Every charm's drawing occupies 12x14 of its
+  16x16 sheet — the rest is the transparent margin the outline convention leaves
+  — so anything that sizes an item against the *sheet* silently loses a quarter
+  of what it asked for. Sizing the charm on the altar at 0.40 of a block put 4.8
+  block pixels inside an 8-pixel ring, and it read as a charm floating in a
+  setting made for something bigger; the arithmetic said 80% and the screenshot
+  said 60%. Measure the alpha bounding box (`Image.getchannel("A").getbbox()`)
+  and scale against *that*. The same correction applies to anything else drawn at
+  a size relative to its surroundings — item frames, held models, particles cut
+  from item sheets.
 - **An item that came off a mob must be drawn in that mob's palette.** Skin,
   bone, feather, shell, scale — anything the fiction says was part of the
   creature. Sample the entity texture and build the ramp out of what is actually
