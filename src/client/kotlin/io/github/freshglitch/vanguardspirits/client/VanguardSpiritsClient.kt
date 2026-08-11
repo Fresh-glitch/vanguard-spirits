@@ -4,6 +4,7 @@ import io.github.freshglitch.vanguardspirits.client.particle.EchoRuneParticle
 import io.github.freshglitch.vanguardspirits.client.particle.MemoryMoteParticle
 import io.github.freshglitch.vanguardspirits.client.particle.StoneWakeParticle
 import io.github.freshglitch.vanguardspirits.client.particle.WardRuneParticle
+import io.github.freshglitch.vanguardspirits.client.render.BindingAltarRenderer
 import io.github.freshglitch.vanguardspirits.client.render.ChestParts
 import io.github.freshglitch.vanguardspirits.client.render.GoldenChestRenderer
 import io.github.freshglitch.vanguardspirits.client.render.MournerModel
@@ -35,6 +36,10 @@ object VanguardSpiritsClient : ClientModInitializer {
 
 		ModelLayerRegistry.registerModelLayer(ChestParts.LAYER) { ChestParts.createLayer() }
 		BlockEntityRenderers.register(ModBlockEntities.GOLDEN_CHEST, ::GoldenChestRenderer)
+
+		// Adds only what is lying on the altar. Its eleven cuboids are still
+		// drawn from the block model, so the render shape stays MODEL.
+		BlockEntityRenderers.register(ModBlockEntities.BINDING_ALTAR, ::BindingAltarRenderer)
 
 		ModelLayerRegistry.registerModelLayer(StoneSentinelModel.LAYER) { StoneSentinelModel.createLayer() }
 		EntityRendererRegistry.register(ModEntities.STONE_SENTINEL, ::StoneSentinelRenderer)
