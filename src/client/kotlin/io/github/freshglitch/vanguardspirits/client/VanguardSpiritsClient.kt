@@ -12,6 +12,7 @@ import io.github.freshglitch.vanguardspirits.client.render.RemnantModel
 import io.github.freshglitch.vanguardspirits.client.render.RemnantRenderer
 import io.github.freshglitch.vanguardspirits.client.render.StoneSentinelModel
 import io.github.freshglitch.vanguardspirits.client.render.StoneSentinelRenderer
+import io.github.freshglitch.vanguardspirits.client.screen.BindingAltarScreen
 import io.github.freshglitch.vanguardspirits.client.screen.GoldenChestScreen
 import io.github.freshglitch.vanguardspirits.client.screen.MuralScreen
 import io.github.freshglitch.vanguardspirits.lore.MuralOpen
@@ -44,6 +45,7 @@ object VanguardSpiritsClient : ClientModInitializer {
 		ModelLayerRegistry.registerModelLayer(MournerModel.LAYER) { MournerModel.createLayer() }
 		EntityRendererRegistry.register(ModEntities.MOURNER, ::MournerRenderer)
 		MenuScreens.register(ModMenus.GOLDEN_CHEST, ::GoldenChestScreen)
+		MenuScreens.register(ModMenus.BINDING_ALTAR, ::BindingAltarScreen)
 
 		// The server decides a mural has been read and asks for the screen. The
 		// handler runs on the network thread, so the actual open is handed to

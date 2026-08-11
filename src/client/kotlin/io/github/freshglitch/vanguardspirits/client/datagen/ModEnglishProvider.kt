@@ -1,7 +1,9 @@
 package io.github.freshglitch.vanguardspirits.client.datagen
 
+import io.github.freshglitch.vanguardspirits.block.BindingAltarBlock
 import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
 import io.github.freshglitch.vanguardspirits.client.CharmTooltip
+import io.github.freshglitch.vanguardspirits.client.screen.BindingAltarScreen
 import io.github.freshglitch.vanguardspirits.item.CharmItem
 import io.github.freshglitch.vanguardspirits.item.EchoOfKinshipItem
 import io.github.freshglitch.vanguardspirits.lore.MuralLore
@@ -66,6 +68,14 @@ class ModEnglishProvider(
 		builder.add(GoldenChestBlockEntity.NAME_KEY, "Gilded Reliquary")
 		builder.add(ModBlocks.GRAVE, "Grave")
 		builder.add(ModBlocks.MURAL, "Deepslate Mural")
+		builder.add(ModBlocks.BINDING_ALTAR, "Binding Altar")
+		builder.add(BindingAltarBlock.TITLE_KEY, "Binding Altar")
+		builder.add(BindingAltarScreen.PRICE_KEY, "%s more Fractured Memories")
+		builder.add(BindingAltarScreen.READY_KEY, "Bind to %s")
+		builder.add(
+			GoldenChestBlockEntity.HOLLOWED_KEY,
+			"Something settles in the ground above you.",
+		)
 		builder.add("subtitles.vanguard-spirits.grave.disturb", "A grave comes open")
 		builder.add("subtitles.vanguard-spirits.mural.read", "The carving answers")
 		builder.add("subtitles.vanguard-spirits.mural.turn", "Stone ticks")
@@ -117,6 +127,7 @@ class ModEnglishProvider(
 		builder.add("tooltip.vanguard-spirits.charm.dormant", "Dormant — attunement %s in use")
 		builder.add("tooltip.vanguard-spirits.charm.generic", "Attunes while carried")
 		builder.add(CharmTooltip.COST_KEY, "Costs %s attunement")
+		builder.add(CharmTooltip.DEPTH_KEY, "Bound %s of %s")
 
 		builder.add("effect.vanguard-spirits.deflection", "Deflection")
 

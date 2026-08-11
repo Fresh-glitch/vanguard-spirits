@@ -282,6 +282,28 @@ Each of these cost a compile cycle or a wrong guess:
   `Can't find attribute minecraft:tempt_range` on the first tick the goal is
   evaluated — nothing in the constructor hints at it. Checking a goal's
   signature is not checking a goal; `javap -c` its `canUse` too.
+- **Night vision has exactly one strength.** `GameRenderer.nightVisionScale`
+  reads `MobEffectInstance.getDuration` and nothing else — there is no
+  `getAmplifier` call anywhere in the method, only the `endsWith(200)` check
+  that drives the expiry flicker. So an amplifier on night vision is inert, and
+  anything built to "level up" an effect has to check that the effect *has* a
+  level before charging for one. This is worth generalising: **an amplifier is a
+  number the effect may or may not read**, so before designing a tier ladder on
+  one, disassemble whatever consumes it. The charm depths were designed around
+  this — the Leaper and the Wanderer deepen on amplifier, the Delver gains a
+  second effect instead.
+- **A crafting station does not need a block entity.** `ItemCombinerMenu` — the
+  base under the anvil, grindstone and smithing table — owns the input container
+  and a `ResultContainer`, drops the inputs when the screen closes, routes
+  shift-clicks, and answers `stillValid` through an abstract `isValidBlock`. All
+  that is left to implement is `createResult`, `onTake` and `isValidBlock`, and
+  the block itself is a plain `Block` with a `SimpleMenuProvider`. Its slots come
+  from `ItemCombinerMenuSlotDefinition.create().withSlot(i, x, y, predicate)…
+  .withResultSlot(i, x, y).build()`, and **the constructor adds the player
+  inventory itself** at `addStandardInventorySlots(inventory, 8, 84)` — which is
+  already this mod's panel convention, so the artwork lines up for free.
+  `mayPlace` on an input slot is the right place to refuse an item outright,
+  rather than accepting it and silently producing no result.
 
 ## Worldgen gotchas
 
@@ -626,6 +648,25 @@ labels them Attuned/Dormant. If the rule changes, change `CharmScan` — never
 duplicate it in the ticker or the tooltip, or the UI will lie.
 
 Adding a charm should only require a new `CharmAura`. No per-charm slot logic.
+
+**A charm also has a depth**, one-based, stored as `ModComponents.CHARM_DEPTH`
+on the stack and raised at a Binding Altar. `CharmItem.depths` is the list of
+what it grants at each, so `cost` and the effects are both properties of the
+*stack* rather than the item — which is why `CharmScan` and `CharmTicker` read
+through `CharmItem.auraOf(stack)` and never `charm.cost`. Two rules that are
+load-bearing:
+
+- **Deepening is not always an amplifier.** Night vision has no level and
+  Deflection is ours, so the Delver widens instead (night vision, then + haste)
+  and the Returned does not deepen at all. Anything iterating effects must
+  therefore flatten *every* depth: `CharmTicker.grantable` does, and if it did
+  not, haste would be granted at depth II and never withdrawn, because it does
+  not appear at depth I.
+- **The supply and the sink were built together.** Deepening costs 8 memories
+  then 16, which is more than a ruin holds — so it only works because emptying a
+  Reliquary hollows that ruin (`RuinHollow`) and its graveyard starts giving up
+  Remnants that carry memories. Changing either number without the other turns
+  the mechanic back into a reason to fly to the next structure.
 
 Four rules that are load-bearing, each of which cost something to arrive at:
 

@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "B": "minecraft:deepslate_bricks",
+    "M": "vanguard-spirits:fractured_memory"
+  },
+  "pattern": [
+    "BBB",
+    "BMB",
+    "BBB"
+  ],
+  "result": {
+    "id": "vanguard-spirits:binding_altar"
+  }
+}

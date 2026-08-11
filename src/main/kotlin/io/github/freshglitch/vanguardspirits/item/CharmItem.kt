@@ -22,17 +22,34 @@ import net.minecraft.world.level.Level
  */
 class CharmItem(
 	props: Item.Properties,
-	val aura: CharmAura,
 	/**
-	 * How much of the holder's attunement this charm takes up.
+	 * What the charm grants at each depth, shallowest first. Never empty.
 	 *
-	 * One for almost everything. A charm worth more than the others costs more
-	 * than the others, which is the only lever that makes a strong aura a choice
-	 * rather than a strict addition -- at the cap of four, a charm costing three
-	 * leaves room for exactly one more.
+	 * A charm with one entry is one that does not deepen at all, which is the
+	 * Returned: it already costs three of a possible four, so a deeper one would
+	 * either eat the whole budget or not fit in it. Symmetry there would make the
+	 * choice worse, not richer.
 	 */
-	val cost: Int = 1,
+	val depths: List<CharmAura>,
 ) : Item(props) {
+
+	init {
+		require(depths.isNotEmpty()) { "a charm with no depths grants nothing at any binding" }
+	}
+
+	/** How deep this charm can be bound. */
+	val maxDepth: Int get() = depths.size
+
+	/**
+	 * What this charm grants at [depth], one-based.
+	 *
+	 * Clamped rather than checked. A stack can carry any integer the component
+	 * codec accepts -- an old save, a `/give` with a hand-written depth, a charm
+	 * whose depths were shortened in a later version -- and the safe reading of a
+	 * depth past the end is the deepest binding that actually exists, not a crash
+	 * on a tick that runs for every player every tick.
+	 */
+	fun auraAt(depth: Int): CharmAura = depths[(depth - 1).coerceIn(0, depths.lastIndex)]
 
 	/**
 	 * Sneak and use to switch the charm off, and again to switch it back on.
@@ -75,9 +92,62 @@ class CharmItem(
 		return InteractionResult.SUCCESS
 	}
 
+	/**
+	 * The charm's name, with its depth after it once it has been deepened.
+	 *
+	 * Built on `super` deliberately. This method is not a hook for naming an item
+	 * -- it is the *reader* of `DataComponents.ITEM_NAME`, whose vanilla body is
+	 * one line -- so returning a fresh translatable here would throw away every
+	 * per-stack rename an anvil, a loot table or a data pack had set. Appending to
+	 * what super returns keeps all of that and adds the numeral on the end.
+	 *
+	 * Nothing is added at depth one, which is every charm a player has not taken
+	 * to an altar yet: "Charm of the Wanderer I" would imply a scale to somebody
+	 * who has not met the mechanic, and the flat name is the assumption.
+	 */
+	override fun getName(stack: ItemStack): Component {
+		val depth = depthOf(stack)
+		if (depth <= 1) return super.getName(stack)
+
+		return Component.empty().append(super.getName(stack)).append(" ").append(numeral(depth))
+	}
+
 	companion object {
 		const val HUSHED_KEY: String = "message.vanguard-spirits.charm.hushed"
 		const val WOKEN_KEY: String = "message.vanguard-spirits.charm.woken"
+
+		/**
+		 * How deeply this particular charm has been bound, one-based.
+		 *
+		 * Absent means one. Every charm that ever existed before deepening was
+		 * added therefore reads correctly without migrating a single save.
+		 */
+		fun depthOf(stack: ItemStack): Int =
+			stack.getOrDefault(ModComponents.CHARM_DEPTH, 1).coerceAtLeast(1)
+
+		/**
+		 * What [stack] actually radiates, or null if it is not a charm at all.
+		 *
+		 * The one place depth and item are put together. The scan, the ticker and
+		 * the tooltip all come through here for the same reason they all come
+		 * through [CharmScan]: three readers, one answer.
+		 */
+		fun auraOf(stack: ItemStack): CharmAura? {
+			val charm = stack.item as? CharmItem ?: return null
+			return charm.auraAt(depthOf(stack))
+		}
+
+		/**
+		 * Depth as a carved numeral.
+		 *
+		 * Deliberately not `MuralLore.numeral`, which indexes the same strings
+		 * zero-based because passages are a list and depths are a count. Sharing
+		 * one table between a zero-based and a one-based caller is how an
+		 * off-by-one gets written down as a fix.
+		 */
+		fun numeral(depth: Int): String = NUMERALS.getOrElse(depth - 1) { depth.toString() }
+
+		private val NUMERALS = listOf("I", "II", "III", "IV", "V")
 
 		/**
 		 * Whether the holder has switched this particular charm off.

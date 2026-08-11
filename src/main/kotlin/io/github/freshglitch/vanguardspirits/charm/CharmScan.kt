@@ -34,7 +34,11 @@ object CharmScan {
 			if (budget <= 0) break
 
 			val stack = inventory.getItem(slot)
-			val charm = stack.item as? CharmItem ?: continue
+
+			// Read through the stack rather than the item: what a charm costs is
+			// a fact about how deeply this particular one was bound, and two
+			// copies of the same charm in one inventory can differ.
+			val aura = CharmItem.auraOf(stack) ?: continue
 
 			// A charm switched off does not merely go dormant, it stops queueing:
 			// it gives up its place so a charm further down the inventory takes
@@ -42,10 +46,10 @@ object CharmScan {
 			// slot rather than free it.
 			if (CharmItem.isHushed(stack)) continue
 
-			if (charm.cost > budget) continue
+			if (aura.cost > budget) continue
 
 			active += slot
-			budget -= charm.cost
+			budget -= aura.cost
 		}
 		return active
 	}

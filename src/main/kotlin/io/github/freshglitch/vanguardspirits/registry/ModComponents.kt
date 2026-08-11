@@ -51,6 +51,28 @@ object ModComponents {
 				.build(),
 		)
 
+	/**
+	 * How deeply a charm has been bound, one-based: absent or 1 is the shallowest.
+	 *
+	 * On the stack for the same reason [CHARM_HUSHED] is: the binding belongs to
+	 * the charm, so a deepened one handed to somebody else stays deepened, and two
+	 * copies of the same charm can sit at different depths.
+	 *
+	 * Network synchronised because the client draws both the tooltip and the name
+	 * numeral from it, and because [io.github.freshglitch.vanguardspirits.charm.CharmScan]
+	 * runs on both sides and would otherwise disagree with the server about what a
+	 * charm costs.
+	 */
+	val CHARM_DEPTH: DataComponentType<Int> =
+		Registry.register(
+			BuiltInRegistries.DATA_COMPONENT_TYPE,
+			VanguardSpirits.id("charm_depth"),
+			DataComponentType.Builder<Int>()
+				.persistent(Codec.INT)
+				.networkSynchronized(ByteBufCodecs.VAR_INT)
+				.build(),
+		)
+
 	/** Touching the object is what runs the registration above. */
 	fun register() = Unit
 }

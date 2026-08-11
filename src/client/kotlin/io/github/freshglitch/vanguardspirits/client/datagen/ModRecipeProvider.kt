@@ -1,5 +1,6 @@
 package io.github.freshglitch.vanguardspirits.client.datagen
 
+import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModItems
 import net.fabricmc.fabric.api.datagen.v1.FabricPackOutput
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricRecipeProvider
@@ -33,6 +34,23 @@ class ModRecipeProvider(
 			charm(ModItems.CHARM_OF_THE_WANDERER, ModItems.MOURNER_FEATHER)
 			charm(ModItems.CHARM_OF_THE_DELVER, Items.GOLDEN_CARROT)
 			charm(ModItems.CHARM_OF_THE_RETURNED, Items.SHIELD)
+
+			// The altar itself. Deepslate walls around a memory, because it is a
+			// piece of ruin masonry with one of the things it was built to hold
+			// set into it.
+			//
+			// Craftable rather than only found, so a player who has read the
+			// fourth passage can build the station at home instead of walking
+			// back down a ruin every time they can afford a binding. One
+			// generates in each sanctum anyway, which is where they meet it.
+			shaped(RecipeCategory.MISC, ModBlocks.BINDING_ALTAR)
+				.define('B', Items.DEEPSLATE_BRICKS)
+				.define('M', ModItems.FRACTURED_MEMORY)
+				.pattern("BBB")
+				.pattern("BMB")
+				.pattern("BBB")
+				.unlockedBy("has_fractured_memory", has(ModItems.FRACTURED_MEMORY))
+				.save(recipeOutput)
 		}
 
 		/**

@@ -13,7 +13,7 @@ import java.util.concurrent.CompletableFuture
 /**
  * Says which tool mines what.
  *
- * Without this the mod's two `requiresCorrectToolForDrops` blocks drop
+ * Without this, every `requiresCorrectToolForDrops` block in the mod drops
  * **nothing at all**, to any tool, forever -- and that had been true of the
  * Gilded Reliquary since it was added. Nothing reports it: the loot table is
  * valid, the block breaks normally, and the drop is simply skipped.
@@ -42,7 +42,7 @@ class ModBlockTagProvider(
 
 		// Looked up from the registry rather than rebuilt from a path string, so
 		// renaming a block cannot quietly leave this pointing at nothing.
-		listOf(ModBlocks.MURAL, ModBlocks.GOLDEN_CHEST).forEach { block ->
+		listOf(ModBlocks.MURAL, ModBlocks.GOLDEN_CHEST, ModBlocks.BINDING_ALTAR).forEach { block ->
 			pickaxe.add(BuiltInRegistries.BLOCK.getResourceKey(block).orElseThrow())
 		}
 	}

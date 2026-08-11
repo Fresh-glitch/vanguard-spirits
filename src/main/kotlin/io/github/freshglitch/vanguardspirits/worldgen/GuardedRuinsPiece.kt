@@ -1,5 +1,6 @@
 package io.github.freshglitch.vanguardspirits.worldgen
 
+import io.github.freshglitch.vanguardspirits.block.BindingAltarBlock
 import io.github.freshglitch.vanguardspirits.block.GoldenChestBlock
 import io.github.freshglitch.vanguardspirits.block.MuralBlock
 import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
@@ -82,7 +83,55 @@ class GuardedRuinsPiece : StructurePiece {
 		cutStairwell(level, box, random)
 		breakCryptFloor(level, box, random)
 		setMurals(level, box)
+		setBindingAltar(level, box)
 		setSentinel(level, box)
+	}
+
+	// -------------------------------------------------------------- the altar
+
+	/**
+	 * One Binding Altar, in the crypt beside the passage that explains it.
+	 *
+	 * Passage IV is *The First Binding* and sits on the crypt's west wall, so the
+	 * station stands two blocks out from it: a player reads what the four of them
+	 * did to Sera, Toma and Ilen and then turns round to the bench where it was
+	 * done. Nowhere else in the ruin puts the explanation and the mechanic in the
+	 * same glance.
+	 *
+	 * Written after [carveCrypt], which lays sculk across this floor at random --
+	 * pieces resolve last-writer-wins, so running later is what guarantees the
+	 * altar is not replaced by a patch of sculk in the ruins that happened to
+	 * roll one here. A constant position for the usual reason: `postProcess` runs
+	 * once per chunk with its own random, and anything drawn would disagree with
+	 * itself across a border.
+	 *
+	 * ## Why it hugs the wall, and why it lays its own floor
+	 *
+	 * [breakCryptFloor] opens a hole somewhere in `CRYPT_INSET + 2` to
+	 * `SANCTUM_LAST - CRYPT_INSET - 2`, drawn at random and run *before* this. An
+	 * altar at the start of that range -- which is where it first went -- can
+	 * therefore generate standing over a hole, in the ruins unlucky enough to
+	 * roll one under it. Sitting at `CRYPT_INSET + 1` puts it one column outside
+	 * the range entirely, which also stands it directly beneath passage IV on the
+	 * west wall rather than out in the middle of the room.
+	 *
+	 * The deepslate beneath is laid anyway. Being outside the range is a fact
+	 * about two constants in different methods, and the cost of not depending on
+	 * that is one block.
+	 */
+	private fun setBindingAltar(level: WorldGenLevel, box: BoundingBox) {
+		val x = CRYPT_INSET + 1
+		val z = SANCTUM_LAST / 2
+
+		put(level, box, Blocks.DEEPSLATE_BRICKS.defaultBlockState(), x, CRYPT_FLOOR, z)
+		put(
+			level, box,
+			ModBlocks.BINDING_ALTAR.defaultBlockState()
+				.setValue(BindingAltarBlock.FACING, Direction.EAST),
+			x,
+			CRYPT_FLOOR + 1,
+			z,
+		)
 	}
 
 	// --------------------------------------------------------------- murals
@@ -387,12 +436,28 @@ class GuardedRuinsPiece : StructurePiece {
 
 		// Every level but the lowest gives way somewhere. The spawner goes in a
 		// different room, so the drop is never the first thing that finds you.
-		val holeRoom = if (floorY > FLOOR_PAD) random.nextInt(rooms.size) else -1
+		//
+		// Both rooms are chosen positionally, for the reason set out on
+		// [breakCryptFloor]: drawn from the piece random, each chunk picks its
+		// own room and then writes only the part that falls inside itself, so
+		// the level ends up with as many openings and spawners as there are
+		// chunks that happened to pick a room they own -- which can be none.
+		// A missing spawner is invisible until someone counts them, and a
+		// missing hole reads as a level that simply did not connect.
+		//
+		// `floorY` is folded into the key so the two deeps levels of one ruin are
+		// decided independently. Without it both levels key on the same cell and
+		// pick the *same* corner every time, so every ruin would drop the player
+		// straight into the room below the one they just left. They still
+		// coincide about a quarter of the time, which is what chance looks like
+		// and is the intent -- measured at 25.2% in tools/check_chunk_agreement.py.
+		val holeRoom =
+			if (floorY > FLOOR_PAD) rangeAt(mid, mid + floorY, DEEP_HOLE_SALT, rooms.size) else -1
 		if (holeRoom >= 0) {
 			breakFloor(level, box, random, floorY, rooms[holeRoom][0], rooms[holeRoom][1])
 		}
 
-		var spawnerRoom = random.nextInt(rooms.size)
+		var spawnerRoom = rangeAt(mid, mid + floorY, DEEP_SPAWNER_SALT, rooms.size)
 		if (spawnerRoom == holeRoom) spawnerRoom = (spawnerRoom + 1) % rooms.size
 		sinkSpawner(level, box, rooms[spawnerRoom][0], floorY, rooms[spawnerRoom][1])
 
@@ -553,11 +618,25 @@ class GuardedRuinsPiece : StructurePiece {
 		val hi = SANCTUM_LAST - CRYPT_INSET - 2
 		val span = hi - lo + 1
 
+		// Positional, not drawn. The eligible range is local 6..10 on both axes,
+		// and local 9 is on a chunk edge in every ruin -- so four chunks meet
+		// inside it, each `postProcess` call used to draw its own centre, and
+		// each carved a hole at that centre clipped to itself. Measured over
+		// 40,000 sites in `tools/check_crypt_hole.py`: 67% of ruins got more
+		// than one opening and 6% got none, against 27% with the single ragged
+		// hole this is supposed to make. Nothing reports it, and a floor that is
+		// *meant* to be broken looks broken either way, which is why it stood.
+		//
+		// Keyed on the middle of the sanctum rather than on the hole itself,
+		// because the key has to be something every chunk can compute before it
+		// knows where the hole is.
+		val key = SANCTUM_LAST / 2
+
 		breakFloor(
 			level, box, random,
 			CRYPT_FLOOR,
-			lo + random.nextInt(span),
-			lo + random.nextInt(span),
+			lo + rangeAt(key, key, CRYPT_HOLE_X_SALT, span),
+			lo + rangeAt(key, key, CRYPT_HOLE_Z_SALT, span),
 		)
 	}
 
@@ -968,6 +1047,14 @@ class GuardedRuinsPiece : StructurePiece {
 		private const val PILLAR_SALT = 101
 		private const val WALL_GAP_SALT = 111
 		private const val WALL_HEIGHT_SALT = 112
+
+		/** Two salts, so the hole's x and z are not the same number. */
+		private const val CRYPT_HOLE_X_SALT = 131
+		private const val CRYPT_HOLE_Z_SALT = 132
+
+		/** Which room of a deeps level gives way, and which holds the spawner. */
+		private const val DEEP_HOLE_SALT = 141
+		private const val DEEP_SPAWNER_SALT = 142
 
 		private fun boxAround(centre: BlockPos): BoundingBox {
 			val half = WIDTH / 2
