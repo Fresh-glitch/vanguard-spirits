@@ -269,28 +269,21 @@ def build_top():
     """
     out = vanilla_ground(16, seed=9_2026).copy()
 
+    # The ring, and nothing inside it.
+    #
+    # Two things went in the middle before and both were wrong. A filled lozenge
+    # was the yolk. A small glint replaced it and was better, but the centre of
+    # this face is where the player's eye goes to find the charm they are about
+    # to bind -- anything drawn there is competing with the thing the block
+    # exists to hold. An empty ring is a place to put something.
     ring = ring_mask(5.2)
 
-    # A four-pointed glint at the middle, pulled in tight. It gives the centre
-    # something to be without crowding the ring -- the first version there was a
-    # filled lozenge, which at this size is a yolk sitting in a fried white.
-    glint = [(8, 7), (8, 9), (7, 8), (9, 8)]
-
-    mark = ring.copy()
-    for x, y in glint:
-        mark[y, x] = True
-    mark[8, 8] = True
-
-    cut(out, mark)
+    cut(out, ring)
 
     for yy in range(16):
         for xx in range(16):
             if ring[yy, xx]:
                 out[yy, xx] = lit_tone(xx, yy)
-
-    for x, y in glint:
-        out[y, x] = EMBER
-    out[8, 8] = AMBER
 
     result = np.zeros((16, 16, 4), np.uint8)
     result[:, :, :3] = np.clip(out, 0, 255).astype(np.uint8)
