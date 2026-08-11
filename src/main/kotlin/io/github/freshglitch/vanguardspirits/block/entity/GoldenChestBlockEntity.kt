@@ -5,11 +5,14 @@ import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
 import io.github.freshglitch.vanguardspirits.registry.ModParticles
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import io.github.freshglitch.vanguardspirits.registry.ModTriggers
+import io.github.freshglitch.vanguardspirits.block.GoldenChestBlock
 import io.github.freshglitch.vanguardspirits.worldgen.RuinHollow
+import io.github.freshglitch.vanguardspirits.worldgen.RuinSeal
 import net.minecraft.ChatFormatting
 import net.minecraft.core.BlockPos
 import net.minecraft.core.NonNullList
 import net.minecraft.network.chat.Component
+import net.minecraft.resources.ResourceKey
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.sounds.SoundSource
@@ -27,12 +30,14 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.inventory.AbstractContainerMenu
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
+import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.entity.ContainerOpenersCounter
 import net.minecraft.world.level.block.entity.LidBlockEntity
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.storage.ValueInput
 import net.minecraft.world.level.storage.ValueOutput
+import net.minecraft.world.level.storage.loot.LootTable
 
 /**
  * A nine-slot treasure chest.
@@ -45,6 +50,30 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 	RandomizableContainerBlockEntity(ModBlockEntities.GOLDEN_CHEST, pos, state), LidBlockEntity {
 
 	private var items: NonNullList<ItemStack> = NonNullList.withSize(SIZE, ItemStack.EMPTY)
+
+	/**
+	 * Whether this is a ruin's *own* Reliquary rather than one somebody placed.
+	 *
+	 * Set the moment worldgen stocks it, which is the only thing that separates
+	 * the two: a generated Reliquary is given a loot table and a placed one never
+	 * is. Persisted, because the question outlives the roll -- by the time it
+	 * matters the table is long since unpacked and gone.
+	 *
+	 * It does not travel with the block. The Reliquary's own loot table copies no
+	 * components, so mining one and setting it down elsewhere gives a fresh block
+	 * entity that has never been stocked, which is exactly right: what was carried
+	 * off is a chest, not a ruin's vault.
+	 */
+	private var stocked = false
+
+	override fun setLootTable(table: ResourceKey<LootTable>?) {
+		super.setLootTable(table)
+
+		// Latching, and it has to be: `unpackLootTable` clears the table by
+		// setting it to null once it has rolled, and a Reliquary does not stop
+		// being the ruin's own for having been opened.
+		if (table != null) stocked = true
+	}
 
 	/**
 	 * Drives the lid angle on the client. It only ever eases toward a target,
@@ -114,14 +143,49 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 		if (!remove) openers.recheckOpeners(level, blockPos, blockState)
 	}
 
+	/**
+	 * A sealed Reliquary gives up nothing, however it was taken out of the world.
+	 *
+	 * This is the fix for a hole the ward had from the day it was written: the
+	 * seal was asked before the chest *opened*, and nothing asked before it was
+	 * *broken*. Mining it therefore skipped the Sentinel entirely -- worse than
+	 * it sounds, because the base [BlockEntity.preRemoveSideEffects] drops any
+	 * block entity that implements `Container`, and
+	 * `RandomizableContainerBlockEntity.getItem` rolls the loot table on first
+	 * access. So the break did not merely spill a stocked chest; it stocked it
+	 * on the way out.
+	 *
+	 * Nothing is destroyed by refusing. A Reliquary that has never been opened
+	 * has never been rolled, so there are no items here to lose -- only a table
+	 * that will be rolled by whoever earns it. And this is the *server's* answer
+	 * rather than the block's: it holds for an explosion, a command, or anything
+	 * else that removes the block, not only for a pickaxe.
+	 */
+	override fun preRemoveSideEffects(pos: BlockPos, state: BlockState) {
+		val level = this.level
+		if (level is ServerLevel && !RuinSeal.isCleared(level, pos)) return
+
+		super.preRemoveSideEffects(pos, state)
+
+		// Everything that was in here is now on the floor, so the ruin is as
+		// stripped as it would be had the player carried it out by hand.
+		if (level is ServerLevel) hollowAndAnnounce(level, pos)
+	}
+
 	override fun loadAdditional(input: ValueInput) {
 		super.loadAdditional(input)
+		// Or the loot table it is still carrying, which is how a Reliquary
+		// generated before this flag existed is recognised. One already opened in
+		// such a world is past recognising -- but its ruin was hollowed on the
+		// same visit, so there is nothing left for this to decide.
+		stocked = input.getBooleanOr(STOCKED_KEY, false) || lootTable != null
 		items = NonNullList.withSize(SIZE, ItemStack.EMPTY)
 		if (!tryLoadLootTable(input)) ContainerHelper.loadAllItems(input, items)
 	}
 
 	override fun saveAdditional(output: ValueOutput) {
 		super.saveAdditional(output)
+		output.putBoolean(STOCKED_KEY, stocked)
 		if (!trySaveLootTable(output)) ContainerHelper.saveAllItems(output, items)
 	}
 
@@ -142,6 +206,38 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 		if (level !is ServerLevel) return
 		if (!isEmpty) return
 
+		hollowAndAnnounce(level, pos)
+	}
+
+	/**
+	 * Hollows the ruin and tells whoever is standing in the vault.
+	 *
+	 * **Only ever for a ruin's own Reliquary.** Without [stocked] any empty chest
+	 * counted: carry a spare into a ruin you have cleared but not yet stripped,
+	 * set it down, open it, close it, and the place hollowed while its real
+	 * Reliquary still stood full. That route was open long before mining was --
+	 * `hollowIfStripped` has always fired for anything empty closed inside a
+	 * ruin, and a chest somebody placed is empty by definition.
+	 *
+	 * Reached from two directions, and it has to be, because there are two ways
+	 * to take everything out of a Reliquary. Emptying it by hand is one.
+	 * **Mining the whole chest is the other**, and for a while it was the way
+	 * round the mechanic entirely: the memories dropped, the block dropped, and
+	 * the ruin above stayed as it was -- so the graveyard never woke, no
+	 * Remnants ever rose, and the only renewable source of memories in the game
+	 * was quietly skipped by a player who was simply being efficient.
+	 *
+	 * That mattered more than losing a message. Deepening costs eight memories
+	 * and then sixteen, which is more than a ruin holds, and those numbers only
+	 * work because a stripped ruin keeps paying out. Taking the chest away is
+	 * taking everything in it, so it hollows the ruin exactly as emptying it
+	 * does.
+	 *
+	 * A Reliquary a player crafted and put in their own base is in no ruin, so
+	 * [RuinHollow.hollow] answers no and nothing happens.
+	 */
+	private fun hollowAndAnnounce(level: ServerLevel, pos: BlockPos) {
+		if (!stocked) return
 		if (!RuinHollow.hollow(level, pos)) return
 
 		// Said once, at the moment it changes. The player has just read six
@@ -299,6 +395,9 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 		/** Three by three, as a square. */
 		const val SIZE: Int = 9
 
+		/** Marks a Reliquary that worldgen stocked. See [stocked]. */
+		private const val STOCKED_KEY = "RuinsOwn"
+
 		const val NAME_KEY: String = "container.vanguard-spirits.golden_chest"
 
 		/** Said once, to whoever is standing in the vault when it happens. */
@@ -327,8 +426,50 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 			state: BlockState,
 			entity: GoldenChestBlockEntity,
 		) {
-			if (entity.rejectTick > 0 && level is ServerLevel) entity.advanceRefusal(level)
+			if (level !is ServerLevel) return
+
+			if (entity.rejectTick > 0) entity.advanceRefusal(level)
+			reconcileSeal(level, pos, state)
 		}
+
+		/**
+		 * Keeps the blockstate's [GoldenChestBlock.SEALED] in step with the ruin.
+		 *
+		 * The seal itself lives in [RuinSeal], on the chunk holding the structure
+		 * start, and cannot be answered client-side -- working out which ruin a
+		 * position belongs to needs the structure manager. So the blockstate
+		 * carries a copy for the client, and this is what writes it.
+		 *
+		 * **Only ever while sealed.** A ruin's guardian falls once and the seal
+		 * never goes back up, so the moment this flips there is nothing left to
+		 * watch and the check costs nothing for the rest of the world's life.
+		 * That matters because the structure lookup behind `isCleared` is not
+		 * free, and a Reliquary a player carried home would otherwise pay for it
+		 * forever having never been guarded at all.
+		 *
+		 * Changing a property is safe here, which is worth writing down because
+		 * the obvious reading says otherwise: `shouldChangedStateKeepBlockEntity`
+		 * defaults to *false*, so it looks as though touching the state would
+		 * destroy this block entity and take its unrolled loot table with it.
+		 * `LevelChunk.setBlockState` only consults that method when the **block**
+		 * changes; for a property on the same block it skips the removal outright.
+		 */
+		private fun reconcileSeal(level: ServerLevel, pos: BlockPos, state: BlockState) {
+			if (!state.getValue(GoldenChestBlock.SEALED)) return
+			if ((level.gameTime + pos.asLong()) % SEAL_PERIOD != 0L) return
+			if (!RuinSeal.isCleared(level, pos)) return
+
+			level.setBlock(pos, state.setValue(GoldenChestBlock.SEALED, false), Block.UPDATE_ALL)
+		}
+
+		/**
+		 * Ticks between seal checks, staggered by position.
+		 *
+		 * A second is far quicker than a player can walk from a dying Sentinel to
+		 * the vault, so nobody will ever see a Reliquary that is still refusing
+		 * them after they earned it.
+		 */
+		private const val SEAL_PERIOD = 20L
 
 		/** Ticks the runes spend converging before the shell goes out. */
 		private const val GATHER_TICKS = 14

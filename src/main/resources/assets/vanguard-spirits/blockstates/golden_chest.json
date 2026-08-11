@@ -1,17 +1,32 @@
 {
   "variants": {
-    "facing=north": {
+    "facing=north,sealed=true": {
       "model": "vanguard-spirits:block/golden_chest"
     },
-    "facing=east": {
+    "facing=north,sealed=false": {
+      "model": "vanguard-spirits:block/golden_chest"
+    },
+    "facing=east,sealed=true": {
       "model": "vanguard-spirits:block/golden_chest",
       "y": 90
     },
-    "facing=south": {
+    "facing=east,sealed=false": {
+      "model": "vanguard-spirits:block/golden_chest",
+      "y": 90
+    },
+    "facing=south,sealed=true": {
       "model": "vanguard-spirits:block/golden_chest",
       "y": 180
     },
-    "facing=west": {
+    "facing=south,sealed=false": {
+      "model": "vanguard-spirits:block/golden_chest",
+      "y": 180
+    },
+    "facing=west,sealed=true": {
+      "model": "vanguard-spirits:block/golden_chest",
+      "y": 270
+    },
+    "facing=west,sealed=false": {
       "model": "vanguard-spirits:block/golden_chest",
       "y": 270
     }
