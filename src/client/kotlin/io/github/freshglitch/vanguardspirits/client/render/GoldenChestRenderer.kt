@@ -5,7 +5,6 @@ import com.mojang.math.Axis
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import io.github.freshglitch.vanguardspirits.block.GoldenChestBlock
 import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
-import net.minecraft.client.model.geom.ModelPart
 import net.minecraft.client.renderer.SubmitNodeCollector
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider
@@ -26,9 +25,7 @@ import net.minecraft.world.phys.Vec3
 class GoldenChestRenderer(context: BlockEntityRendererProvider.Context) :
 	BlockEntityRenderer<GoldenChestBlockEntity, GoldenChestRenderState> {
 
-	private val root: ModelPart = context.bakeLayer(ChestParts.LAYER)
-	private val body: ModelPart = root.getChild(ChestParts.BODY)
-	private val lid: ModelPart = root.getChild(ChestParts.LID)
+	private val model = ReliquaryModel(context.bakeLayer(ChestParts.LAYER))
 
 	override fun createRenderState(): GoldenChestRenderState = GoldenChestRenderState()
 
@@ -72,18 +69,21 @@ class GoldenChestRenderer(context: BlockEntityRendererProvider.Context) :
 		// y -> 1 - y, which flips the chest about the middle of its own block and
 		// buries the ruby crown in the ground.
 
-		// Ease-out on the swing: chests should fall open, not snap.
-		//
-		// Positive, not negative. The hinge sits at the back and the slab runs
-		// toward -z, so rotating about X gives y' = -z*sin(theta) -- a positive
-		// angle lifts the front edge. Negating it swings the lid down through
-		// the chest instead.
-		val swing = 1.0f - (1.0f - state.openness).let { it * it * it }
-		lid.xRot = swing * MAX_LID_ANGLE
-
-		val renderType = RenderTypes.entityCutout(TEXTURE)
-		collector.submitModelPart(body, poseStack, renderType, state.lightCoords, OVERLAY, null)
-		collector.submitModelPart(lid, poseStack, renderType, state.lightCoords, OVERLAY, null)
+		// The openness goes in as the model's *state*, not as a field poked into
+		// a shared ModelPart before submitting it. Drawing here is deferred: the
+		// node keeps this value and calls `setupAnim` with it just before it is
+		// drawn, so two Reliquaries in one frame cannot end up sharing a lid
+		// angle. See [ReliquaryModel] for what that looked like when they did.
+		collector.submitModel(
+			model,
+			state.openness,
+			poseStack,
+			RenderTypes.entityCutout(TEXTURE),
+			state.lightCoords,
+			OVERLAY,
+			0,
+			state.breakProgress,
+		)
 
 		poseStack.popPose()
 	}
@@ -98,15 +98,6 @@ class GoldenChestRenderer(context: BlockEntityRendererProvider.Context) :
 		val TEXTURE = VanguardSpirits.id("textures/block/golden_chest.png")
 
 		private const val HALF_TURN = 180.0f
-
-		/**
-		 * About 26 degrees -- ajar rather than thrown wide.
-		 *
-		 * The lid is fourteen units deep, so its front edge sweeps a long arc:
-		 * even a quarter turn stands it upright and well clear of the block. A
-		 * shallow angle keeps the reliquary looking sealed and heavy.
-		 */
-		private const val MAX_LID_ANGLE = 0.45f
 
 		private val OVERLAY = OverlayTexture.NO_OVERLAY
 	}
