@@ -59,19 +59,36 @@ class BindingAltarMenu(
 	/**
 	 * Charges for the binding once the player actually takes the charm.
 	 *
-	 * The price is read back off the *result*, not off what happens to be in the
-	 * payment slot now. By the time this runs the stack could have been changed
-	 * by anything that can reach a slot -- a hopper, another player in the same
-	 * screen -- and charging for the binding that was previewed is the only
-	 * reading that cannot take more than the panel quoted.
+	 * ## Why the price comes from the inputs and not from [stack]
+	 *
+	 * It used to read the depth off the result, on the reasoning that charging
+	 * for the binding that was *previewed* could never take more than the panel
+	 * quoted. That is sound for the payment slot and completely wrong about the
+	 * result, because [stack] is not stable: `ItemCombinerMenu.quickMoveStack`
+	 * calls `moveItemStackTo` on the slot's live stack, which shrinks it in
+	 * place, and then hands that same -- now empty -- stack to this method.
+	 *
+	 * `CharmItem.depthOf` on an empty stack finds no component and answers 1,
+	 * `Binding.priceOf(1)` is zero, and the binding cost nothing. Only on a
+	 * shift-click: an ordinary pickup passes a stack that still has its
+	 * components, so the bug hid behind the way most people take an item.
+	 *
+	 * Reading the charm still sitting in the input slot avoids the question
+	 * entirely, and is what vanilla's anvil does -- it charges from `inputSlots`
+	 * and its own stored cost, never from the thing being carried off.
 	 */
 	override fun onTake(player: Player, stack: ItemStack) {
+		// Read before anything is removed. The charm is still in its slot at
+		// this point whichever way the result was taken.
+		val bound = CharmItem.depthOf(inputSlots.getItem(CHARM_SLOT)) + 1
+		val price = Binding.priceOf(bound)
+
 		inputSlots.removeItem(CHARM_SLOT, 1)
-		inputSlots.removeItem(PAYMENT_SLOT, Binding.priceTaken(stack))
+		inputSlots.removeItem(PAYMENT_SLOT, price)
 
 		// Fired from the taking rather than from the result appearing: a charm
 		// previewed and left on the altar has not been bound.
-		if (player is ServerPlayer) ModTriggers.BINDING.fire(player, CharmItem.depthOf(stack))
+		if (player is ServerPlayer) ModTriggers.BINDING.fire(player, bound)
 
 		access.execute { level, pos ->
 			level.playSound(
@@ -82,7 +99,11 @@ class BindingAltarMenu(
 				0.9f,
 				// Each binding rings a step brighter, so the deepest one is
 				// audibly the biggest thing that happens at this block.
-				0.8f + 0.2f * CharmItem.depthOf(stack),
+				//
+				// From `bound`, not from the stack, for the reason above -- this
+				// had the same fault and would have rung every shift-clicked
+				// binding at the shallowest pitch.
+				0.8f + 0.2f * bound,
 			)
 		}
 	}

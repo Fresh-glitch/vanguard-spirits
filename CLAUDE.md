@@ -450,6 +450,23 @@ needed a screenshot to diagnose.
   restyles every vanilla block using it — reusing `GENERIC_3x3` would have given
   the Reliquary's panel to every dispenser in the game. Custom interface means a
   custom menu type, menu and screen.
+- **The stack handed to `Slot.onTake` is already empty on a shift-click.**
+  `quickMoveStack` calls `moveItemStackTo` on the slot's *live* stack, which
+  shrinks it in place, and then passes that same stack to `onTake`. So anything
+  a menu charges, consumes or records must be read from the **input slots**,
+  never from the result being carried off — which is why vanilla's anvil prices
+  from `inputSlots` and its own stored cost.
+  This shipped in the Binding Altar as a free deepening: the price was read off
+  the result's depth component, an empty stack has no components, `depthOf`
+  answered its default of 1, and the price of reaching depth 1 is zero. Note how
+  well it hid — an ordinary click passes a stack that still has its components,
+  so it only failed for players who shift-click, and it failed *silently*, by
+  charging nothing rather than by throwing. The same read was in the sound's
+  pitch and would have rung every shift-clicked binding at the wrong note.
+  The general form is worth more than the instance: **an argument is not a
+  fact about the past.** It was chosen deliberately, over the payment slot, on
+  the grounds that the result could not be changed underneath us. The payment
+  slot was the stable one.
 - Owning the menu also lets `ContainerOpenersCounter.isOwnContainer` ask which
   container is open; vanilla's `DispenserMenu` exposes no accessor for its own.
 - 26.2 screens draw in **`extractBackground(GuiGraphicsExtractor, ...)`** with
