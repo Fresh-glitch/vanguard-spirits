@@ -1,6 +1,7 @@
 package io.github.freshglitch.vanguardspirits.registry
 
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
+import io.github.freshglitch.vanguardspirits.block.entity.BindingAltarBlockEntity
 import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
 import io.github.freshglitch.vanguardspirits.block.entity.MuralBlockEntity
 import net.minecraft.core.Registry
@@ -22,6 +23,16 @@ object ModBlockEntities {
 		BuiltInRegistries.BLOCK_ENTITY_TYPE,
 		VanguardSpirits.id("mural"),
 		BlockEntityType(::MuralBlockEntity, setOf(ModBlocks.MURAL)),
+	)
+
+	/**
+	 * Holds what is lying on an altar between visits, and is what the renderer
+	 * reads to draw it. See [BindingAltarBlockEntity].
+	 */
+	val BINDING_ALTAR: BlockEntityType<BindingAltarBlockEntity> = Registry.register(
+		BuiltInRegistries.BLOCK_ENTITY_TYPE,
+		VanguardSpirits.id("binding_altar"),
+		BlockEntityType(::BindingAltarBlockEntity, setOf(ModBlocks.BINDING_ALTAR)),
 	)
 
 	/** Touching the object is what actually runs the registrations above. */

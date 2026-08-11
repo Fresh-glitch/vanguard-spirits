@@ -1,5 +1,6 @@
 package io.github.freshglitch.vanguardspirits.block
 
+import io.github.freshglitch.vanguardspirits.block.entity.BindingAltarBlockEntity
 import io.github.freshglitch.vanguardspirits.menu.BindingAltarMenu
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import net.minecraft.core.BlockPos
@@ -15,7 +16,9 @@ import net.minecraft.world.item.context.BlockPlaceContext
 import net.minecraft.world.level.BlockGetter
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.EntityBlock
 import net.minecraft.world.level.block.HorizontalDirectionalBlock
+import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.block.state.StateDefinition
 import net.minecraft.world.level.block.state.properties.EnumProperty
@@ -27,16 +30,23 @@ import net.minecraft.world.phys.shapes.VoxelShape
  * Where a charm is bound deeper. The fourth passage calls it a binding and this
  * is the block that makes it one.
  *
- * No block entity: the menu is built on [net.minecraft.world.inventory.ItemCombinerMenu],
- * which keeps its inputs in its own container and gives them back when the screen
- * closes, exactly as an anvil does. Nothing about the altar persists between
- * visits, so there is nothing for a block entity to hold.
+ * The menu is built on [net.minecraft.world.inventory.ItemCombinerMenu], which
+ * keeps its inputs in a container of its own exactly as an anvil does -- but
+ * unlike an anvil the altar does not hand them back and forget them. What is set
+ * down here stays here, in [BindingAltarBlockEntity], and is drawn on the stone.
+ *
+ * [EntityBlock] directly rather than `BaseEntityBlock`, so the render shape stays
+ * MODEL: the altar's eleven cuboids are still drawn from JSON and the renderer
+ * only adds what is lying on top of them.
  */
-class BindingAltarBlock(properties: Properties) : Block(properties) {
+class BindingAltarBlock(properties: Properties) : Block(properties), EntityBlock {
 
 	init {
 		registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH))
 	}
+
+	override fun newBlockEntity(pos: BlockPos, state: BlockState): BlockEntity =
+		BindingAltarBlockEntity(pos, state)
 
 	override fun createBlockStateDefinition(builder: StateDefinition.Builder<Block, BlockState>) {
 		builder.add(FACING)
