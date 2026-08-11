@@ -463,6 +463,24 @@ visible from logs — each needed a screenshot to diagnose.
   `textures/block/`.
 - **An animated lid needs a `BlockEntityRenderer`**; static block models cannot
   move. Render shape must then be `INVISIBLE` or the JSON model draws through it.
+- **`submit` does not draw. It queues, and a `ModelPart` is passed by
+  reference.** `SubmitNodeCollection.submitModel` copies the *pose* —
+  `poseStack.last().copy()` — and then stores the **model itself unwrapped** in a
+  node drawn later in the frame. So a `ModelPart` held as a field on the renderer
+  is shared by every block entity of that type on screen, and posing it per
+  entity before submitting means they all draw with whatever the *last* one
+  wrote. `submitModelPart` is not a way out: it wraps the part in a
+  `Model.Simple` that holds the same reference.
+  The symptom is unmistakable once two are in view and impossible before:
+  animating the one submitted last moves them all, animating any other moves
+  none — while the sound plays once, because the server was never confused. The
+  Reliquary shipped like this from the day it was added and nobody had two.
+  **Vanilla's answer is the type parameter on `Model<S>`.** `ChestModel` is
+  `Model<Float>`; the openness travels as the `S` handed to `submitModel`, the
+  node keeps that value beside the model, and `setupAnim(S)` runs against it
+  immediately before *that* node draws. Anything that varies per instance goes
+  through the state, never into a field. Render *states* are safe — one is
+  extracted per block entity — but the renderer's own fields are not.
 - Lid state reaches clients as a **block event** (`Level.blockEvent` →
   `Block.triggerEvent` → `BlockEntity.triggerEvent`), because the opener count
   only exists server-side.
