@@ -527,6 +527,25 @@ transcription of Blockbench's Java export, never hand-authored.
   The verified layout is: top row `v..v+d` holds UP at `u+d` then DOWN at
   `u+d+w`; bottom row `v+d..v+d+h` holds EAST, NORTH, WEST, SOUTH left to right.
   Painting from the live rectangles skips the question entirely.
+- **A block model face stretches whatever rectangle its `uv` names over the
+  whole face.** So a mark drawn in the middle of a 16x16 texture, put on a face
+  eight wide and five tall, is *squashed* — and box-UV instead crops some
+  arbitrary corner of it. Neither looks like a bug in the texture; both look
+  like a bug in the drawing. Draw the mark into a window whose aspect matches
+  the face and name that window as the `uv` (`RUNE_WINDOW` in
+  `make_binding_altar.py`), and it renders 1:1.
+  Two more things that only bite at this size. A one-pixel outline does not
+  survive a five-pixel-tall face — Bresenham breaks it and the groove closes
+  the middle, so it reads as a smudge; go solid. And a mark reaching the edges
+  of its window stops being a mark and becomes a band, so leave stone around it.
+  The altar's shaft went through all three before it read as anything.
+- **Blockbench caches a texture loaded from a path.** Rewriting the PNG on disk
+  and re-rendering shows the *old* image, and `reloadTexture()` did not help —
+  which reads as the change having no effect, and sent us looking at the model.
+  Push the bytes in instead: read the file in `risky_eval` and call
+  `texture.fromDataURL('data:image/png;base64,' + b64)`. And when a render
+  looks unchanged, move the camera before believing it: two identical captures
+  are also what a stale screenshot looks like.
 - **Never hand-transcribe a data URL.** Base64 for a 128x128 PNG runs to
   thousands of characters and dropping twelve bytes yields a file that still
   reports `PNG image data, 128 x 128` to `file` and still parses its IHDR —

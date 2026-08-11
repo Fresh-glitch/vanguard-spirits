@@ -83,12 +83,18 @@ class BindingAltarBlock(properties: Properties) : Block(properties) {
 		val FACING: EnumProperty<net.minecraft.core.Direction> = HorizontalDirectionalBlock.FACING
 
 		/**
-		 * A worked slab standing a little under waist height, like an anvil.
+		 * The solid mass of the altar: plinth, waist, table and the rim on top.
 		 *
-		 * Not a full cube: the altar is something you stand at, and a full block
-		 * would read as masonry a player is meant to walk over rather than a place
-		 * to put something down.
+		 * Not a full cube. The altar is something you stand *at*, and a block
+		 * filling its own space would read as masonry to walk over rather than a
+		 * surface to put something down on.
+		 *
+		 * Thirteen high rather than the model's fifteen, because the last two are
+		 * the corner finials and they are spikes at the very edges: including them
+		 * would mean either a box covering air across the whole top, or a union of
+		 * five shapes to catch three decorations. Vanilla leaves the same kind of
+		 * ornament out of its shapes -- a lectern's book is not collidable either.
 		 */
-		private val SHAPE: VoxelShape = box(1.0, 0.0, 1.0, 15.0, 12.0, 15.0)
+		private val SHAPE: VoxelShape = box(1.0, 0.0, 1.0, 15.0, 13.0, 15.0)
 	}
 }
