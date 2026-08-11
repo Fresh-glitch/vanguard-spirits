@@ -31,9 +31,9 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from make_mural_textures import (  # noqa: E402
-    BONE,
     AMBER,
     EMBER,
+    GROOVE_DARKEN,
     MOD_MORTAR,
     MOD_STONE,
     bevel,
@@ -144,17 +144,59 @@ def arrow_between(panel, x, y):
         panel[y - half:y + half + 1, x + 8 + step] = ember
 
 
-def ring(top, cx, cy, radius, colour, strength=1.0):
-    """A one-pixel circle, for the binding mark on the block's face."""
-    h, w = top.shape[:2]
-    for yy in range(h):
-        for xx in range(w):
-            # Measured from pixel centres. On an even-sided face there is no
-            # pixel at the true middle, so using the corner puts the ring half a
-            # pixel off and it comes out lopsided.
+# A fourth tone, below ember.
+#
+# The mod's runes have three -- ember, amber, bone -- and three is enough for a
+# mural, where a carving is lit or it is not. It is not enough to model a
+# *facet*: something round or cut needs a side the light misses, and without one
+# the amber goes flat. Flat saturated amber with a bone pixel on it is an egg
+# yolk, which is exactly what the first altar shipped as.
+DEEP = EMBER * 0.55
+
+
+def lit_tone(x, y, cx=8.0, cy=8.0):
+    """Which of the three ambers a pixel takes, for light from the top-left.
+
+    One rule for every mark on the block, so the ring on the working surface and
+    the ring on the shaft are lit from the same place. Getting that wrong is
+    subtle and cheap to avoid: two rings lit from opposite corners read as two
+    different objects that happen to share a colour.
+    """
+    toward = (cx - x) + (cy - y)
+    if toward > 1:
+        return AMBER
+    if toward > -2:
+        return EMBER
+    return DEEP
+
+
+def ring_mask(radius, cx=8.0, cy=8.0):
+    """A one-pixel circle as a boolean mask.
+
+    Measured from pixel centres. On an even-sided face there is no pixel at the
+    true middle, so measuring from the corner puts the ring half a pixel out and
+    it comes back lopsided.
+    """
+    mask = np.zeros((16, 16), bool)
+    for yy in range(16):
+        for xx in range(16):
             d = ((xx + 0.5 - cx) ** 2 + (yy + 0.5 - cy) ** 2) ** 0.5
-            if abs(d - radius) < 0.55:
-                top[yy, xx] = np.array(colour, float) * strength
+            if abs(d - radius) < 0.6:
+                mask[yy, xx] = True
+    return mask
+
+
+def cut(face, mark):
+    """The chisel shadow: the outer shell of the whole mark, darkened.
+
+    Taken as one shell around everything rather than per stroke, the same rule
+    the murals follow -- per-stroke fills the gaps between close strokes with
+    black and welds them shut.
+    """
+    from make_mural_textures import grow
+
+    shell = grow(mark) & ~mark
+    face[shell] = face[shell] * GROOVE_DARKEN
 
 
 def build_panel():
@@ -225,41 +267,30 @@ def build_top():
     a smudge in it. Now it is cut the way the murals cut things -- a shadow
     shell, then full-strength amber -- on the same ground as the rest.
     """
-    ground = vanilla_ground(16, seed=9_2026)
+    out = vanilla_ground(16, seed=9_2026).copy()
 
-    core = np.zeros((16, 16), bool)
+    ring = ring_mask(5.2)
 
-    # The ring. Measured from pixel centres: on an even-sided face there is no
-    # pixel at the true middle, so measuring from the corner puts it half a
-    # pixel out and it comes back lopsided.
+    # A four-pointed glint at the middle, pulled in tight. It gives the centre
+    # something to be without crowding the ring -- the first version there was a
+    # filled lozenge, which at this size is a yolk sitting in a fried white.
+    glint = [(8, 7), (8, 9), (7, 8), (9, 8)]
+
+    mark = ring.copy()
+    for x, y in glint:
+        mark[y, x] = True
+    mark[8, 8] = True
+
+    cut(out, mark)
+
     for yy in range(16):
         for xx in range(16):
-            d = ((xx + 0.5 - 8.0) ** 2 + (yy + 0.5 - 8.0) ** 2) ** 0.5
-            if abs(d - 5.2) < 0.6:
-                core[yy, xx] = True
+            if ring[yy, xx]:
+                out[yy, xx] = lit_tone(xx, yy)
 
-    # Four notches on the axes, outside the ring. They say the mark was made
-    # rather than stained, and being clear of the ring keeps it one pixel wide.
-    for dx, dy in ((0, -7), (0, 6), (-7, 0), (6, 0)):
-        core[8 + dy, 8 + dx] = True
-
-    # The shard at the centre, the same lozenge the shaft wears -- what the ring
-    # is a ring *around*.
-    heart = np.zeros((16, 16), bool)
-    for dy, half in ((-1, 1), (0, 2), (1, 1)):
-        heart[8 + dy, 8 - half:8 + half + 1] = True
-
-    from make_mural_textures import GROOVE_DARKEN, grow
-
-    out = ground.copy()
-
-    mark = core | heart
-    shell = grow(mark) & ~mark
-    out[shell] = out[shell] * GROOVE_DARKEN
-
-    out[core] = EMBER
-    out[heart] = AMBER
-    out[7, 7] = BONE
+    for x, y in glint:
+        out[y, x] = EMBER
+    out[8, 8] = AMBER
 
     result = np.zeros((16, 16, 4), np.uint8)
     result[:, :, :3] = np.clip(out, 0, 255).astype(np.uint8)
@@ -308,34 +339,29 @@ def build_rune():
     ring is one pixel wide. Here the mark is the murals' colours at the murals'
     proportions for *this* size: one amber line, one shadow, no bone.
     """
-    ground = vanilla_ground(16, seed=88_2026)
+    out = vanilla_ground(16, seed=88_2026).copy()
 
     u0, v0, u1, v1 = RUNE_WINDOW
     cx = (u0 + u1) // 2
     cy = (v0 + v1) // 2
 
-    # Solid, not an outline. Five pixels of face height is not enough to hold a
-    # one-pixel diamond outline: Bresenham breaks it, the groove closes the
-    # middle, and it renders as a smudge -- which is what the first two cuts did.
-    # A filled lozenge is the shape that survives, and it reads as a shard of
-    # memory set into the stone, which is what the altar is for.
+    # The working surface's ring, one size down and cut as a plain diamond so it
+    # survives eight pixels by five. The block then carries one motif at two
+    # scales rather than two unrelated marks, which is what makes it read as
+    # designed rather than assorted.
+    #
+    # Hand-placed rather than swept from a radius: at this size a circle test
+    # rounds unevenly and comes out with a flat side.
     core = np.zeros((16, 16), bool)
-    for dy, half in ((-1, 1), (0, 2), (1, 1)):
-        core[cy + dy, cx - half:cx + half + 1] = True
+    for dx, dy in ((0, -2), (1, -1), (2, 0), (1, 1), (0, 2), (-1, 1), (-2, 0), (-1, -1)):
+        core[cy + dy, cx + dx] = True
 
-    out = ground.copy()
+    cut(out, core)
 
-    # Shadow taken as the outer shell of the whole mark, so the stone reads as
-    # cut away around it rather than painted -- the same rule the murals follow.
-    from make_mural_textures import GROOVE_DARKEN, grow
-
-    shell = grow(core) & ~core
-    out[shell] = out[shell] * GROOVE_DARKEN
-    out[core] = AMBER
-
-    # One bone pixel where the light would catch, top-left. Without it the
-    # lozenge is a flat sticker; with it the shard has a facet.
-    out[cy - 1, cx - 1] = BONE
+    for yy in range(16):
+        for xx in range(16):
+            if core[yy, xx]:
+                out[yy, xx] = lit_tone(xx, yy, cx, cy)
 
     result = np.zeros((16, 16, 4), np.uint8)
     result[:, :, :3] = np.clip(out, 0, 255).astype(np.uint8)
