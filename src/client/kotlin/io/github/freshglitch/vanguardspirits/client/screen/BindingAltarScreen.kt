@@ -178,14 +178,18 @@ class BindingAltarScreen(
 		private const val SHEET = 256
 
 		/**
-		 * Between the title and the arch, clear of both.
+		 * Centred in the band between the title and the arch.
 		 *
 		 * It began at 33, which is the anvil's height for its level cost and is
 		 * also exactly where this panel's arch springs -- so the line landed on
-		 * the keystone and read as part of the masonry. Up here it has the plain
-		 * field to itself.
+		 * the keystone and read as part of the masonry rather than as text.
+		 *
+		 * Nineteen is not a taste call: the title occupies rows 6 to 14, the
+		 * arch's lit lip is row 32, so the free band is 15 to 31 and a nine-row
+		 * line centred in seventeen starts at 19. That leaves four rows clear
+		 * above and below, which is what stops it reading as attached to either.
 		 */
-		private const val PRICE_Y = 22
+		private const val PRICE_Y = 19
 
 		// The chain, matching `make_binding_altar.py`. Both files name these
 		// numbers and the generator asserts the price line against this one, so a
