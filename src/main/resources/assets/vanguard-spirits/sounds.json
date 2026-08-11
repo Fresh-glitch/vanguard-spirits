@@ -340,5 +340,23 @@
         "volume": 0.8
       }
     ]
+  },
+  "block.binding_altar.open": {
+    "subtitle": "subtitles.vanguard-spirits.binding_altar.open",
+    "sounds": [
+      {
+        "name": "vanguard-spirits:block/binding_altar/open",
+        "volume": 0.7
+      }
+    ]
+  },
+  "block.binding_altar.bind": {
+    "subtitle": "subtitles.vanguard-spirits.binding_altar.bind",
+    "sounds": [
+      {
+        "name": "vanguard-spirits:block/binding_altar/bind",
+        "volume": 0.85
+      }
+    ]
   }
 }

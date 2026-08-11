@@ -27,9 +27,12 @@ import net.minecraft.world.level.block.state.BlockState
  * altar needs no block entity at all. Nothing is stored between visits, exactly
  * like every other vanilla workstation.
  *
- * **The slot positions must match the painted panel.** They are deliberately the
- * anvil's own -- 27, 76 and 134 on row 47 -- so the layout reads as a station a
- * player has used before, and the artwork is drawn to those coordinates.
+ * **The slot positions must match the painted panel.** The two inputs sit left
+ * of centre rather than at the anvil's own spacing, to leave room between the
+ * payment slot and the result for the binding chain -- which is the panel's
+ * whole readout. `tools/make_binding_altar.py` asserts these three coordinates
+ * against this file, so moving one here fails the art generator rather than
+ * quietly sliding the slots off their wells.
  */
 class BindingAltarMenu(
 	containerId: Int,
@@ -74,7 +77,7 @@ class BindingAltarMenu(
 			level.playSound(
 				null,
 				pos,
-				ModSounds.CHARM_WAKE,
+				ModSounds.BINDING_ALTAR_BIND,
 				SoundSource.BLOCKS,
 				0.9f,
 				// Each binding rings a step brighter, so the deepest one is
@@ -93,11 +96,11 @@ class BindingAltarMenu(
 				// Only a charm that has somewhere left to go. A Returned, or one
 				// already at its deepest, is refused by the slot rather than
 				// accepted and then silently doing nothing.
-				.withSlot(CHARM_SLOT, 27, 47) { stack ->
+				.withSlot(CHARM_SLOT, 22, 47) { stack ->
 					val charm = stack.item as? CharmItem
 					charm != null && CharmItem.depthOf(stack) < charm.maxDepth
 				}
-				.withSlot(PAYMENT_SLOT, 76, 47) { stack -> stack.`is`(ModItems.FRACTURED_MEMORY) }
+				.withSlot(PAYMENT_SLOT, 52, 47) { stack -> stack.`is`(ModItems.FRACTURED_MEMORY) }
 				.withResultSlot(2, 134, 47)
 				.build()
 	}

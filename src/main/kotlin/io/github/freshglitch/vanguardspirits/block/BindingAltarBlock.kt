@@ -1,9 +1,11 @@
 package io.github.freshglitch.vanguardspirits.block
 
 import io.github.freshglitch.vanguardspirits.menu.BindingAltarMenu
+import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
 import net.minecraft.network.chat.Component
+import net.minecraft.sounds.SoundSource
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.MenuProvider
 import net.minecraft.world.SimpleMenuProvider
@@ -64,6 +66,18 @@ class BindingAltarBlock(properties: Properties) : Block(properties) {
 		hit: BlockHitResult,
 	): InteractionResult {
 		if (level.isClientSide) return InteractionResult.SUCCESS
+
+		// Before the menu opens, not after. The screen does not pause the game --
+		// it is a container -- but playing the sound first is what makes the
+		// altar feel like it answered the hand rather than the interface.
+		level.playSound(
+			null,
+			pos,
+			ModSounds.BINDING_ALTAR_OPEN,
+			SoundSource.BLOCKS,
+			0.7f,
+			0.95f + level.random.nextFloat() * 0.1f,
+		)
 
 		player.openMenu(menuAt(level, pos))
 		return InteractionResult.CONSUME
