@@ -105,9 +105,21 @@ object ModAdvancements {
 		"Read all eight murals",
 	)
 
+	val BOUND_DEEPER = Entry(
+		"deeper_than_we_meant",
+		"Deeper Than We Meant",
+		"Bind a charm at a Binding Altar",
+	)
+
+	val HOLLOWED = Entry(
+		"nothing_left_to_settle",
+		"Nothing Left to Settle",
+		"Empty a Gilded Reliquary completely",
+	)
+
 	val ALL: List<Entry> = listOf(
 		ROOT, FEATHER, REMNANT, SENTINEL, MEMORY, CHARM, ALL_CHARMS, KINSHIP, ATTUNED,
-		MURAL, ALL_MURALS,
+		MURAL, ALL_MURALS, BOUND_DEEPER, HOLLOWED,
 	)
 
 	fun titleKey(entry: Entry): String = "advancements.vanguard-spirits.${entry.path}.title"

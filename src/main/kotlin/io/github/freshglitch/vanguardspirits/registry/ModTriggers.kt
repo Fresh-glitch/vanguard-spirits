@@ -2,7 +2,9 @@ package io.github.freshglitch.vanguardspirits.registry
 
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import io.github.freshglitch.vanguardspirits.charm.AttunementTrigger
+import io.github.freshglitch.vanguardspirits.charm.BindingTrigger
 import io.github.freshglitch.vanguardspirits.lore.MuralTrigger
+import io.github.freshglitch.vanguardspirits.worldgen.HollowTrigger
 import net.minecraft.advancements.triggers.Criterion
 import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
@@ -34,6 +36,18 @@ object ModTriggers {
 		MuralTrigger(),
 	)
 
+	val BINDING: BindingTrigger = Registry.register(
+		BuiltInRegistries.TRIGGER_TYPES,
+		VanguardSpirits.id("charm_bound"),
+		BindingTrigger(),
+	)
+
+	val HOLLOW: HollowTrigger = Registry.register(
+		BuiltInRegistries.TRIGGER_TYPES,
+		VanguardSpirits.id("ruin_hollowed"),
+		HollowTrigger(),
+	)
+
 	/**
 	 * A criterion satisfied once the player's attunement reaches [level].
 	 *
@@ -51,6 +65,18 @@ object ModTriggers {
 	fun muralsRead(count: Int): Criterion<MuralTrigger.TriggerInstance> =
 		MURALS.createCriterion(
 			MuralTrigger.TriggerInstance(Optional.empty(), count),
+		)
+
+	/** A criterion satisfied by taking a charm bound to [depth] or deeper. */
+	fun charmBound(depth: Int): Criterion<BindingTrigger.TriggerInstance> =
+		BINDING.createCriterion(
+			BindingTrigger.TriggerInstance(Optional.empty(), depth),
+		)
+
+	/** A criterion satisfied by leaving a ruin hollowed. */
+	fun ruinHollowed(): Criterion<HollowTrigger.TriggerInstance> =
+		HOLLOW.createCriterion(
+			HollowTrigger.TriggerInstance(Optional.empty()),
 		)
 
 	/** Touching the object is what actually runs the registration above. */

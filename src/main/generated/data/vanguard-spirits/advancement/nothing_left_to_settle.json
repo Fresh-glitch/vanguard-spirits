@@ -1,0 +1,26 @@
+{
+  "parent": "vanguard-spirits:the_ward_lifts",
+  "criteria": {
+    "ruin_hollowed": {
+      "trigger": "vanguard-spirits:ruin_hollowed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.vanguard-spirits.nothing_left_to_settle.description"
+    },
+    "frame": "goal",
+    "icon": {
+      "id": "vanguard-spirits:grave"
+    },
+    "title": {
+      "translate": "advancements.vanguard-spirits.nothing_left_to_settle.title"
+    }
+  },
+  "requirements": [
+    [
+      "ruin_hollowed"
+    ]
+  ],
+  "sends_telemetry_event": true
+}
