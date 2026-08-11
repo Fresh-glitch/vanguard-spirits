@@ -23,17 +23,34 @@ object CharmTooltip {
 	private const val GENERIC_KEY = "tooltip.vanguard-spirits.charm.generic"
 	const val HUSHED_KEY: String = "tooltip.vanguard-spirits.charm.hushed"
 	const val COST_KEY: String = "tooltip.vanguard-spirits.charm.cost"
+	const val DEPTH_KEY: String = "tooltip.vanguard-spirits.charm.depth"
 
 	fun register() {
 		ItemTooltipCallback.EVENT.register { stack, _, _, lines ->
 			val charm = stack.item as? CharmItem ?: return@register
 			val player = Minecraft.getInstance().player ?: return@register
 
+			val aura = charm.auraAt(CharmItem.depthOf(stack))
+
 			// Only the expensive ones say so. Printing "costs 1" on every charm
 			// would be noise on the case that is already the assumption.
-			if (charm.cost > 1) {
+			if (aura.cost > 1) {
 				lines.add(
-					Component.translatable(COST_KEY, charm.cost).withStyle(ChatFormatting.DARK_PURPLE),
+					Component.translatable(COST_KEY, aura.cost).withStyle(ChatFormatting.DARK_PURPLE),
+				)
+			}
+
+			// How much deeper it could still go, on any charm that deepens at all.
+			// A player who has never found an altar has to be told the depth
+			// exists; somebody holding a Returned should not be told about a
+			// mechanic that charm has no part in.
+			if (charm.maxDepth > 1) {
+				lines.add(
+					Component.translatable(
+						DEPTH_KEY,
+						CharmItem.numeral(CharmItem.depthOf(stack)),
+						CharmItem.numeral(charm.maxDepth),
+					).withStyle(ChatFormatting.DARK_GRAY),
 				)
 			}
 

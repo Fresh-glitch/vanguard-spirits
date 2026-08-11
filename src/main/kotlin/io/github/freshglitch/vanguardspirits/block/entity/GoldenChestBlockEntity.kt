@@ -4,6 +4,8 @@ import io.github.freshglitch.vanguardspirits.menu.GoldenChestMenu
 import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
 import io.github.freshglitch.vanguardspirits.registry.ModParticles
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
+import io.github.freshglitch.vanguardspirits.worldgen.RuinHollow
+import net.minecraft.ChatFormatting
 import net.minecraft.core.BlockPos
 import net.minecraft.core.NonNullList
 import net.minecraft.network.chat.Component
@@ -53,8 +55,10 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 		override fun onOpen(level: Level, pos: BlockPos, state: BlockState) =
 			play(level, pos, ModSounds.GOLDEN_CHEST_OPEN)
 
-		override fun onClose(level: Level, pos: BlockPos, state: BlockState) =
+		override fun onClose(level: Level, pos: BlockPos, state: BlockState) {
 			play(level, pos, ModSounds.GOLDEN_CHEST_CLOSE)
+			hollowIfStripped(level, pos)
+		}
 
 		/**
 		 * Announces the lid state to everyone tracking the chunk.
@@ -118,6 +122,37 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 	override fun saveAdditional(output: ValueOutput) {
 		super.saveAdditional(output)
 		if (!trySaveLootTable(output)) ContainerHelper.saveAllItems(output, items)
+	}
+
+	/**
+	 * Hollows the ruin the moment its Reliquary is left empty.
+	 *
+	 * Hung off the last opener leaving rather than off each item being taken:
+	 * "the visit is over and there is nothing left" is one event, and asking on
+	 * every slot change would fire on a chest a player was briefly using as
+	 * storage. By this point the loot table has certainly been unpacked -- the
+	 * menu reads every slot to build itself -- so an empty container here means
+	 * emptied, not unrolled.
+	 *
+	 * A Reliquary a player crafted and put in their own base is in no ruin, so
+	 * [RuinHollow.hollow] answers no and nothing happens.
+	 */
+	private fun hollowIfStripped(level: Level, pos: BlockPos) {
+		if (level !is ServerLevel) return
+		if (!isEmpty) return
+
+		if (!RuinHollow.hollow(level, pos)) return
+
+		// Said once, at the moment it changes. The player has just read six
+		// passages on the way down here and the last thing they did was prove
+		// the fifth one right, so this is the line landing rather than a warning.
+		for (player in level.players()) {
+			if (player.blockPosition().closerThan(pos, HOLLOW_EARSHOT)) {
+				player.sendSystemMessage(
+					Component.translatable(HOLLOWED_KEY).withStyle(ChatFormatting.DARK_PURPLE),
+				)
+			}
+		}
 	}
 
 	private fun play(level: Level, pos: BlockPos, sound: SoundEvent) {
@@ -263,6 +298,12 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 		const val SIZE: Int = 9
 
 		const val NAME_KEY: String = "container.vanguard-spirits.golden_chest"
+
+		/** Said once, to whoever is standing in the vault when it happens. */
+		const val HOLLOWED_KEY: String = "message.vanguard-spirits.ruin.hollowed"
+
+		/** Far enough to cover the vault, short enough not to reach the surface. */
+		private const val HOLLOW_EARSHOT = 24.0
 
 		/** Block-event id carrying the lid's open/shut state to clients. */
 		const val EVENT_LID: Int = 1

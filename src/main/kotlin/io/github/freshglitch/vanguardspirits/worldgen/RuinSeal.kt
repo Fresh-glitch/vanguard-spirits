@@ -50,15 +50,12 @@ object RuinSeal {
 	/**
 	 * The start chunk of the Guarded Ruin containing a position, if any.
 	 *
-	 * `getStructureWithPieceAt` returns [Structure]'s INVALID_START rather than
-	 * null when nothing matches, so the emptiness has to be asked for.
+	 * Shared with [RuinHollow] through [Ruins] rather than kept here. Both key
+	 * their state on this chunk, and two copies that drifted would put the seal
+	 * and the hollowing on different ruins.
 	 */
-	private fun ruinAt(level: ServerLevel, pos: BlockPos): ChunkPos? {
-		val start = level.structureManager().getStructureWithPieceAt(pos) { holder: Holder<Structure> ->
-			holder.value() is GuardedRuinsStructure
-		}
-		return if (start.isValid) start.chunkPos else null
-	}
+	private fun ruinAt(level: ServerLevel, pos: BlockPos): ChunkPos? =
+		Ruins.startChunkAt(level, pos)
 
 	/** Touching the object is what registers the attachment type. */
 	fun register() = Unit

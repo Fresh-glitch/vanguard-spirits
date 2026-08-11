@@ -1,6 +1,7 @@
 package io.github.freshglitch.vanguardspirits.registry
 
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
+import io.github.freshglitch.vanguardspirits.block.BindingAltarBlock
 import io.github.freshglitch.vanguardspirits.block.GoldenChestBlock
 import io.github.freshglitch.vanguardspirits.block.GraveBlock
 import io.github.freshglitch.vanguardspirits.block.MuralBlock
@@ -44,6 +45,11 @@ object ModBlocks {
 			.mapColor(MapColor.PODZOL)
 			.strength(0.6f)
 			.sound(SoundType.ROOTED_DIRT)
+			// A hollowed graveyard gives its dead back on its own, after dark.
+			// Random ticks are the clock for it -- a block entity on twenty-eight
+			// mounds per plot would be twenty-eight tickers to run a check that
+			// wants to happen a few times an hour.
+			.randomTicks()
 	}
 
 	/**
@@ -66,6 +72,24 @@ object ModBlocks {
 			.lightLevel { state ->
 				state.getValue(MuralBlock.GLOW) * MuralBlockEntity.LIGHT_PER_STEP
 			}
+	}
+
+	/**
+	 * Where a charm is bound one depth deeper.
+	 *
+	 * Deepslate's numbers again, because it is the ruin's own masonry -- and
+	 * mineable, so a player can carry one home rather than trekking back to a
+	 * sanctum every time they can afford a binding.
+	 */
+	val BINDING_ALTAR: Block = register("binding_altar", ::BindingAltarBlock) {
+		BlockBehaviour.Properties.of()
+			.mapColor(MapColor.DEEPSLATE)
+			.strength(3.5f, 6.0f)
+			.requiresCorrectToolForDrops()
+			.sound(SoundType.DEEPSLATE_BRICKS)
+			// Waist-high rather than a full cube, so faces touching it must keep
+			// rendering.
+			.noOcclusion()
 	}
 
 	/** Every block this mod registers, in display order. */

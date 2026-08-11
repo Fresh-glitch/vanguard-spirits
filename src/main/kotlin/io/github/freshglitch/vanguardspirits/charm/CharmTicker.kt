@@ -25,14 +25,24 @@ import net.minecraft.world.effect.MobEffectInstance
 object CharmTicker {
 
 	/**
-	 * Every effect any charm can grant.
+	 * Every effect any charm can grant, **at any depth**.
 	 *
 	 * Read off the item registry rather than a hand-kept list, so a charm added
 	 * later is withdrawn properly without anyone remembering to come here. Lazy
 	 * because the registry is not populated when this object is first touched.
+	 *
+	 * Flattening every depth is load-bearing, not tidiness. Haste exists only at
+	 * the Delver's second binding and deeper, so a list built from first depths
+	 * would grant it and then never be able to take it back -- putting a deepened
+	 * Delver down would leave the holder hasted permanently, and the effect would
+	 * look like it came from somewhere else entirely.
 	 */
 	private val grantable: List<Holder<MobEffect>> by lazy {
-		BuiltInRegistries.ITEM.filterIsInstance<CharmItem>().map { it.aura.effect }.distinct()
+		BuiltInRegistries.ITEM.filterIsInstance<CharmItem>()
+			.flatMap { charm -> charm.depths }
+			.flatMap { aura -> aura.grants }
+			.map { grant -> grant.effect }
+			.distinct()
 	}
 
 	fun register() {
@@ -49,8 +59,8 @@ object CharmTicker {
 		// to sit in the lower slot.
 		val wanted = HashMap<Holder<MobEffect>, Int>()
 		for (slot in CharmScan.activeSlots(player)) {
-			val charm = inventory.getItem(slot).item as? CharmItem ?: continue
-			wanted.merge(charm.aura.effect, charm.aura.amplifier, ::maxOf)
+			val aura = CharmItem.auraOf(inventory.getItem(slot)) ?: continue
+			for (grant in aura.grants) wanted.merge(grant.effect, grant.amplifier, ::maxOf)
 		}
 
 		for ((effect, amplifier) in wanted) {
