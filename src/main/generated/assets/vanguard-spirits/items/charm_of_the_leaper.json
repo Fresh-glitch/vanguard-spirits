@@ -1,6 +1,15 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "vanguard-spirits:item/charm_of_the_leaper"
+    "type": "minecraft:composite",
+    "models": [
+      {
+        "type": "minecraft:model",
+        "model": "vanguard-spirits:item/charm_of_the_leaper"
+      },
+      {
+        "type": "minecraft:model",
+        "model": "vanguard-spirits:item/charm_of_the_leaper_glow"
+      }
+    ]
   }
 }

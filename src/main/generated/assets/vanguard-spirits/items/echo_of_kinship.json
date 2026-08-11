@@ -1,6 +1,15 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "vanguard-spirits:item/echo_of_kinship"
+    "type": "minecraft:composite",
+    "models": [
+      {
+        "type": "minecraft:model",
+        "model": "vanguard-spirits:item/echo_of_kinship"
+      },
+      {
+        "type": "minecraft:model",
+        "model": "vanguard-spirits:item/echo_of_kinship_glow"
+      }
+    ]
   }
 }

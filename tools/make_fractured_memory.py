@@ -21,8 +21,11 @@ ramp for the stone, the echo runes' bone-white over amber for the light.
 """
 
 import os
+import json
 import struct
 import zlib
+
+from item_glow import glow_model
 
 OUT = r"P:\ClaudeMods\vanguard-spirits-26.2\src\main\resources\assets\vanguard-spirits\textures\item"
 SIZE = 16
@@ -206,8 +209,15 @@ def build(core, lip):
     return px
 
 
-def write_sheet(path, frames):
-    """One 16 wide strip, frames stacked downward -- vanilla's animation layout."""
+def write_sheet(path, frames, silhouette=True):
+    """One 16 wide strip, frames stacked downward -- vanilla's animation layout.
+
+    [silhouette] is False for the emissive layer. Its margin check asks whether
+    the *item* sits centred in its cell, which is a real fault worth shouting
+    about; the glow layer is a crack running off one corner and would be flagged
+    UNEVEN on every run for being exactly what it should be. A check that cries
+    wolf every time is worse than no check, because the next real one is ignored.
+    """
     height = SIZE * len(frames)
     raw = b"".join(
         b"\x00" + b"".join(struct.pack("BBBB", *frame[y][x]) for x in range(SIZE))
@@ -244,18 +254,84 @@ def write_sheet(path, frames):
     print(f"  {SIZE}x{height}, {len(frames)} frames, "
           f"{FRAMETIME * len(frames)} ticks per cycle "
           f"({FRAMETIME * len(frames) / 20:.0f}s)")
-    print(f"  margins L{left} R{right} T{top} B{bot}"
-          f"  {'balanced' if left == right and top == bot else '*** UNEVEN ***'}")
+    if silhouette:
+        print(f"  margins L{left} R{right} T{top} B{bot}"
+              f"  {'balanced' if left == right and top == bot else '*** UNEVEN ***'}")
+    else:
+        print(f"  margins L{left} R{right} T{top} B{bot}  (not a silhouette; no verdict)")
     print(f"  {len({p[:3] for p in opaque})} colours over {len(opaque)} px, "
           f"{100 * lit // len(opaque)}% lit  (frame 0)")
     print(f"  silhouette identical across all {len(frames)} frames")
 
 
-os.makedirs(OUT, exist_ok=True)
-frames = [build(core, lip) for core, lip in glow_frames()]
-write_sheet(os.path.join(OUT, "fractured_memory.png"), frames)
+def build_glow(core, lip):
+    """The break alone, on nothing: the emissive half of the item.
 
-with open(os.path.join(OUT, "fractured_memory.png.mcmeta"), "w", encoding="utf-8") as fh:
-    fh.write('{\n  "animation": {\n    "frametime": %d,\n    "interpolate": true\n  }\n}\n'
-             % FRAMETIME)
-print(f"wrote {os.path.join(OUT, 'fractured_memory.png.mcmeta')}")
+    **The crack core only, deliberately.** The lip is stone that has been tinted
+    by the light next to it, not light itself, so lighting it too would spread
+    the glow a pixel into rock that is meant to stay dead -- and at sixteen
+    pixels one pixel is the difference between a crack burning and the whole
+    shard being lit from within. [lip] is taken and ignored so this reads against
+    [build] line for line.
+
+    Colours are not chosen again here: `core` is the same value [build] paints,
+    which is what keeps the lit half landing exactly on the pixels it covers.
+    """
+    m = mask()
+    crack = set(CRACK) & m
+    px = [[(0, 0, 0, 0)] * SIZE for _ in range(SIZE)]
+
+    for (x, y) in crack:
+        px[y][x] = core + (255,)
+
+    return px
+
+
+def assert_registers(plain, glowing):
+    """Every lit pixel must be the break, and identical to the item's own."""
+    m = mask()
+    crack = set(CRACK) & m
+
+    for frame, (plate, burning) in enumerate(zip(plain, glowing)):
+        lit = {(x, y) for y in range(SIZE) for x in range(SIZE) if burning[y][x][3]}
+        assert lit == crack, f"frame {frame}: lit {len(lit)} px for {len(crack)} of break"
+
+        for (x, y) in lit:
+            assert burning[y][x] == plate[y][x], (
+                f"frame {frame} at {x},{y}: glow {burning[y][x]} but item has {plate[y][x]}"
+            )
+
+    print(f"  glow layer: {len(crack)} px of break, matching the item across "
+          f"all {len(plain)} frames, no stone lit")
+
+
+def write_mcmeta(path):
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write('{\n  "animation": {\n    "frametime": %d,\n    "interpolate": true\n  }\n}\n'
+                 % FRAMETIME)
+    print(f"wrote {path}")
+
+
+os.makedirs(OUT, exist_ok=True)
+tints = glow_frames()
+frames = [build(core, lip) for core, lip in tints]
+glowing = [build_glow(core, lip) for core, lip in tints]
+assert_registers(frames, glowing)
+
+write_sheet(os.path.join(OUT, "fractured_memory.png"), frames)
+write_mcmeta(os.path.join(OUT, "fractured_memory.png.mcmeta"))
+
+# The lit half is animated too, and by the *same* mcmeta -- both sheets are the
+# same height with the same frame count, so they step together. Give them
+# different frametimes and the burning crack would drift out of phase with the
+# crack it is supposed to be, slowly, over minutes.
+write_sheet(os.path.join(OUT, "fractured_memory_glow.png"), glowing, silhouette=False)
+write_mcmeta(os.path.join(OUT, "fractured_memory_glow.png.mcmeta"))
+
+MODEL_OUT = r"P:\ClaudeMods\vanguard-spirits-26.2\src\main\resources\assets\vanguard-spirits\models\item"
+os.makedirs(MODEL_OUT, exist_ok=True)
+model_path = os.path.join(MODEL_OUT, "fractured_memory_glow.json")
+with open(model_path, "w", encoding="utf-8") as fh:
+    json.dump(glow_model("fractured_memory"), fh, indent=2)
+    fh.write("\n")
+print(f"wrote {model_path}")

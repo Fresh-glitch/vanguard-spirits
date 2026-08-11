@@ -10,10 +10,13 @@ The rune is the only saturated colour on the item, and it carries a one pixel
 halo bled into the plate around it, so the glyph reads as cut into the stone and
 lit from inside rather than painted on top.
 """
+import json
 import math
 import os
 import struct
 import zlib
+
+from item_glow import glow_model
 
 OUT = r"P:\ClaudeMods\vanguard-spirits-26.2\src\main\resources\assets\vanguard-spirits\textures\item"
 
@@ -229,6 +232,46 @@ def bake(rune, glow):
     return px
 
 
+def bake_glow(rune, glow):
+    """Just the glyph, on nothing: the layer the Binding Altar lights up.
+
+    A charm lying on the altar is drawn twice -- once as itself, taking the light
+    of whatever room it is in, and once again with this on top at full brightness,
+    so the rune burns while the deepslate stays dark.
+
+    **The colours are not picked again here, they are the same expression.** The
+    line below is character for character the glyph pass in [bake], which is what
+    guarantees the overlay lands exactly on the pixels it is covering. Repainting
+    the glyph in a flat colour instead would show as a bright shape that does not
+    quite sit in its groove -- and only in the dark, where nobody is looking for
+    a registration bug. `assert_registers` proves it every run.
+    """
+    px = [[(0, 0, 0, 0)] * 16 for _ in range(16)]
+    for y in range(16):
+        for x in range(16):
+            if rune[y][x] != "#":
+                continue
+            px[y][x] = pick(glow, 0.45 + 0.55 * shade_of(x, y, *PLATE_BOX))
+    return px
+
+
+def assert_registers(name, plate, glowing, rune):
+    """Every lit pixel must equal the charm's own, and sit on a rune square."""
+    lit = 0
+    for y in range(16):
+        for x in range(16):
+            if glowing[y][x][3] == 0:
+                continue
+            lit += 1
+            assert rune[y][x] == "#", f"{name}: glow at {x},{y} is off the rune"
+            assert glowing[y][x] == plate[y][x], (
+                f"{name}: glow at {x},{y} is {glowing[y][x]}, charm has {plate[y][x]}"
+            )
+    drawn = sum(row.count("#") for row in rune)
+    assert lit == drawn, f"{name}: {lit} lit pixels for {drawn} rune squares"
+    print(f"  {name}: {lit} glyph pixels, all matching the charm underneath")
+
+
 def chunk(tag, data):
     body = tag + data
     return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
@@ -248,11 +291,43 @@ def write(path, px):
     print("wrote", os.path.basename(path))
 
 
+# --------------------------------------------------------- the glowing layer
+#
+# A charm's rune burns in the dark wherever the charm is -- held, dropped, in a
+# frame, lying on a Binding Altar. That is one line of data rather than any
+# rendering code: a model element carries `light_emission`, `FaceBakery` bakes it
+# into the quad's `MaterialInfo`, and `VertexConsumer.putBakedQuad` reads it back
+# when the quad is drawn. Since every one of those paths ends at `putBakedQuad`,
+# marking the glyph emissive once covers all of them.
+#
+# The glow sheet therefore lives under textures/item/ like any other item
+# texture, so it is stitched into the item atlas and a model can name it.
+
+MODEL_OUT = r"P:\ClaudeMods\vanguard-spirits-26.2\src\main\resources\assets\vanguard-spirits\models\item"
+
+CHARMS = [
+    ("charm_of_the_leaper", LEAPER_RUNE, SKY),
+    ("charm_of_the_wanderer", WANDERER_RUNE, LEAF),
+    ("charm_of_the_delver", DELVER_RUNE, EMBER),
+    ("charm_of_the_returned", RETURNED_RUNE, VIOLET),
+]
+
 os.makedirs(OUT, exist_ok=True)
-write(os.path.join(OUT, "charm_of_the_leaper.png"), bake(LEAPER_RUNE, SKY))
-write(os.path.join(OUT, "charm_of_the_wanderer.png"), bake(WANDERER_RUNE, LEAF))
-write(os.path.join(OUT, "charm_of_the_delver.png"), bake(DELVER_RUNE, EMBER))
-write(os.path.join(OUT, "charm_of_the_returned.png"), bake(RETURNED_RUNE, VIOLET))
+os.makedirs(MODEL_OUT, exist_ok=True)
+
+for name, rune, glow in CHARMS:
+    plate = bake(rune, glow)
+    glowing = bake_glow(rune, glow)
+    assert_registers(name, plate, glowing, rune)
+
+    write(os.path.join(OUT, name + ".png"), plate)
+    write(os.path.join(OUT, name + "_glow.png"), glowing)
+
+    path = os.path.join(MODEL_OUT, name + "_glow.json")
+    with open(path, "w") as handle:
+        json.dump(glow_model(name), handle, indent=2)
+        handle.write("\n")
+    print("wrote", os.path.basename(path))
 
 # The status effect icon, which vanilla draws at eighteen square.
 #
