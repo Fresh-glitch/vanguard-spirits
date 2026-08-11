@@ -177,8 +177,15 @@ class BindingAltarScreen(
 		/** The panel occupies the top-left of a 256x256 sheet, as vanilla's do. */
 		private const val SHEET = 256
 
-		/** Just above the slot row, where the anvil puts its level cost. */
-		private const val PRICE_Y = 33
+		/**
+		 * Between the title and the arch, clear of both.
+		 *
+		 * It began at 33, which is the anvil's height for its level cost and is
+		 * also exactly where this panel's arch springs -- so the line landed on
+		 * the keystone and read as part of the masonry. Up here it has the plain
+		 * field to itself.
+		 */
+		private const val PRICE_Y = 22
 
 		// The chain, matching `make_binding_altar.py`. Both files name these
 		// numbers and the generator asserts the price line against this one, so a
