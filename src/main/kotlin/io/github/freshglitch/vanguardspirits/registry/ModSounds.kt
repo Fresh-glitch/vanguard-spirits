@@ -110,6 +110,20 @@ object ModSounds {
 	val SENTINEL_HURT: SoundEvent = register("entity.stone_sentinel.hurt")
 	val SENTINEL_DEATH: SoundEvent = register("entity.stone_sentinel.death")
 
+	/**
+	 * The Binding Altar answering a hand on it.
+	 *
+	 * Deliberately not a stone sound. The first pair generated were a slab
+	 * grinding and a chain snapping taut, and they were wrong for the same
+	 * reason the arrow was: what happens at this block is not mechanical. It is
+	 * a memory being bound, so the altar sounds like something waking rather
+	 * than something opening.
+	 */
+	val BINDING_ALTAR_OPEN: SoundEvent = register("block.binding_altar.open")
+
+	/** A binding taking hold, played when the deeper charm is lifted off. */
+	val BINDING_ALTAR_BIND: SoundEvent = register("block.binding_altar.bind")
+
 	private fun register(path: String): SoundEvent {
 		val id = VanguardSpirits.id(path)
 		return Registry.register(BuiltInRegistries.SOUND_EVENT, id, SoundEvent.createVariableRangeEvent(id))

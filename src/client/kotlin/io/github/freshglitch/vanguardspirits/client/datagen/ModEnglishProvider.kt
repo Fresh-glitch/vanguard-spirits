@@ -81,6 +81,8 @@ class ModEnglishProvider(
 		builder.add("subtitles.vanguard-spirits.mural.turn", "Stone ticks")
 		builder.add("subtitles.vanguard-spirits.golden_chest.open", "Reliquary creaks open")
 		builder.add("subtitles.vanguard-spirits.golden_chest.close", "Reliquary seals")
+		builder.add("subtitles.vanguard-spirits.binding_altar.open", "The altar stirs")
+		builder.add("subtitles.vanguard-spirits.binding_altar.bind", "A binding takes hold")
 		builder.add("subtitles.vanguard-spirits.charm.wake", "Charm answers")
 		builder.add("subtitles.vanguard-spirits.charm.hush", "Charm falls quiet")
 		builder.add("subtitles.vanguard-spirits.charm.deflect", "Ward turns a shot")

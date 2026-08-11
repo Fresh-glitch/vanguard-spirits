@@ -58,9 +58,24 @@ SLOT = 18
 
 # Must agree with BindingAltarMenu.slotLayout(). Those are slot *origins*, which
 # vanilla draws at origin-1 with an 18x18 well around a 16x16 item.
-CHARM_XY = (27, 47)
-PAYMENT_XY = (76, 47)
+CHARM_XY = (22, 47)
+PAYMENT_XY = (52, 47)
 RESULT_XY = (134, 47)
+
+# The chain between the payment slot and the result, in panel coordinates, and
+# the sprite strips it is drawn from on the sheet below the panel.
+#
+# Eight links because it is the shape of the price: a binding costs eight
+# memories, then sixteen, so one link is one memory at the first depth and two
+# at the second. Nothing in the UI says that out loud and it does not need to --
+# what the player reads is how much of the chain is closed.
+CHAIN_XY = (76, 51)
+CHAIN_LINKS = 8
+LINK_W, LINK_H = 6, 10
+CHAIN_W = CHAIN_LINKS * LINK_W
+
+CHAIN_DARK_V = 172
+CHAIN_LIT_V = 186
 
 INV_XY = (8, 84)
 HOTBAR_Y = 142
@@ -119,29 +134,106 @@ def slot_well(panel, x, y, raised=False):
     )
 
 
-def arrow_between(panel, x, y):
-    """The chevron from the payment slot toward the result, in ember.
+def link_shape():
+    """One chain link, 6x10, as a boolean outline.
 
-    Drawn rather than blitted from the mural sheet: that one is 18x11 and points
-    left and right for paging, and reusing it would put a page-turn control in
-    the middle of a station where nothing pages.
-
-    A shaft plus a head, not a triangle. Seven pixels of solid wedge reads as a
-    blob at this size -- the arrow only says *direction* once there is a line for
-    the head to sit on the end of.
+    Drawn as an upright oval rather than a circle: laid side by side, upright
+    ovals overlap the way real links do, and a row of circles reads as beads.
     """
-    ember = EMBER * 0.95
-    shade = EMBER * 0.5
+    mask = np.zeros((LINK_H, LINK_W), bool)
+    outline = [
+        (2, 0), (3, 0),
+        (1, 1), (4, 1),
+        (0, 2), (5, 2),
+        (0, 3), (5, 3),
+        (0, 4), (5, 4),
+        (0, 5), (5, 5),
+        (0, 6), (5, 6),
+        (0, 7), (5, 7),
+        (1, 8), (4, 8),
+        (2, 9), (3, 9),
+    ]
+    for x, y in outline:
+        mask[y, x] = True
+    return mask
 
-    # Shaft, with a darker line under it so it sits on the field rather than
-    # floating over it.
-    panel[y, x:x + 8] = ember
-    panel[y + 1, x:x + 8] = shade
 
-    # Head: four columns narrowing to the point.
-    for step in range(4):
-        half = 3 - step
-        panel[y - half:y + half + 1, x + 8 + step] = ember
+def chain_strip(lit):
+    """The eight-link chain, either dead stone or closed and burning.
+
+    Two strips on the sheet rather than one drawn per state, because the screen
+    has to show *part* of it: the lit strip is blitted over the dark one, cropped
+    to however many links the player has paid for. That is the whole reason this
+    replaced an arrow -- an arrow between two slots implies a process with a
+    duration, and there is none here. There is only a price, and how near you
+    are to it.
+    """
+    strip = np.zeros((LINK_H, CHAIN_W, 4), np.uint8)
+    mask = link_shape()
+
+    for index in range(CHAIN_LINKS):
+        x0 = index * LINK_W
+        for yy in range(LINK_H):
+            for xx in range(LINK_W):
+                if not mask[yy, xx]:
+                    continue
+
+                if lit:
+                    # Lit from the top-left like every other mark on this block,
+                    # measured within the link so each one is shaded the same
+                    # rather than the row fading along its length.
+                    colour = lit_tone(xx, yy, cx=LINK_W / 2.0 - 0.5, cy=LINK_H / 2.0 - 0.5)
+                else:
+                    colour = np.array(MOD_STONE[2], float) * 0.9
+
+                strip[yy, x0 + xx, :3] = np.clip(colour, 0, 255).astype(np.uint8)
+                strip[yy, x0 + xx, 3] = 255
+
+    return strip
+
+
+def alcove(panel, x0, y0, x1, y1):
+    """A round-headed recess behind the working row.
+
+    The panel was a rectangle of dressed stone with three holes in it, which is
+    a form, not a place. An arch is the one shape that says *this was cut into a
+    wall* -- it is what the crypt's own doorways do -- and it costs nothing but
+    a curve on the top edge.
+    """
+    dark = np.array(MOD_MORTAR, float)
+    rim = np.array(MOD_STONE[5], float)
+    rise = 11
+    cx = (x0 + x1) / 2.0
+    span = (x1 - x0) / 2.0
+
+    heads = {}
+    for x in range(x0, x1):
+        # A shallow arc over the opening: full rise at the centre, none at the
+        # springing points.
+        t = (x - cx) / span
+        heads[x] = int(round(rise * (1.0 - t * t)))
+
+    for x in range(x0, x1):
+        top = y0 - heads[x]
+
+        # Sunk hard, not shaded. The first cut darkened by a quarter and the
+        # arch read as a smudge on the wall rather than a hole in it -- a recess
+        # is defined by how much light it loses, and a quarter is not enough to
+        # tell.
+        panel[top:y1, x] = np.clip(panel[top:y1, x] * 0.55, 0, 255)
+
+        # A lit lip above the cut and a dark line just inside it. That pair is
+        # what makes an edge read as an overhang rather than as a drawn line.
+        panel[top - 1, x] = rim
+        panel[top, x] = dark
+
+    # The keystone: three courses at the apex, left standing proud of the arch.
+    key = int(round(cx))
+    apex = y0 - heads[key]
+    panel[apex - 2:apex + 4, key - 2:key + 3] = np.clip(
+        np.array(MOD_STONE[3], float) * 1.05, 0, 255
+    )
+    bevel(panel, key - 2, apex - 2, key + 3, apex + 4, rim, dark, inset_dark_top=False)
 
 
 # A fourth tone, below ember.
@@ -230,6 +322,10 @@ def build_panel():
     panel[iy0:iy1, ix0:ix1] = field(ix1 - ix0, iy1 - iy0, seed=51_2026)
     bevel(panel, ix0, iy0, ix1, iy1, np.array(MOD_STONE[5], float), dark, inset_dark_top=True)
 
+    # The recess the whole working row sits in, cut before anything is set into
+    # it so the slots and the chain read as standing inside the arch.
+    alcove(panel, CHARM_XY[0] - 6, 44, RESULT_XY[0] + SLOT + 3, 69)
+
     # What you bring and what you pay are cut in; what you take is set proud and
     # ringed brighter, so the row reads left to right as give, pay, receive.
     for xy in (CHARM_XY, PAYMENT_XY):
@@ -239,7 +335,19 @@ def build_panel():
     inlay(panel, *RESULT_XY, AMBER)
     slot_well(panel, *RESULT_XY, raised=True)
 
-    arrow_between(panel, PAYMENT_XY[0] + SLOT + 4, RESULT_XY[1] + 8)
+    # The channel the chain lies in. Bevelled rather than simply darkened: a
+    # plain dark rectangle reads as a hole cut in the artwork, and the chain then
+    # looks like it is floating over a gap instead of resting in a groove.
+    cx0, cy0 = CHAIN_XY
+    gx0, gy0 = cx0 - 2, cy0 + 1
+    gx1, gy1 = cx0 + CHAIN_W + 2, cy0 + LINK_H - 1
+    panel[gy0:gy1, gx0:gx1] = np.clip(panel[gy0:gy1, gx0:gx1] * 0.62, 0, 255)
+    bevel(
+        panel, gx0, gy0, gx1, gy1,
+        np.array(MOD_STONE[4], float),
+        np.array(MOD_MORTAR, float),
+        inset_dark_top=True,
+    )
 
     for row in range(3):
         for col in range(9):
@@ -249,6 +357,11 @@ def build_panel():
 
     sheet[0:PANEL_H, 0:PANEL_W, :3] = panel.astype(np.uint8)
     sheet[0:PANEL_H, 0:PANEL_W, 3] = 255
+
+    # The two chain strips, below the panel on the sheet.
+    sheet[CHAIN_DARK_V:CHAIN_DARK_V + LINK_H, 0:CHAIN_W] = chain_strip(lit=False)
+    sheet[CHAIN_LIT_V:CHAIN_LIT_V + LINK_H, 0:CHAIN_W] = chain_strip(lit=True)
+
     return sheet
 
 
