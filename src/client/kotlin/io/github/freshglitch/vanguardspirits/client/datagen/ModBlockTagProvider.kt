@@ -28,9 +28,16 @@ import java.util.concurrent.CompletableFuture
  * component, whose rules are all written against **block tags**. A block in no
  * tag matches no rule, so a diamond pickaxe is as wrong as a bare hand.
  *
- * Neither block gets a tier tag. Vanilla's deepslate bricks need only *a*
- * pickaxe, and the mural is deepslate; gating the Reliquary behind iron would
- * be a rule a player has no way to discover.
+ * The mural and the altar get no tier tag: vanilla's deepslate bricks need only
+ * *a* pickaxe and both are deepslate, so anything stricter would be a rule with
+ * nothing to hint at it.
+ *
+ * **The Reliquary now needs iron**, which was previously argued against here on
+ * exactly that discoverability ground. What changed is that the ward holds the
+ * chest shut until its Sentinel falls, so nobody meets this rule until they have
+ * beaten a ruin -- by which point iron is long behind them. The tier no longer
+ * gates access to anything; it says the vault is worth more than the stone
+ * around it.
  */
 class ModBlockTagProvider(
 	output: FabricPackOutput,
@@ -45,5 +52,8 @@ class ModBlockTagProvider(
 		listOf(ModBlocks.MURAL, ModBlocks.GOLDEN_CHEST, ModBlocks.BINDING_ALTAR).forEach { block ->
 			pickaxe.add(BuiltInRegistries.BLOCK.getResourceKey(block).orElseThrow())
 		}
+
+		builder(BlockTags.NEEDS_IRON_TOOL)
+			.add(BuiltInRegistries.BLOCK.getResourceKey(ModBlocks.GOLDEN_CHEST).orElseThrow())
 	}
 }
