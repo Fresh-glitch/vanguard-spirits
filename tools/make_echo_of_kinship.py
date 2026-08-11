@@ -14,6 +14,9 @@ import math
 import os
 import struct
 import zlib
+import json
+
+from item_glow import glow_model
 
 OUT = r"P:\ClaudeMods\vanguard-spirits-26.2\src\main\resources\assets\vanguard-spirits\textures\item"
 
@@ -141,3 +144,16 @@ write_strip(os.path.join(OUT, "echo_of_kinship.png"), [frame(n) for n in range(F
 with open(os.path.join(OUT, "echo_of_kinship.png.mcmeta"), "w", encoding="utf-8") as fh:
     fh.write('{\n  "animation": {\n    "frametime": 2,\n    "interpolate": true\n  }\n}\n')
 print("wrote echo_of_kinship.png.mcmeta")
+
+# The Echo burns whole, not in part, so this is the one glowing layer in the mod
+# with no sheet of its own -- it wears the item's own texture. Which is also why
+# it is the only one that cannot fall out of step: there is a single animation
+# here, not two that have to agree.
+MODEL_OUT = r"P:\ClaudeMods\vanguard-spirits-26.2\src\main\resources\assets\vanguard-spirits\models\item"
+os.makedirs(MODEL_OUT, exist_ok=True)
+
+model_path = os.path.join(MODEL_OUT, "echo_of_kinship_glow.json")
+with open(model_path, "w", encoding="utf-8") as fh:
+    json.dump(glow_model("echo_of_kinship", texture="echo_of_kinship"), fh, indent=2)
+    fh.write("\n")
+print("wrote %s" % os.path.basename(model_path))

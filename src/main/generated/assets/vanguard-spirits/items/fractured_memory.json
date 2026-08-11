@@ -1,6 +1,15 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "vanguard-spirits:item/fractured_memory"
+    "type": "minecraft:composite",
+    "models": [
+      {
+        "type": "minecraft:model",
+        "model": "vanguard-spirits:item/fractured_memory"
+      },
+      {
+        "type": "minecraft:model",
+        "model": "vanguard-spirits:item/fractured_memory_glow"
+      }
+    ]
   }
 }
