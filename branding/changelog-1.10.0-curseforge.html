@@ -1,0 +1,53 @@
+<h1>1.10.0 &mdash; Charms run deeper</h1>
+
+<p>The loop used to end. Four charms and a full attunement was about nineteen Fractured Memories, and after that a Guarded Ruin had nothing left to offer &mdash; the Sentinel dead, the Reliquary empty, the graveyard quiet.</p>
+
+<p>Charms can now be bound <strong>deeper</strong>, and a ruin you have stripped keeps giving.</p>
+
+<h2>Added</h2>
+
+<ul>
+  <li><strong>Binding Altar</strong> &mdash; a new block that binds a charm one depth further. Costs <strong>8</strong> Fractured Memories to reach II and <strong>16</strong> to reach III. One generates in every sanctum's crypt, beneath the passage that describes the first binding, and it can be crafted from deepslate bricks around a memory.</li>
+  <li><strong>Charm depth.</strong> Every charm except the Returned now has three.</li>
+</ul>
+
+<table>
+  <tr><th>Charm</th><th>I</th><th>II</th><th>III</th><th>Attunement</th></tr>
+  <tr><td><strong>Leaper</strong></td><td>Jump Boost I</td><td>Jump Boost II</td><td>Jump Boost III</td><td>1 / 2 / 3</td></tr>
+  <tr><td><strong>Wanderer</strong></td><td>Speed I</td><td>Speed II</td><td>Speed III</td><td>1 / 2 / 3</td></tr>
+  <tr><td><strong>Delver</strong></td><td>Night Vision</td><td>+ Haste I</td><td>+ Haste II</td><td>1 / 2 / 3</td></tr>
+  <tr><td><strong>Returned</strong></td><td>Deflection</td><td>&mdash;</td><td>&mdash;</td><td>3</td></tr>
+</table>
+
+<ul>
+  <li>A deeper charm <strong>costs more attunement</strong>, so depth is a decision rather than an upgrade: at the cap of four, a charm at III leaves room for exactly one more.</li>
+  <li>The Delver widens instead of strengthening, because night vision has only one strength. A deeper binding makes you a better delver rather than a brighter one.</li>
+  <li>Depth lives on the charm, so it travels with the item and shows in its name and tooltip.</li>
+  <li><strong>The hollowing.</strong> Emptying a Gilded Reliquary takes the last of what was holding the people above it together. From then on that graveyard gives them back after dark, permanently, and what rises is carrying what is left of a memory. A stripped ruin stops being dead ground and becomes somewhere worth returning to.</li>
+  <li>Two advancements: <strong>Deeper Than We Meant</strong> and <strong>Nothing Left to Settle</strong>.</li>
+</ul>
+
+<h2>Fixed</h2>
+
+<ul>
+  <li><strong>A crypt's floor could open in several places, or in none.</strong> The opening was placed from a per-chunk random, and a ruin's crypt always straddles a chunk border &mdash; so 67% of ruins got more than one opening and 6% got no way down at all. Now exactly one, every time.</li>
+  <li><strong>A level of the deeps could hold several Remnant spawners, or none.</strong> Same cause: 31% of levels had no spawner. Now exactly one per level, and one hole down.</li>
+  <li>The Binding Altar no longer generates standing over the crypt's opening.</li>
+</ul>
+
+<h2>Notes</h2>
+
+<ul>
+  <li>The worldgen fixes change where a crypt's opening and a deeps level's spawner sit, so ruins generated after updating will differ from ones already in your world. Existing ruins are unchanged.</li>
+  <li>Charms you already own read as depth I and can be taken to an altar.</li>
+</ul>
+
+<h2>Requires</h2>
+
+<ul>
+  <li>Minecraft 26.2</li>
+  <li>Fabric Loader 0.19.3 or newer</li>
+  <li>Fabric API</li>
+  <li>Fabric Language Kotlin</li>
+  <li>Java 25</li>
+</ul>
