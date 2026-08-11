@@ -222,6 +222,87 @@ def deeps_report():
     print("fix: exactly one spawner and one opening per level, in every ruin")
 
 
+# ------------------------------------------------------- the altar vs the hole
+
+CRYPT_HOLE_X_SALT = 131
+CRYPT_HOLE_Z_SALT = 132
+
+
+ALTAR_CELL = (CRYPT_INSET + 1, SANCTUM_LAST // 2)
+
+
+def crypt_hole_raw(origin):
+    """The centre before it is stepped clear of the altar."""
+    key = SANCTUM_LAST // 2
+    wx, wz = world_of(origin, key, key)
+    return (LO + window(wx, wz, CRYPT_HOLE_X_SALT) % SPAN,
+            LO + window(wx, wz, CRYPT_HOLE_Z_SALT) % SPAN)
+
+
+def crypt_hole(origin):
+    """Where breakCryptFloor centres its opening, exactly as the Kotlin does."""
+    x, z = crypt_hole_raw(origin)
+    ax, az = ALTAR_CELL
+    if abs(x - ax) <= 1 and abs(z - az) <= 1:
+        x = (LO + HI) // 2
+    return (x, z)
+
+
+def carved(hole, x, z):
+    """Whether (x, z) is inside the 3x3 breakFloor takes out.
+
+    This is the thing the first fix got wrong: it stayed clear of the range the
+    *centre* is drawn from and forgot the carve reaches one further on every
+    side.
+    """
+    return abs(x - hole[0]) <= 1 and abs(z - hole[1]) <= 1
+
+
+def altar_report():
+    """The altar keeps its cell under passage IV; the opening steps around it.
+
+    Two things have to hold at once, and the second is the one that was lost in
+    the attempt before this: the altar must never stand in the hole, *and* it
+    must stay directly under the mural that explains it, since that is the only
+    reason it is in the crypt rather than the sanctum.
+    """
+    before = after = 0
+    nudged = 0
+    spread = {}
+
+    for i in range(SITES):
+        origin = box_origin((i % 200) - 100, (i // 200) - 100)
+
+        if carved(crypt_hole_raw(origin), *ALTAR_CELL):
+            before += 1
+
+        hole = crypt_hole(origin)
+        if hole != crypt_hole_raw(origin):
+            nudged += 1
+        if carved(hole, *ALTAR_CELL):
+            after += 1
+        spread[hole] = spread.get(hole, 0) + 1
+
+    print("\n=== binding altar vs the crypt opening ===")
+    print(f"altar cell: local {ALTAR_CELL}, directly under passage IV")
+    print(f"BEFORE (hole placed with no regard for it): "
+          f"{before} of {SITES} bury the altar ({100.0 * before / SITES:.1f}%)")
+    print(f"AFTER  (hole steps clear):                  "
+          f"{after} of {SITES} bury the altar ({100.0 * after / SITES:.1f}%)")
+    print(f"holes nudged: {nudged} ({100.0 * nudged / SITES:.1f}%)")
+    print(f"distinct hole centres still reachable: {len(spread)}")
+
+    # Positive control: the checker has to be able to see the failure that was
+    # actually observed in game, or its verdict on the fix is worth nothing.
+    assert before > 0, (
+        "the model never reproduces the plinth that was seen in a screenshot -- "
+        "it cannot see the bug, so a clean result afterwards is empty"
+    )
+    assert after == 0, f"{after} sites still put the altar inside the opening"
+    assert len(spread) > 1, "the nudge collapsed every ruin onto one hole position"
+    print("fix: the altar stands under passage IV in every ruin, and never in the hole")
+
+
 def main():
     # A stand-in for per-chunk RandomSource: deterministic, but different per
     # chunk, which is exactly the property that causes the bug.
@@ -276,6 +357,7 @@ def main():
     print("fix: every chunk computes the same centre, so exactly one opening is carved")
 
     deeps_report()
+    altar_report()
 
 
 if __name__ == "__main__":

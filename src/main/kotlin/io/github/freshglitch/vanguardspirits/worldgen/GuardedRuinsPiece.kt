@@ -105,23 +105,30 @@ class GuardedRuinsPiece : StructurePiece {
 	 * once per chunk with its own random, and anything drawn would disagree with
 	 * itself across a border.
 	 *
-	 * ## Why it hugs the wall, and why it lays its own floor
+	 * ## Why the hole moves and the altar does not
 	 *
-	 * [breakCryptFloor] opens a hole somewhere in `CRYPT_INSET + 2` to
-	 * `SANCTUM_LAST - CRYPT_INSET - 2`, drawn at random and run *before* this. An
-	 * altar at the start of that range -- which is where it first went -- can
-	 * therefore generate standing over a hole, in the ruins unlucky enough to
-	 * roll one under it. Sitting at `CRYPT_INSET + 1` puts it one column outside
-	 * the range entirely, which also stands it directly beneath passage IV on the
-	 * west wall rather than out in the middle of the room.
+	 * [breakCryptFloor] runs *before* this and takes the floor out from under
+	 * anything already standing there. Staying clear of it is not a matter of
+	 * avoiding the centre it picks: [breakFloor] carves three by three *around*
+	 * that centre, so the range it eats is `CRYPT_INSET + 1` to
+	 * `SANCTUM_LAST - CRYPT_INSET - 1` -- the whole crypt interior on both axes.
+	 * There is no fixed cell in the room that is safe in every ruin. The first
+	 * attempt read the centre's range instead of the carved one, put the altar a
+	 * column outside *that*, and generated on a plinth in the middle of the
+	 * opening -- with the deepslate laid underneath as insurance being what built
+	 * the plinth rather than leaving it floating.
 	 *
-	 * The deepslate beneath is laid anyway. Being outside the range is a fact
-	 * about two constants in different methods, and the cost of not depending on
-	 * that is one block.
+	 * The second attempt moved the altar to wherever the hole was not, and cost
+	 * more than it was worth: standing under the passage that explains the
+	 * binding is the whole reason it is in this room rather than the sanctum.
+	 *
+	 * So the altar keeps its cell and the hole gives way. They collide in exactly
+	 * one arrangement -- centre x at the near edge and centre z within one of the
+	 * altar -- which is a twelfth of ruins, and [cryptHoleCentre] steps that case
+	 * across the room. A hole has nothing to be near, so moving it costs nothing.
 	 */
 	private fun setBindingAltar(level: WorldGenLevel, box: BoundingBox) {
-		val x = CRYPT_INSET + 1
-		val z = SANCTUM_LAST / 2
+		val (x, z) = ALTAR_CELL
 
 		put(level, box, Blocks.DEEPSLATE_BRICKS.defaultBlockState(), x, CRYPT_FLOOR, z)
 		put(
@@ -132,6 +139,32 @@ class GuardedRuinsPiece : StructurePiece {
 			CRYPT_FLOOR + 1,
 			z,
 		)
+	}
+
+	/**
+	 * Where the crypt's opening is centred, already stepped clear of the altar.
+	 *
+	 * One definition, called by both the carve and the altar, so the two cannot
+	 * end up reasoning about holes in different places.
+	 *
+	 * The nudge is on x rather than z because the altar sits against the west
+	 * wall: only a centre at the near edge can reach it, so moving that one case
+	 * to the middle of the room clears the altar by three and stays inside the
+	 * eligible range. It leaves the distribution very slightly heavier at that
+	 * column, which is invisible in a floor whose whole job is to look broken.
+	 */
+	private fun cryptHoleCentre(): Pair<Int, Int> {
+		val lo = CRYPT_INSET + 2
+		val hi = SANCTUM_LAST - CRYPT_INSET - 2
+		val span = hi - lo + 1
+		val key = SANCTUM_LAST / 2
+
+		val x = lo + rangeAt(key, key, CRYPT_HOLE_X_SALT, span)
+		val z = lo + rangeAt(key, key, CRYPT_HOLE_Z_SALT, span)
+
+		val (ax, az) = ALTAR_CELL
+		val clear = if (Math.abs(x - ax) <= 1 && Math.abs(z - az) <= 1) (lo + hi) / 2 else x
+		return clear to z
 	}
 
 	// --------------------------------------------------------------- murals
@@ -614,30 +647,17 @@ class GuardedRuinsPiece : StructurePiece {
 	 * lantern or into the mouth of the stair above.
 	 */
 	private fun breakCryptFloor(level: WorldGenLevel, box: BoundingBox, random: RandomSource) {
-		val lo = CRYPT_INSET + 2
-		val hi = SANCTUM_LAST - CRYPT_INSET - 2
-		val span = hi - lo + 1
-
 		// Positional, not drawn. The eligible range is local 6..10 on both axes,
 		// and local 9 is on a chunk edge in every ruin -- so four chunks meet
 		// inside it, each `postProcess` call used to draw its own centre, and
 		// each carved a hole at that centre clipped to itself. Measured over
-		// 40,000 sites in `tools/check_crypt_hole.py`: 67% of ruins got more
+		// 40,000 sites in `tools/check_chunk_agreement.py`: 67% of ruins got more
 		// than one opening and 6% got none, against 27% with the single ragged
 		// hole this is supposed to make. Nothing reports it, and a floor that is
 		// *meant* to be broken looks broken either way, which is why it stood.
-		//
-		// Keyed on the middle of the sanctum rather than on the hole itself,
-		// because the key has to be something every chunk can compute before it
-		// knows where the hole is.
-		val key = SANCTUM_LAST / 2
+		val (x, z) = cryptHoleCentre()
 
-		breakFloor(
-			level, box, random,
-			CRYPT_FLOOR,
-			lo + rangeAt(key, key, CRYPT_HOLE_X_SALT, span),
-			lo + rangeAt(key, key, CRYPT_HOLE_Z_SALT, span),
-		)
+		breakFloor(level, box, random, CRYPT_FLOOR, x, z)
 	}
 
 	// ---------------------------------------------------------------- crypt
@@ -1055,6 +1075,15 @@ class GuardedRuinsPiece : StructurePiece {
 		/** Which room of a deeps level gives way, and which holds the spawner. */
 		private const val DEEP_HOLE_SALT = 141
 		private const val DEEP_SPAWNER_SALT = 142
+
+		/**
+		 * Where the Binding Altar stands, against the west wall under passage IV.
+		 *
+		 * Fixed, and the crypt's opening steps around it rather than the other way
+		 * about -- see [setBindingAltar]. Named because two places need it and a
+		 * second copy is how the altar and the hole would start disagreeing.
+		 */
+		private val ALTAR_CELL = (CRYPT_INSET + 1) to (SANCTUM_LAST / 2)
 
 		private fun boxAround(centre: BlockPos): BoundingBox {
 			val half = WIDTH / 2

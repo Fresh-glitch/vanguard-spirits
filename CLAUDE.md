@@ -782,7 +782,14 @@ Mechanics, each of which cost a lookup:
   and the firing site cannot name different things.
 - Two free instruments. `Loaded N advancements` reconciles exactly against
   vanilla's file count plus ours, so a rejected advancement shows up as a number
-  that is one short. And the **announcement wording reveals the frame** — "has
+  that is one short — adding two took it from 1704 to 1706. **But that line is
+  logged many times a session and only the first is the total.** Everything
+  after it is the *client* being sent the player's earned progress, so the same
+  message reads 1706, then 2, then 10, then 17, climbing as they play. Twenty-five
+  of them in one session, and reading any but the first as the datapack total
+  looks exactly like the mod's tree having failed to load. Take the first, from
+  the server's datapack load, and ignore the rest.
+  And the **announcement wording reveals the frame** — "has
   made the advancement" / "has reached the goal" / "has completed the challenge"
   — which is the only confirmation from a log that `AdvancementType` took.
 - Generate the tree and its lang strings from **one shared list**
