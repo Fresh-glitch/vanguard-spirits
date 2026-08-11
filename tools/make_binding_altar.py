@@ -21,6 +21,7 @@ lining up with the slots a player can actually click.
 crooked. This is the same rule the Reliquary's panel follows.
 """
 
+import json
 import os
 import sys
 
@@ -30,13 +31,17 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from make_mural_textures import (  # noqa: E402
+    BONE,
     AMBER,
     EMBER,
     MOD_MORTAR,
     MOD_STONE,
     bevel,
+    carve,
     dressed_slab,
     mod_masonry,
+    raster,
+    vanilla_ground,
 )
 
 ROOT = r"P:\ClaudeMods\vanguard-spirits-26.2\src\main\resources"
@@ -206,21 +211,136 @@ def build_panel():
 
 
 def build_top():
-    """The altar's working surface: dressed stone with a bound ring cut in it."""
-    top = dressed_slab(16, 16, seed=9_2026).astype(float)
+    """The altar's working surface: the binding ring, with the shard at its heart.
 
-    ring(top, 8.0, 8.0, 5.5, MOD_MORTAR, 0.8)
-    ring(top, 8.0, 8.0, 4.5, AMBER, 0.55)
+    The face the player actually looks at while using the block, so it carries
+    the most work of any of them -- and the only one that gets three elements
+    rather than one.
 
-    # Four notches on the axes, so the mark reads as something made rather than
-    # as a stain. Placed off the ring itself, which would just thicken it.
+    Two things were wrong with the first cut. It was drawn on `dressed_slab`,
+    which is the *panel's* blue-grey masonry, while every other face of the
+    altar is vanilla deepslate: side by side on one block the top read as a
+    different rock. And the ring was laid at 55% amber over dark stone with no
+    groove, so at a distance the whole surface went to a flat black square with
+    a smudge in it. Now it is cut the way the murals cut things -- a shadow
+    shell, then full-strength amber -- on the same ground as the rest.
+    """
+    ground = vanilla_ground(16, seed=9_2026)
+
+    core = np.zeros((16, 16), bool)
+
+    # The ring. Measured from pixel centres: on an even-sided face there is no
+    # pixel at the true middle, so measuring from the corner puts it half a
+    # pixel out and it comes back lopsided.
+    for yy in range(16):
+        for xx in range(16):
+            d = ((xx + 0.5 - 8.0) ** 2 + (yy + 0.5 - 8.0) ** 2) ** 0.5
+            if abs(d - 5.2) < 0.6:
+                core[yy, xx] = True
+
+    # Four notches on the axes, outside the ring. They say the mark was made
+    # rather than stained, and being clear of the ring keeps it one pixel wide.
     for dx, dy in ((0, -7), (0, 6), (-7, 0), (6, 0)):
-        top[8 + dy, 8 + dx] = np.array(EMBER, float) * 0.8
+        core[8 + dy, 8 + dx] = True
+
+    # The shard at the centre, the same lozenge the shaft wears -- what the ring
+    # is a ring *around*.
+    heart = np.zeros((16, 16), bool)
+    for dy, half in ((-1, 1), (0, 2), (1, 1)):
+        heart[8 + dy, 8 - half:8 + half + 1] = True
+
+    from make_mural_textures import GROOVE_DARKEN, grow
+
+    out = ground.copy()
+
+    mark = core | heart
+    shell = grow(mark) & ~mark
+    out[shell] = out[shell] * GROOVE_DARKEN
+
+    out[core] = EMBER
+    out[heart] = AMBER
+    out[7, 7] = BONE
+
+    result = np.zeros((16, 16, 4), np.uint8)
+    result[:, :, :3] = np.clip(out, 0, 255).astype(np.uint8)
+    result[:, :, 3] = 255
+    return result
+
+
+def build_stone(seed):
+    """A dressed deepslate face for the altar's masonry.
+
+    Vanilla's own greys through the murals' generator, so the altar is built
+    from visibly the same rock as the walls it stands between -- the block is
+    meant to read as something the ruin's own masons cut, not as furniture
+    somebody carried in.
+    """
+    face = vanilla_ground(16, seed=seed)
 
     out = np.zeros((16, 16, 4), np.uint8)
-    out[:, :, :3] = np.clip(top, 0, 255).astype(np.uint8)
+    out[:, :, :3] = np.clip(face, 0, 255).astype(np.uint8)
     out[:, :, 3] = 255
     return out
+
+
+# The window of the rune texture the shaft's faces actually sample, as
+# [u0, v0, u1, v1] in the 0-16 space a Java block model uses.
+#
+# **This is the thing that makes or breaks the face.** A block model face takes
+# whatever rectangle its `uv` names and stretches it over the face, so a 16x16
+# glyph on a face six wide and five tall is squashed to an ellipse -- and box-UV
+# instead crops an arbitrary corner of it. Naming a window the same shape as the
+# face gets the mark drawn 1:1, undistorted, which is the only way a shape this
+# small survives.
+RUNE_WINDOW = (4, 6, 12, 11)
+
+
+def build_rune():
+    """The shaft's face: a small binding mark, cut into the stone.
+
+    Drawn *inside* [RUNE_WINDOW] rather than centred on the texture, since that
+    six-by-five patch is all the shaft's faces ever show.
+
+    Not run through the murals' `carve`. That grows one core pixel into three --
+    a bright core, a blended ring and a shadow shell -- which is right in a
+    twelve-pixel field and far too heavy in five: the first attempt came out a
+    solid amber donut with no interior at all, next to a working surface whose
+    ring is one pixel wide. Here the mark is the murals' colours at the murals'
+    proportions for *this* size: one amber line, one shadow, no bone.
+    """
+    ground = vanilla_ground(16, seed=88_2026)
+
+    u0, v0, u1, v1 = RUNE_WINDOW
+    cx = (u0 + u1) // 2
+    cy = (v0 + v1) // 2
+
+    # Solid, not an outline. Five pixels of face height is not enough to hold a
+    # one-pixel diamond outline: Bresenham breaks it, the groove closes the
+    # middle, and it renders as a smudge -- which is what the first two cuts did.
+    # A filled lozenge is the shape that survives, and it reads as a shard of
+    # memory set into the stone, which is what the altar is for.
+    core = np.zeros((16, 16), bool)
+    for dy, half in ((-1, 1), (0, 2), (1, 1)):
+        core[cy + dy, cx - half:cx + half + 1] = True
+
+    out = ground.copy()
+
+    # Shadow taken as the outer shell of the whole mark, so the stone reads as
+    # cut away around it rather than painted -- the same rule the murals follow.
+    from make_mural_textures import GROOVE_DARKEN, grow
+
+    shell = grow(core) & ~core
+    out[shell] = out[shell] * GROOVE_DARKEN
+    out[core] = AMBER
+
+    # One bone pixel where the light would catch, top-left. Without it the
+    # lozenge is a flat sticker; with it the shard has a facet.
+    out[cy - 1, cx - 1] = BONE
+
+    result = np.zeros((16, 16, 4), np.uint8)
+    result[:, :, :3] = np.clip(out, 0, 255).astype(np.uint8)
+    result[:, :, 3] = 255
+    return result
 
 
 def write_png(path, array):
@@ -230,8 +350,6 @@ def write_png(path, array):
 
 
 def write_json(path, payload):
-    import json
-
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2)
@@ -239,45 +357,59 @@ def write_json(path, payload):
     return path
 
 
-SIDE = "minecraft:block/deepslate_bricks"
+def patch_model():
+    """Adds what Blockbench's export leaves out, without redrawing it.
+
+    **The model is not written here.** It comes out of
+    `blockbench/binding_altar.bbmodel`, which is the authority for the shape the
+    same way the mob models are -- eleven cuboids and a set of hand-placed UV
+    windows are not something to maintain as a Python literal. This function
+    only reopens what Blockbench wrote and adds the one field its Java Block
+    exporter never emits.
+
+    That field is `parent`. A model with elements and no parent inherits no
+    `display` transforms at all, so the block is fine in the world and the *item*
+    renders flat and unrotated in the hand, the hotbar and the creative menu --
+    a failure that looks like the item model being wrong rather than the block
+    model being incomplete.
+    """
+    path = os.path.join(ASSETS, "models", "block", "binding_altar.json")
+
+    assert os.path.exists(path), (
+        f"{path} is missing -- export the Java Block model out of "
+        f"blockbench/binding_altar.bbmodel before running this"
+    )
+
+    with open(path, encoding="utf-8") as handle:
+        model = json.load(handle)
+
+    assert model.get("elements"), (
+        "the exported model has no elements, so something went wrong in the "
+        "export rather than in this script"
+    )
+
+    # Rebuilt rather than mutated, so `parent` comes first the way it does in
+    # every vanilla model and a diff against the raw export reads as one line.
+    patched = {"parent": "minecraft:block/block"}
+    for key, value in model.items():
+        if key in ("format_version", "credit"):
+            continue
+        patched[key] = value
+
+    write_json(path, patched)
+    return len(model["elements"])
 
 
 def write_assets():
-    """Blockstate, block model, item model and loot table.
+    """Blockstate, item model and loot table. The block model comes from
+    Blockbench -- see [patch_model]."""
+    elements = patch_model()
 
-    The altar is a 14x12x14 slab rather than a cube, so it needs a real model
-    with an element. Sides are vanilla deepslate brick, referenced not copied --
-    the altar is built out of the ruin's own masonry, and referencing keeps a
-    Mojang texture out of the jar.
-    """
-    model = {
-        "parent": "minecraft:block/block",
-        "textures": {
-            "particle": f"{MOD}:block/binding_altar_top",
-            "top": f"{MOD}:block/binding_altar_top",
-            "side": SIDE,
-        },
-        "elements": [
-            {
-                "from": [1, 0, 1],
-                "to": [15, 12, 15],
-                "faces": {
-                    "down": {"texture": "#side", "cullface": "down"},
-                    "up": {"texture": "#top"},
-                    "north": {"texture": "#side"},
-                    "south": {"texture": "#side"},
-                    "west": {"texture": "#side"},
-                    "east": {"texture": "#side"},
-                },
-            }
-        ],
-    }
-    write_json(os.path.join(ASSETS, "models", "block", "binding_altar.json"), model)
-
-    # FACING exists so the block can be placed to face the player, but the altar
-    # is symmetric about its own axis, so every facing shows the same model. The
-    # variants still have to be listed: a blockstate value nobody generated
-    # renders as a missing model, which is the word "Unknown" in the log.
+    # FACING rotates the model, and now genuinely changes what you see: the
+    # altar lost its symmetry when the fourth corner finial was left broken off,
+    # so which corner is bare follows the way the block was placed. Every variant
+    # still has to be listed -- a blockstate value nobody generated renders as a
+    # missing model, which is the word "Unknown" in the log.
     write_json(
         os.path.join(ASSETS, "blockstates", "binding_altar.json"),
         {
@@ -306,6 +438,8 @@ def write_assets():
             ],
         },
     )
+
+    return elements
 
 
 def check_layout():
@@ -356,11 +490,20 @@ def main():
         os.path.join(ASSETS, "textures", "block", "binding_altar_top.png"),
         build_top(),
     )
-    write_assets()
+    write_png(
+        os.path.join(ASSETS, "textures", "block", "binding_altar_stone.png"),
+        build_stone(seed=77_2026),
+    )
+    write_png(
+        os.path.join(ASSETS, "textures", "block", "binding_altar_rune.png"),
+        build_rune(),
+    )
+    elements = write_assets()
 
     print(f"wrote {panel}")
     print(f"wrote {top}")
-    print("wrote blockstate, block model, item model and loot table")
+    print(f"patched the Blockbench model ({elements} elements) and wrote "
+          "the blockstate, item model and loot table")
 
 
 if __name__ == "__main__":
