@@ -52,8 +52,16 @@ object Binding {
 		}
 	}
 
-	/** Memories consumed for the binding that produced [result]. */
-	fun priceTaken(result: ItemStack): Int = priceOf(CharmItem.depthOf(result))
+	// There is deliberately no `priceTaken(result)` helper here.
+	//
+	// There was one, and it is how the altar came to deepen charms for free. It
+	// invited the caller to price a binding from the stack being carried away,
+	// and that stack is empty by the time a shift-click reaches `onTake` --
+	// `ItemCombinerMenu.quickMoveStack` shrinks the slot's live stack in place
+	// and then passes that same stack on. An empty stack has no depth component,
+	// so it answered 1, and the price of reaching depth 1 is nothing.
+	//
+	// Price a binding from the charm still sitting in the input slot instead.
 
 	/** What each successive binding adds to the price. */
 	private const val STEP = 8
