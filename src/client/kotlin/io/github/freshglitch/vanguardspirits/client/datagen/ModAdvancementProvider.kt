@@ -183,6 +183,25 @@ class ModAdvancementProvider(
 			)
 		}
 
+		// Hangs off the charm rather than off the Reliquary: an altar is no use
+		// without something to bind, and the memories to pay with come along the
+		// same road as the charm did.
+		child(
+			consumer, charm, ModAdvancements.BOUND_DEEPER, ModBlocks.BINDING_ALTAR,
+		) { builder ->
+			builder.addCriterion("bound_deeper", ModTriggers.charmBound(2))
+		}
+
+		// Hangs off taking a memory, which is the same act carried to its end --
+		// this one is for taking *all* of them. Iconed with a Grave, because the
+		// consequence is not in the vault at all; it is thirty blocks up.
+		child(
+			consumer, memory, ModAdvancements.HOLLOWED,
+			ModBlocks.GRAVE, AdvancementType.GOAL,
+		) { builder ->
+			builder.addCriterion("ruin_hollowed", ModTriggers.ruinHollowed())
+		}
+
 		// Hangs off the Sentinel, not the Reliquary. Its loot table drops an Echo
 		// at fifty per cent, so felling one is the actual prerequisite and a
 		// Fractured Memory is not needed at all. Parented under the Reliquary at

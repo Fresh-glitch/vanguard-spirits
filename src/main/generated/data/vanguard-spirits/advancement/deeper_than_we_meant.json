@@ -1,0 +1,25 @@
+{
+  "parent": "vanguard-spirits:bound_to_a_spirit",
+  "criteria": {
+    "bound_deeper": {
+      "trigger": "vanguard-spirits:charm_bound"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.vanguard-spirits.deeper_than_we_meant.description"
+    },
+    "icon": {
+      "id": "vanguard-spirits:binding_altar"
+    },
+    "title": {
+      "translate": "advancements.vanguard-spirits.deeper_than_we_meant.title"
+    }
+  },
+  "requirements": [
+    [
+      "bound_deeper"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

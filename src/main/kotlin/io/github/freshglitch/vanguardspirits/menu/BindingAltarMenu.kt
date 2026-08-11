@@ -6,6 +6,8 @@ import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModItems
 import io.github.freshglitch.vanguardspirits.registry.ModMenus
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
+import io.github.freshglitch.vanguardspirits.registry.ModTriggers
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.entity.player.Player
@@ -63,6 +65,10 @@ class BindingAltarMenu(
 	override fun onTake(player: Player, stack: ItemStack) {
 		inputSlots.removeItem(CHARM_SLOT, 1)
 		inputSlots.removeItem(PAYMENT_SLOT, Binding.priceTaken(stack))
+
+		// Fired from the taking rather than from the result appearing: a charm
+		// previewed and left on the altar has not been bound.
+		if (player is ServerPlayer) ModTriggers.BINDING.fire(player, CharmItem.depthOf(stack))
 
 		access.execute { level, pos ->
 			level.playSound(

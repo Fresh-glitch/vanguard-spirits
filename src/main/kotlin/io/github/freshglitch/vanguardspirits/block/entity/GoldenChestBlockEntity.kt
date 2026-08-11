@@ -4,6 +4,7 @@ import io.github.freshglitch.vanguardspirits.menu.GoldenChestMenu
 import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
 import io.github.freshglitch.vanguardspirits.registry.ModParticles
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
+import io.github.freshglitch.vanguardspirits.registry.ModTriggers
 import io.github.freshglitch.vanguardspirits.worldgen.RuinHollow
 import net.minecraft.ChatFormatting
 import net.minecraft.core.BlockPos
@@ -151,6 +152,7 @@ class GoldenChestBlockEntity(pos: BlockPos, state: BlockState) :
 				player.sendSystemMessage(
 					Component.translatable(HOLLOWED_KEY).withStyle(ChatFormatting.DARK_PURPLE),
 				)
+				ModTriggers.HOLLOW.fire(player)
 			}
 		}
 	}
