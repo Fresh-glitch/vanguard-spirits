@@ -81,7 +81,7 @@ INV_XY = (8, 84)
 HOTBAR_Y = 142
 
 # Must agree with BindingAltarScreen.PRICE_Y.
-PRICE_Y = 22
+PRICE_Y = 19
 
 
 def field(w, h, seed):
