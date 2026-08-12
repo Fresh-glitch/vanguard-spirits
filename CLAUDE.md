@@ -348,6 +348,63 @@ Each of these cost a compile cycle or a wrong guess:
   `getUpdateTag(registries) = saveCustomOnly(registries)` and
   `getUpdatePacket() = ClientboundBlockEntityDataPacket.create(this)`.
 
+- **Several names that read as obvious are simply not there.** Each cost a
+  compile, and the pattern is worth more than the list — the item and block tag
+  sets are not mirrors of each other, and convenience accessors come and go.
+  - There is no `BlockTags.SAPLINGS`, only `ItemTags.SAPLINGS`. Flowers run the
+    other way: `BlockTags.FLOWERS` and `SMALL_FLOWERS` exist and there is no
+    vanilla item tag at all, so the item side has to come from Fabric's
+    `ConventionalItemTags.FLOWERS`. Match a sapling *block* by `SaplingBlock`.
+  - `BlockPos` has no `getCenter()`. `Vec3.atCenterOf(pos)` is the one; the
+    similar-reading `Vec3i.distToCenterSqr` is a distance, not a point.
+  - `Level` has no `getDayTime()`. `getSkyDarken()` — 0 in open daylight, 11 at
+    midnight — is a better night test anyway, since it already answers for a
+    thunderhead.
+- **`EntityModel` has no `setupAnim`. It is `Model.setupAnim(S)`, and the first
+  thing it does is `resetPose()`**, restoring every part to its `PartPose`. That
+  is what makes `part.zRot +=` safe for a rest rotation baked into the model —
+  and worth confirming rather than assuming in either direction, because if it
+  did *not* reset, a `+=` would wind the arm further round every frame and
+  present as a slow drift with no obvious cause.
+- **`EntitySpawnReason.CHUNK_GENERATION` is not `NATURAL`, and for a
+  `MobCategory.CREATURE` mob it is the one that matters.** Vanilla populates
+  passive mobs when a chunk is first generated rather than on the running spawn
+  cycle, so a `SpawnPlacements` predicate that rations only `NATURAL` — which
+  reads exactly like the right check — never rations anything at all. The
+  Nymph's one-in-two-thousand roll was dead code against the only path she ever
+  arrived by, leaving the rarest mob in the mod gated by its biome weight alone.
+  Ration `NATURAL || CHUNK_GENERATION` and let the deliberate reasons through.
+  (The Mourner is correct as written because it is AMBIENT, and only creatures
+  are placed at chunk generation. The same code is right in one file and wrong
+  in the other.)
+  Two further things this cost. The enum is bigger than it looks — nineteen
+  values, and a spawn egg is `SPAWN_ITEM_USE`, not the `SPAWN_EGG` you will type
+  first. And **it is invisible without an instrument**: a Nymph standing in a
+  flower forest is the same mob however she got there, so the only way to see
+  which door she came through is to log
+  `EntitySpawnReason` from `finalizeSpawn` and read it.
+- **`Mob.serverAiStep` ticks the target selector, then the goal selector, then
+  `customServerAiStep`.** So anything touching `target` in `customServerAiStep`
+  gets the last word over the target goals *within that tick*. Clearing it
+  indiscriminately fights `HurtByTargetGoal` tick by tick — the goal re-acquires,
+  the step drops it, and the mob attacks in visible stutters. Clearing a target
+  is fine; clearing *the mob currently hitting you* is not.
+- **…but clearing `target` cannot end a fight, and it reads exactly as though it
+  does.** `TargetGoal.canContinueToUse` keeps its own copy of the quarry in
+  `targetMob`, falls back to it the moment `mob.getTarget()` is null, and ends
+  with `mob.setTarget(livingEntity); return true`. So a target dropped in
+  `customServerAiStep` is restored at the top of the next tick, *before* the
+  goal selector runs — the mob never misses a swing. What ends it is
+  `Mob.canAttack(LivingEntity)`, which the same method calls first and which
+  makes the goal return false, stop, and null both the mob's target and its own
+  copy. It is public and overridable, so "this mob will not fight right now" is
+  one override; "set the target to null" is a no-op wearing a disguise.
+  Worth stating as a general shape, because the sequel to it is in the
+  Blockbench section too: **when something refuses to stay switched off, look
+  for who switches it back on.** The Nymph shipped for a session telling players
+  "Very well. Go carefully" and then killing them, and the line that was
+  supposed to prevent it was running, every tick, doing exactly nothing.
+
 ## Worldgen gotchas
 
 Each of these produced a structure that looked broken in a way the logs could
@@ -765,6 +822,126 @@ transcription of Blockbench's Java export, never hand-authored.
   Electron: `require("fs").writeFileSync(path, Buffer.from(b64, "base64"))`
   inside `risky_eval` writes the real bytes. Verify by walking the chunk list;
   a good PNG ends IHDR … IDAT … IEND.
+- **Reading a texture in is the same trick backwards**, and it beats
+  `create_texture` from a path: `new Texture({name}).fromDataURL("data:image/png;base64," + fs.readFileSync(p).toString("base64")).add()`.
+  Decoding is **async**, so the texture reports `width` and `height` of 0 for a
+  moment after it is added — that zero is not a failed load, and building UVs
+  on it would be. Read the size back before placing anything.
+- **The `java_block` export drops `parent`, and auto UV puts every face at
+  `[0, 0]`.** Both matter and neither is visible in Blockbench. Without
+  `minecraft:block/block` the block's *item* form has no display transforms at
+  all; and thirty faces all sampling the same corner makes a speckled sheet
+  repeat visibly up a stack. Re-add the parent, the namespaced texture refs and
+  a `particle` entry, and respread the UVs, after every export.
+- **Matching the numbers is not matching the shape.** The Epitaph's placed
+  block was rebuilt to carry the item sprite's profile exactly — widths read
+  row by row off the drawing, verified box for box against the `VoxelShape`,
+  every row proven equal — and in game it looked **identical** to the version
+  it replaced. The sprite spends only two of its fourteen rows on the dome, and
+  two sixteenths of a block is a step however many steps are cut into it. The
+  arch only read as one after it was built in Blockbench, rendered, and looked
+  at, with the taper spread over three steps and a half-pixel inset. Verifying
+  geometry against geometry can be perfect and prove nothing about how it
+  looks; a render is the instrument, and it costs one tool call.
+- **Sweep for coplanar faces; it finds z-fighting that looking never will.** Two
+  boxes that overlap *and* share a face plane flicker, and at a glance that is
+  indistinguishable from a texture fault or from nothing at all. Walking every
+  pair — overlapping on all three axes, equal on any one bound — took the Nymph
+  from seven real hits to zero. Three of them were faces created by inflating an
+  overlay by a round `0.5` onto geometry already sitting at `3.0`, so **take an
+  inflation off the round number** and the whole class disappears. Skip rotated
+  cubes: their pre-rotation boxes overlap while the real geometry radiates
+  apart, which is fifteen false positives from a six-petal coronet alone.
+- **An outer layer is the same boxes again, inflated, with alpha.** That is all a
+  player skin's hat, jacket and sleeves are, and it works for any entity: a
+  second `addBox` at a `CubeDeformation`, mapped elsewhere on the sheet, with
+  everything the garment does not cover left transparent. An entity model's
+  render type is a cutout, so alpha is a straight keep-or-discard and there is
+  no draw order to get wrong. Two rules learned by breaking them: an overlay
+  covering most of its rectangle is not a garment but a fatter limb, and **a band
+  must never span a joint**, because it tears in half the first time the joint
+  bends.
+- **Splitting a limb into two bones removes overlaps rather than adding them.**
+  Parts joined end to end meet at a pivot; one long box beside another long box
+  interpenetrates. Giving the Nymph elbows, knees and ankles took her coplanar
+  count to zero by itself.
+- **Writing `keyframe.data_points[0].x` directly does not refresh the
+  viewport.** The value is stored, `Codecs.project.compile()` writes it out
+  correctly, and the animation on screen keeps playing the *old* motion. So a
+  file that has already been fixed still looks broken, which is worth more than
+  it sounds: acting on that reading, I "fixed" a correct animation by negating
+  all seventy keyframes and genuinely broke it, then had to undo that. Follow a
+  direct write with `animation.setLength(animation.length)` and
+  `Timeline.setTime(Timeline.time)`, and when the question is which way a joint
+  bends, reload the project rather than trusting what is on screen.
+- **A knee and an elbow fold in opposite directions, so no global sign flip can
+  ever fix both.** This is the trap that turned one wrong sign into four rounds
+  of whack-a-mole: negating every keyframe fixed the legs and broke the arms,
+  negating back fixed the arms and broke the legs, and each round looked like
+  progress because one complaint really had gone away. A knee carries the ankle
+  *behind* the joint and an elbow carries the hand *in front* of it, so their
+  keyframes need opposite signs and each has to be measured on its own.
+- **Check a joint's phase as well as its sign.** The Nymph's knees had both
+  wrong: they folded during *stance*, half a cycle from the swing they belong
+  to, which reads as a march. Find when the thigh is travelling forward — that
+  is the swing — and put the deepest fold in the middle of it. A knee bending at
+  the wrong moment looks almost as wrong as one bending the wrong way, and the
+  two faults disguise each other.
+- **Settle a direction by measuring the scene graph, never by looking at a
+  render.** Blockbench's front is `-z`, and a model normally proves that itself
+  — the Nymph's toes run from z -3 to +1 and her eyes are on the *north* face.
+  Then rotate the bone and transform a local point through `mesh.matrixWorld`:
+  `forearm_right` at Blockbench x +30 puts the hand at z -3.5, so positive
+  swings a limb forward, full stop. Three separate attempts to read this off a
+  screenshot produced two different answers and a flip-flop; the arithmetic took
+  one call.
+- **The MCP animation tools do not agree with each other about sign, so never
+  trust a round trip through them.** `create_animation` negated the x it was
+  given; `manage_keyframes` edit did not, and its readback showed the old value
+  twice running while cheerfully reporting success. An elbow bending backwards
+  survived two "fixes" that way, because writing a value and reading the same
+  value back looks exactly like a correction that worked. Set `data_points[0].x`
+  through `risky_eval`, which has no convention of its own, and read it straight
+  back. Then convert once, on the way out to Kotlin, with the documented rule.
+- **`createKeyframe` snaps the time to `Timeline.getStep()`, which is read off
+  the *selected* animation and not the one being written to.** Ask for keys at
+  0.1 intervals while the walk (`snapping: 12`) happens to be selected and they
+  land on `0, 0.0833, 0.1667, 0.3333, …` — eleven keys, uneven spacing, two
+  segments silently twice as wide as the rest, which changes the speed profile
+  because Catmull-Rom parameterises by normalised segment time. Set
+  `anim.snapping` **and** `anim.select()` before creating anything, then read
+  the times back.
+  This is the sharpest instance yet of an instrument failing in a way that
+  looks like a result: every one of the 165 *values* read back exactly as
+  written, which is precisely the confirmation one goes looking for, and the
+  field that had been mangled was a different one. **Read back the thing you
+  did not touch**, not just the thing you set.
+- **Verify the Kotlin by parsing it back and diffing against the `.bbmodel` —
+  and make the *already-shipped* animation the control.** A verifier run only
+  against the definition it just generated proves nothing; both halves share
+  whatever the generator got wrong. Running the same diff over the walk, which
+  was hand-transcribed in an earlier session, is what proves the conversion
+  rule and the parser are right. 75 keyframes and 165 keyframes, both exact.
+- **A limb hangs +y from its pivot, so a positive `xRot` swings the far end to
+  +z — which is *behind* her, because the model faces −z.** Elbows and knees
+  therefore bend forward on a *negative* model xRot. Deriving this is possible
+  and gets got wrong anyway; the one-tool-call check is to set a bone to a large
+  unmistakable angle in Blockbench and look at which way the hand goes. A subtle
+  value at a mid-cycle frame is unreadable, which is why the first two attempts
+  proved nothing.
+- **`Animator.preview()` is not reliable enough to verify a pose.** It silently
+  stopped applying — model at rest, animation selected, timeline at the right
+  moment — and a render of that is indistinguishable from an animation with no
+  motion in it. Check the *stored numbers*, and prove direction separately with
+  a manual group rotation, which does apply.
+- **Hair cannot lag behind a head it is nested inside.** A counter-rotation on
+  the hair bone made it trail a look, which looked lovely and was unshippable:
+  the locks hang about 3.2 from the head's axis while the head is a *square* of
+  half-width 3.0 whose corners reach 4.24, so anything sweeping round at a fixed
+  radius passes through them. There is no lag small enough to be safe, only one
+  small enough to hide. Hair attached to a scalp turns with the scalp; put the
+  life somewhere that cannot intersect, such as a pitch on a part that hangs
+  clear behind.
 
 ## Item art
 
@@ -823,6 +1000,60 @@ transcription of Blockbench's Java export, never hand-authored.
   looked fine at 40x. A contact sheet of two or three candidate ramps against
   the mob texture settles in one look what argument does not.
 
+### Ramps, from <http://rjanes.com/tutorials/introduction_to_pixel_art.php>
+
+Rules that earned their place by fixing the Unfinished Epitaph. Its ramp ran
+23, 38, 54, 70, 84, 107 at a flat hue, and every fault below was in it.
+
+- **Adjacent shades must differ by enough to be picked out — about 25
+  luminance.** The Epitaph's steps were **14 to 16 apart**, which is the
+  guide's own example of seven shades where "it's near impossible to identify
+  between them". Widening them to 34-40 was the single change that did the most
+  work. This is one line to assert and worth asserting every time.
+- **Five shades is the ceiling at sixteen pixels.** A sixth is a step nobody
+  can see.
+- **A ramp needs a temperature direction, and saturation can carry it instead
+  of hue.** The guide's letter is a warm saturated highlight against a cold
+  desaturated shadow; applied literally to deepslate that produced an **amber**
+  marker, correct by the tutorial and wrong for the mod, because the same sheet
+  drives a Blockbench model that has to keep looking like rock. Holding the hue
+  inside the original blue-grey band and making the *shadow* the most saturated
+  blue against a nearly neutral highlight reads as cold-against-warm without
+  leaving grey — and it is the same "lower the saturation down to grey" move
+  the guide describes, simply stopped at grey rather than continued through it.
+  What is never acceptable is the shipped arrangement: hue flat to three
+  decimals **and** saturation running backwards, so there is no temperature at
+  all.
+- **Pillow shading — progressive shades running parallel to the outline — is
+  the one thing the guide calls a crime.** Shade from a direction instead. It
+  is testable without eyes: under pillow shading a pixel and its reflection
+  through the shape's centre carry the same tone, since both sit the same
+  distance from the edge. Assert that fewer than half of mirrored pairs match.
+- **Take the flat black outline out and outline selectively.** Vanilla does
+  ring solid shapes (see `resistance`), but the guide's last step is to replace
+  the edge with *another dark shade from the palette* wherever a lighter shade
+  meets it. Two edge tones — the darker on the shadow side, a lighter dark on
+  the lit upper left — keeps this mod's unbroken ring, which is what lets an
+  item hold a slot at either inventory grey, while giving the ring a light
+  source.
+- **A shade that exists only in the palette is not in the sprite.** The Epitaph
+  defined a `STONE_FRESH` of `#939CAD` for an abandoned carving pass and never
+  drew it, so the item topped out at 107 with its own highlight sitting unused.
+  A later draft did it again from the other end: a five-shade ramp whose
+  darkest tone was masked everywhere by the edge pass. Print a colour histogram
+  over the finished sprite; a shade with a count of zero is a shade to delete
+  or a bug to fix.
+- **A highlight on five pixels of a hundred and twelve is not a highlight.**
+  Brightness that peaks at a single coordinate lands nowhere. Give it a
+  plateau.
+- **Luminance in the file is not brightness in the world.** The block face was
+  weighted to 66 mean so it would sit with the graves at 64 and 69 — checked
+  against the texture files and never against the render. Minecraft shades
+  vertical faces (about x0.8 north/south, x0.6 east/west), and the Epitaph is a
+  thin slab showing mostly those, where a grave is a full block lit on top. The
+  placed marker came out at roughly *half* the brightness of the same marker in
+  the hand. Compare a screenshot of the placed block, not two histograms.
+
 ## Particles
 
 26.2 rebuilt this area, so almost nothing remembered about particles is true.
@@ -867,6 +1098,91 @@ transcription of Blockbench's Java export, never hand-authored.
   never null. Check `isValid`. The predicate overload takes
   `Predicate<Holder<Structure>>`, so a structure that only exists in a dynamic
   registry can be matched by `ResourceKey` without resolving it first.
+
+## Keyframe animation
+
+Everything below is 26.2's `net.minecraft.client.animation` package, taken from
+bytecode. The Blockbench half of the story is in the Blockbench section above;
+this is what the game does with the result.
+
+- **Blockbench cannot export a Java animation** — there is no such codec in the
+  list, only the model ones. So a keyframe animation is read out of the project
+  (`Animation.all[n].animators[uuid].rotation[i].data_points[0]`) and written
+  into an `AnimationDefinition` by hand, exactly as the `LayerDefinition` is.
+- The shape is `AnimationDefinition.Builder.withLength(seconds).looping()
+  .addAnimation("bone", AnimationChannel(Targets.ROTATION, Keyframe(t,
+  KeyframeAnimations.degreeVec(...), interpolation), ...)).build()`. Bake it
+  **once** per model instance with `definition.bake(root)` — the public entry is
+  on `AnimationDefinition`; `KeyframeAnimation.bake` itself is package-private —
+  and drive it with `applyWalk`, `apply(AnimationState, ageInTicks)` or
+  `applyStatic`.
+- **`applyWalk`'s third argument is a time rate, not an angle**, whatever the
+  usual parameter name suggests. The body is
+  `time = (long)(limbSwing * 50 * arg3)` in milliseconds and
+  `blend = min(limbSwingAmount * arg4, 1)`, so a one second animation completes
+  a cycle every `20 / arg3` of `walkAnimationPos`. That third number is the
+  one to reach for when a walk looks like a scurry.
+- **There are exactly two interpolations**: `AnimationChannel.Interpolations`
+  holds `LINEAR` and `CATMULLROM` and nothing else. Blockbench's graph editor
+  will cheerfully author bezier easing, which cannot be represented — turn it
+  back into a smooth curve *before* transcribing, or the motion silently stops
+  matching the preview it was approved from.
+- **CATMULLROM clamps its keyframe indices at the ends instead of wrapping.**
+  `p0` is `keyframes[max(0, i-1)]` and `p3` is `keyframes[min(len-1, j+1)]`, so
+  a looping animation gets a *velocity* kink at the seam — position is
+  continuous, the tangent is not. Two things follow. The two sides of a
+  symmetric pair are not exact mirrors near t=0 (the Nymph's legs are 4.4°
+  apart there; her already-shipped walk is 3.1° apart in the same place on the
+  same bone), so **measure the shipped animation as the control** before
+  treating your own as broken. And clamping is sometimes the *better*
+  behaviour: at her toe-off it holds the knee still through late stance and
+  then snaps it, where a correctly wrapped tangent would start the heel
+  flicking up while the foot was still pushing.
+- **`applyWalk` comes apart, and that is how you crossfade two gaits.** Its
+  whole body is `timeMs = limbSwing * 50 * rate`, `weight =
+  min(limbSwingAmount * blend, 1)`, then `apply(timeMs, weight)` — and
+  `apply(long, float)` is public. The weight is handed to
+  `Interpolation.apply` as a plain scale on the output vector, so two
+  definitions applied at complementary weights sum to a genuine linear blend of
+  the two poses (see the previous bullet: the targets add). Two conditions.
+  Both animations must be driven from **one shared `timeMs`** and be the same
+  length, or the cycles drift and the blend cancels the limbs it is mixing; and
+  they must be authored **in phase** — the Nymph's walk and run both put the
+  right thigh at its rearmost at t=0, and disagree in sign for under 3% of the
+  cycle. The rate cannot be part of the blend: it multiplies an ever-growing
+  `walkAnimationPos`, so changing it jumps the phase rather than easing it.
+- **`walkAnimationSpeed` cannot tell a walk from a run.**
+  `LivingEntity.updateWalkAnimation` is `min(blocksMovedThisTick * 4, 1)`, so
+  it saturates at a quarter of a block per tick — which every mob worth calling
+  fast is already past. Do not infer a gait from it. The Nymph syncs one bit
+  saying whether she has a target (`MeleeAttackGoal` is the only goal that
+  moves her at chase speed, and it only runs when one is set), eases it on the
+  *entity* the way `wrathAmount` is eased, and lets `walkAnimationSpeed` go on
+  doing the one job it is good at: scaling both gaits by whether she is moving
+  at all. So a Nymph swinging from a standstill is at full run weight and shows
+  no stride.
+- **There is no airborne phase to measure, so do not build a check on one.**
+  A Minecraft model's root never translates: the feet are decorative with
+  respect to the ground and every gait reads as "off the ground" for most of
+  its cycle. A check written to prove the Nymph's run had a flight phase duly
+  failed its own control by declaring the shipped walk 42% airborne. What
+  actually separates the gaits is the size of the excursions, measured on both
+  with the same instrument — foot lift 1.27 → 6.45 units, stride 40° → 87°,
+  knee −48° → −105°, arm swing 26° → 82°.
+- **A baked animation *adds*; it does not overwrite.**
+  `AnimationChannel.Targets.ROTATION` is a method reference to
+  `ModelPart::offsetRotation`, whose entire body is three `+=`, and POSITION is
+  `offsetPos`. So every keyframe is a **delta on the rest pose**, not a
+  replacement for it — which is why a `PartPose` rotation baked into the model
+  (the Nymph's arms carry a 7° outward roll) survives the animation instead of
+  being thrown away by it. This entry previously said the opposite, on no
+  evidence; the conclusion it drew — compose the animation first and add
+  everything else with `+=` — happens to be right anyway, but for a different
+  reason. Head tracking needs one more step: head, neck and torso
+  compose, so a look applied on top of a walk that already turns all three
+  overshoots. Add the *residual* — the target minus what the animation has
+  already contributed — and the total lands exactly on the target with the
+  walk's sway intact underneath.
 
 ## Animation and sound
 
@@ -944,6 +1260,33 @@ through. **Look a tick ahead instead**: clip the segment each nearby projectile
 is about to travel against the guard's box and turn what would cross. One rule
 for everything, and nothing has to be hurt for it to fire. The Sentinel's gyre
 still answers the damage hook because it only ever catches arrows.
+
+## Design: a mob that keeps accounts
+
+From the Nymph, and all three were found by watching a log rather than by
+reading the code.
+
+- **A threshold compared against a decaying number has to be a latch.** Her
+  temper asked `grievance >= WRATH_AT` every tick while the grievance fell a
+  point every five seconds, so one that crossed at 58 dropped back under 55
+  about ten seconds later — the log shows "Enough." and then a *wary* line
+  twelve seconds after it. At the boundary she flickered between hunting and
+  not, and the target was dropped and re-taken with her. Entering a state must
+  be harder than staying in one; twelve points of hysteresis turned three temper
+  changes in two minutes into one.
+- **Do not derive which line a character says from the parity of a counter.**
+  Hers alternated — odd turns took an observation about the world, even turns
+  advanced a story. In plain daylight with an empty hand there is *nothing* to
+  observe, so half of every first conversation was filler, and turn seven
+  produced "I have nothing else for you today" with three lines still unsaid.
+  Give the thread its own counter that moves only when the thread is used. Then
+  the fallback lines appear only when there is genuinely nothing left, which is
+  what they were written for.
+- **A message sent by UUID arrives from anywhere in the world.** A Nymph
+  forgiving somebody four minutes after a fight messaged them mid-conversation
+  with a *different* Nymph, which reads as a bug because there is no speaker on
+  a chat line. Anything a mob says needs a distance check as well as a
+  recipient.
 
 ## Testing in-game with the player
 
