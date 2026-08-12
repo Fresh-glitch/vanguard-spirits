@@ -9,6 +9,8 @@ import io.github.freshglitch.vanguardspirits.client.render.ChestParts
 import io.github.freshglitch.vanguardspirits.client.render.GoldenChestRenderer
 import io.github.freshglitch.vanguardspirits.client.render.MournerModel
 import io.github.freshglitch.vanguardspirits.client.render.MournerRenderer
+import io.github.freshglitch.vanguardspirits.client.render.NymphModel
+import io.github.freshglitch.vanguardspirits.client.render.NymphRenderer
 import io.github.freshglitch.vanguardspirits.client.render.RemnantModel
 import io.github.freshglitch.vanguardspirits.client.render.RemnantRenderer
 import io.github.freshglitch.vanguardspirits.client.render.StoneSentinelModel
@@ -53,6 +55,9 @@ object VanguardSpiritsClient : ClientModInitializer {
 
 		ModelLayerRegistry.registerModelLayer(MournerModel.LAYER) { MournerModel.createLayer() }
 		EntityRendererRegistry.register(ModEntities.MOURNER, ::MournerRenderer)
+
+		ModelLayerRegistry.registerModelLayer(NymphModel.LAYER) { NymphModel.createLayer() }
+		EntityRendererRegistry.register(ModEntities.NYMPH, ::NymphRenderer)
 		MenuScreens.register(ModMenus.GOLDEN_CHEST, ::GoldenChestScreen)
 		MenuScreens.register(ModMenus.BINDING_ALTAR, ::BindingAltarScreen)
 

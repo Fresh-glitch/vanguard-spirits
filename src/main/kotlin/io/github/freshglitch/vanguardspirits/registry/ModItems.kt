@@ -125,13 +125,14 @@ object ModItems {
 	val STONE_SENTINEL_SPAWN_EGG: Item = registerEgg("stone_sentinel", ModEntities.STONE_SENTINEL)
 	val REMNANT_SPAWN_EGG: Item = registerEgg("remnant", ModEntities.REMNANT)
 	val MOURNER_SPAWN_EGG: Item = registerEgg("mourner", ModEntities.MOURNER)
+	val NYMPH_SPAWN_EGG: Item = registerEgg("nymph", ModEntities.NYMPH)
 
 	/** Every item this mod registers, in display order. */
 	val ALL: List<Item> get() = ordered
 
 	/** Just the eggs, for the vanilla spawn egg tab. */
 	val SPAWN_EGGS: List<Item> get() =
-		listOf(STONE_SENTINEL_SPAWN_EGG, REMNANT_SPAWN_EGG, MOURNER_SPAWN_EGG)
+		listOf(STONE_SENTINEL_SPAWN_EGG, REMNANT_SPAWN_EGG, MOURNER_SPAWN_EGG, NYMPH_SPAWN_EGG)
 
 	/** Only the charms, for systems that iterate auras. */
 	val CHARMS: List<CharmItem> get() = ordered.filterIsInstance<CharmItem>()

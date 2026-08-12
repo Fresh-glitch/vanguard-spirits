@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "vanguard-spirits:item/nymph_spawn_egg"
+  }
+}

@@ -358,5 +358,82 @@
         "volume": 0.85
       }
     ]
+  },
+  "entity.nymph.ambient": {
+    "subtitle": "subtitles.vanguard-spirits.nymph.ambient",
+    "sounds": [
+      {
+        "name": "minecraft:entity.allay.ambient_without_item",
+        "type": "event",
+        "volume": 0.5,
+        "pitch": 0.75
+      }
+    ]
+  },
+  "entity.nymph.speak": {
+    "subtitle": "subtitles.vanguard-spirits.nymph.speak",
+    "sounds": [
+      {
+        "name": "minecraft:block.amethyst_block.chime",
+        "type": "event",
+        "volume": 0.45,
+        "pitch": 1.25
+      }
+    ]
+  },
+  "entity.nymph.warn": {
+    "subtitle": "subtitles.vanguard-spirits.nymph.warn",
+    "sounds": [
+      {
+        "name": "minecraft:block.bamboo.break",
+        "type": "event",
+        "volume": 0.9,
+        "pitch": 0.6
+      }
+    ]
+  },
+  "entity.nymph.wrath": {
+    "subtitle": "subtitles.vanguard-spirits.nymph.wrath",
+    "sounds": [
+      {
+        "name": "minecraft:entity.evoker.prepare_attack",
+        "type": "event",
+        "volume": 1.0,
+        "pitch": 0.8
+      }
+    ]
+  },
+  "entity.nymph.gift": {
+    "subtitle": "subtitles.vanguard-spirits.nymph.gift",
+    "sounds": [
+      {
+        "name": "minecraft:entity.allay.item_given",
+        "type": "event",
+        "volume": 0.8,
+        "pitch": 0.9
+      }
+    ]
+  },
+  "entity.nymph.hurt": {
+    "subtitle": "subtitles.vanguard-spirits.nymph.hurt",
+    "sounds": [
+      {
+        "name": "minecraft:entity.allay.hurt",
+        "type": "event",
+        "volume": 0.9,
+        "pitch": 0.7
+      }
+    ]
+  },
+  "entity.nymph.death": {
+    "subtitle": "subtitles.vanguard-spirits.nymph.death",
+    "sounds": [
+      {
+        "name": "minecraft:entity.allay.death",
+        "type": "event",
+        "volume": 1.0,
+        "pitch": 0.6
+      }
+    ]
   }
 }

@@ -3,6 +3,7 @@ package io.github.freshglitch.vanguardspirits
 import io.github.freshglitch.vanguardspirits.charm.Attunement
 import io.github.freshglitch.vanguardspirits.charm.CharmTicker
 import io.github.freshglitch.vanguardspirits.charm.Deflection
+import io.github.freshglitch.vanguardspirits.entity.GroveWatch
 import io.github.freshglitch.vanguardspirits.item.EpitaphPlacement
 import io.github.freshglitch.vanguardspirits.lore.MuralCodex
 import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
@@ -66,6 +67,7 @@ object VanguardSpirits : ModInitializer {
 		RuinSeal.register()
 		RuinHollow.register()
 		RuinSettled.register()
+		GroveWatch.register()
 
 		LOGGER.info("Vanguard Spirits awakened with {} items.", ModItems.ALL.size)
 	}
