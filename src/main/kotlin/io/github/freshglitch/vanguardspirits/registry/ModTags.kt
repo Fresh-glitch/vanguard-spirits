@@ -3,6 +3,7 @@ package io.github.freshglitch.vanguardspirits.registry
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import net.minecraft.core.registries.Registries
 import net.minecraft.tags.TagKey
+import net.minecraft.world.item.Item
 import net.minecraft.world.level.biome.Biome
 
 object ModTags {
@@ -22,4 +23,29 @@ object ModTags {
 	 */
 	val MOURNER_BIOMES: TagKey<Biome> =
 		TagKey.create(Registries.BIOME, VanguardSpirits.id("spawns_mourner"))
+
+	/**
+	 * Where a Nymph might be standing.
+	 *
+	 * Flower forests and nothing else, because the whole of her is built out of
+	 * one: her palette is sampled from that biome's own blocks, and her fiction
+	 * is that this particular wood is hers. A Nymph in a swamp would be a mob
+	 * wearing the wrong clothes.
+	 *
+	 * A tag anyway, so a pack that wants her in cherry groves can say so without
+	 * touching code.
+	 */
+	val NYMPH_BIOMES: TagKey<Biome> =
+		TagKey.create(Registries.BIOME, VanguardSpirits.id("spawns_nymph"))
+
+	/**
+	 * What she will accept from a hand.
+	 *
+	 * Flowers and saplings: the two things a player can give back that are the
+	 * same kind of thing they took. A tag rather than a list in code so a pack
+	 * can widen what counts as an apology -- and so the answer to "will she take
+	 * this?" lives somewhere a player could in principle look it up.
+	 */
+	val NYMPH_OFFERINGS: TagKey<Item> =
+		TagKey.create(Registries.ITEM, VanguardSpirits.id("nymph_offerings"))
 }

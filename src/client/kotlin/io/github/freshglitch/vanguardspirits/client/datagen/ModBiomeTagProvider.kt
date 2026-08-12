@@ -39,5 +39,12 @@ class ModBiomeTagProvider(
 		builder(ModTags.MOURNER_BIOMES)
 			.add(Biomes.FOREST)
 			.add(Biomes.DARK_FOREST)
+
+		// One biome, and it is not an oversight. Every colour the Nymph is drawn
+		// in was sampled out of this one -- birch bark, oak leaves under the
+		// flower forest's own #59AE30 foliage tint, and allium -- so anywhere
+		// else she is a mob wearing borrowed clothes.
+		builder(ModTags.NYMPH_BIOMES)
+			.add(Biomes.FLOWER_FOREST)
 	}
 }

@@ -5,6 +5,7 @@ import io.github.freshglitch.vanguardspirits.block.EpitaphBlock
 import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
 import io.github.freshglitch.vanguardspirits.client.CharmTooltip
 import io.github.freshglitch.vanguardspirits.client.screen.BindingAltarScreen
+import io.github.freshglitch.vanguardspirits.entity.NymphSpeech
 import io.github.freshglitch.vanguardspirits.item.CharmItem
 import io.github.freshglitch.vanguardspirits.item.EchoOfKinshipItem
 import io.github.freshglitch.vanguardspirits.item.EpitaphPrompt
@@ -40,6 +41,7 @@ class ModEnglishProvider(
 		builder.add(ModItems.STONE_SENTINEL_SPAWN_EGG, "Stone Sentinel Spawn Egg")
 		builder.add(ModItems.REMNANT_SPAWN_EGG, "Remnant Spawn Egg")
 		builder.add(ModItems.MOURNER_SPAWN_EGG, "Mourner Spawn Egg")
+		builder.add(ModItems.NYMPH_SPAWN_EGG, "Nymph Spawn Egg")
 
 		builder.add(
 			ModItems.loreKey("charm_of_the_leaper"),
@@ -148,9 +150,20 @@ class ModEnglishProvider(
 		builder.add("subtitles.vanguard-spirits.stone_sentinel.hurt", "Stone Sentinel cracks")
 		builder.add("subtitles.vanguard-spirits.stone_sentinel.death", "Stone Sentinel crumbles")
 
+		builder.add("subtitles.vanguard-spirits.nymph.ambient", "Leaves stir")
+		builder.add("subtitles.vanguard-spirits.nymph.speak", "The Nymph speaks")
+		builder.add("subtitles.vanguard-spirits.nymph.warn", "The Nymph warns you")
+		builder.add("subtitles.vanguard-spirits.nymph.wrath", "The grove turns")
+		builder.add("subtitles.vanguard-spirits.nymph.gift", "The Nymph relents")
+		builder.add("subtitles.vanguard-spirits.nymph.hurt", "The Nymph recoils")
+		builder.add("subtitles.vanguard-spirits.nymph.death", "The Nymph withers")
+
 		builder.add(ModEntities.STONE_SENTINEL, "Stone Sentinel")
 		builder.add(ModEntities.REMNANT, "Remnant")
 		builder.add(ModEntities.MOURNER, "Mourner")
+		builder.add(ModEntities.NYMPH, "Nymph")
+
+		nymphSpeech(builder)
 
 		builder.add("tooltip.vanguard-spirits.charm.attuned", "Attuned")
 		builder.add("tooltip.vanguard-spirits.charm.dormant", "Dormant — attunement %s in use")
@@ -185,5 +198,84 @@ class ModEnglishProvider(
 			builder.add(ModAdvancements.titleKey(entry), entry.title)
 			builder.add(ModAdvancements.descriptionKey(entry), entry.description)
 		}
+	}
+
+	/**
+	 * Everything the Nymph says.
+	 *
+	 * Her voice is the reason she is in the mod, so it is worth naming what it
+	 * is: old, dry, unhurried, and entirely without sentiment. She is not a
+	 * guardian spirit delivering a lesson about nature -- she is a very long
+	 * lived neighbour who has watched one civilisation fail already and is
+	 * unsurprised by yours. She never moralises, she never says "you must", and
+	 * when she threatens you she does it in the flattest available words.
+	 *
+	 * The lore thread is the mod's own story told from outside it. Everything in
+	 * it is corroborated by a mural or a block the player can go and find -- the
+	 * eight passages, the Sentinel still following its order, the last keeper's
+	 * unfinished stone, the Mourners circling. She adds no facts. What she adds
+	 * is that somebody is saying them aloud, and that she was there.
+	 *
+	 * Drawn from the same lists [NymphSpeech] selects from, so a line cannot be
+	 * added on one side and missed on the other -- an untranslated key is a
+	 * perfectly valid key, and would surface only as raw
+	 * `message.vanguard-spirits.nymph.lore4` on somebody's action bar.
+	 */
+	private fun nymphSpeech(builder: TranslationBuilder) {
+		builder.add(NymphSpeech.GREETING_KEY, "You walk quietly. Not many do.")
+
+		builder.add(NymphSpeech.NIGHT, "The dark is when this place talks. Try listening instead of asking.")
+		builder.add(NymphSpeech.RAIN, "Rain. Good. The roots have been complaining for a week.")
+		builder.add(NymphSpeech.HURT, "You are bleeding into my moss. Sit down before you fall down.")
+		builder.add(NymphSpeech.MEMORY, "You are carrying a piece of somebody. I knew the hands that made it.")
+		builder.add(NymphSpeech.CHARM, "You have tied a dead thing to you. It is listening. They always are.")
+		builder.add(NymphSpeech.AXE, "You are holding an axe. I would rather you held it somewhere else.")
+		builder.add(NymphSpeech.SORE, "You have taken from the wood today. Only a little. I am still counting.")
+
+		val lore = listOf(
+			"There were people here. Not here — under there, where the stone goes down.",
+			"They dug because they were frightened. Frightened things always dig.",
+			"They set something at the bottom to keep watch. Then they died, and nobody told it to stop.",
+			"The last of them buried everyone else and began a stone for themselves. " +
+				"They did not finish it. There was no one left to.",
+			"The birds still turn over the place. I do not think they remember why. I do.",
+			"You will go down and take what is left of them. Everyone does. I am not going to stop you.",
+			"I was here before they came and I will be here after you. " +
+				"That is not a threat. It is only the arithmetic.",
+		)
+		require(lore.size == NymphSpeech.LORE.size) {
+			"the Nymph has ${NymphSpeech.LORE.size} lore keys and ${lore.size} lines written for them"
+		}
+		NymphSpeech.LORE.forEachIndexed { i, key -> builder.add(key, lore[i]) }
+
+		val idle = listOf(
+			"The flowers open for anybody. That is not the same as being welcome.",
+			"Something is growing where you are standing. Mind your feet.",
+			"Ask the bees. They keep better records than I do.",
+			"I have nothing else for you today. Come back when the light has moved.",
+		)
+		require(idle.size == NymphSpeech.IDLE.size) {
+			"the Nymph has ${NymphSpeech.IDLE.size} idle keys and ${idle.size} lines written for them"
+		}
+		NymphSpeech.IDLE.forEachIndexed { i, key -> builder.add(key, idle[i]) }
+
+		val warnings = listOf(
+			"Stop.",
+			"That was alive, and now it is not.",
+			"I am counting. You should know that I am counting.",
+		)
+		require(warnings.size == NymphSpeech.WARNINGS.size) {
+			"the Nymph has ${NymphSpeech.WARNINGS.size} warning keys and ${warnings.size} lines written for them"
+		}
+		NymphSpeech.WARNINGS.forEachIndexed { i, key -> builder.add(key, warnings[i]) }
+
+		builder.add(NymphSpeech.WRATH_KEY, "Enough.")
+		builder.add(NymphSpeech.REFUSAL_KEY, "We are past talking.")
+		builder.add(NymphSpeech.SETTLED_KEY, "Very well. Go carefully, and mind where you put your feet.")
+		builder.add(NymphSpeech.AMENDS_KEY, "It does not undo it. Keep going.")
+		builder.add(
+			NymphSpeech.GIFT_KEY,
+			"For me? Put it in the ground instead. It will do better there than in your pocket.",
+		)
 	}
 }

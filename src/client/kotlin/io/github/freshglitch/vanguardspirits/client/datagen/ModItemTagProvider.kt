@@ -1,6 +1,8 @@
 package io.github.freshglitch.vanguardspirits.client.datagen
 
 import io.github.freshglitch.vanguardspirits.registry.ModItems
+import io.github.freshglitch.vanguardspirits.registry.ModTags
+import net.minecraft.tags.ItemTags
 import net.fabricmc.fabric.api.datagen.v1.FabricPackOutput
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricTagsProvider
 import net.fabricmc.fabric.api.tag.convention.v2.ConventionalItemTags
@@ -40,5 +42,19 @@ class ModItemTagProvider(
 		// so renaming the item cannot quietly leave this pointing at nothing.
 		builder(ConventionalItemTags.FEATHERS)
 			.add(BuiltInRegistries.ITEM.getResourceKey(ModItems.MOURNER_FEATHER).orElseThrow())
+
+		// What the Nymph will take as an apology, or as a present.
+		//
+		// Built out of two tags neither of which we define, so both references
+		// must be *optional* -- addTag() validates that the target belongs to
+		// this provider, and the strict form fails datagen outright.
+		//
+		// `c:flowers` rather than a vanilla item tag because there is no
+		// `ItemTags.FLOWERS` in 26.2 at all; the only flower tags vanilla ships
+		// are block tags. Fabric's convention module supplies the item side, and
+		// it arrives with fabric-api, which this mod depends on outright.
+		builder(ModTags.NYMPH_OFFERINGS)
+			.addOptionalTag(ConventionalItemTags.FLOWERS)
+			.addOptionalTag(ItemTags.SAPLINGS)
 	}
 }

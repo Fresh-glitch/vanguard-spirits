@@ -2,6 +2,7 @@ package io.github.freshglitch.vanguardspirits.registry
 
 import io.github.freshglitch.vanguardspirits.VanguardSpirits
 import io.github.freshglitch.vanguardspirits.entity.Mourner
+import io.github.freshglitch.vanguardspirits.entity.Nymph
 import io.github.freshglitch.vanguardspirits.entity.Remnant
 import io.github.freshglitch.vanguardspirits.entity.StoneSentinel
 // `object` is a Kotlin keyword, so this package path only imports with backticks.
@@ -62,6 +63,26 @@ object ModEntities {
 			.build(key)
 	}
 
+	/**
+	 * The one living witness.
+	 *
+	 * A creature rather than a monster, so she never counts against the hostile
+	 * cap and never stops anyone sleeping -- she is not a threat by default, and
+	 * a mob category that treated her as one would also let the game despawn and
+	 * respawn her as ordinary wildlife, which is the opposite of what she is.
+	 *
+	 * Two blocks even: a shade over the player, which is enough to loom without
+	 * being a landmark. Her crown rises a little past the box, as most crowned
+	 * mobs' do.
+	 */
+	val NYMPH: EntityType<Nymph> = register("nymph") { key ->
+		EntityType.Builder.of(::Nymph, MobCategory.CREATURE)
+			.sized(0.6f, 2.0f)
+			.eyeHeight(1.82f)
+			.clientTrackingRange(10)
+			.build(key)
+	}
+
 	private fun <T : Entity> register(
 		path: String,
 		factory: (ResourceKey<EntityType<*>>) -> EntityType<T>,
@@ -75,5 +96,6 @@ object ModEntities {
 		FabricDefaultAttributeRegistry.register(STONE_SENTINEL, StoneSentinel.createAttributes())
 		FabricDefaultAttributeRegistry.register(REMNANT, Remnant.createAttributes())
 		FabricDefaultAttributeRegistry.register(MOURNER, Mourner.createAttributes())
+		FabricDefaultAttributeRegistry.register(NYMPH, Nymph.createAttributes())
 	}
 }

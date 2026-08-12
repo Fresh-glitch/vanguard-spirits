@@ -124,6 +124,27 @@ object ModSounds {
 	/** A binding taking hold, played when the deeper charm is lifted off. */
 	val BINDING_ALTAR_BIND: SoundEvent = register("block.binding_altar.bind")
 
+	/**
+	 * The Nymph, who is the only thing in the mod that is not dead.
+	 *
+	 * So none of these may be the voice work the Remnant and the Sentinel use --
+	 * that whole set is built to sound like something that used to be alive, and
+	 * borrowing it here would file her with them. Hers are green and small: the
+	 * grass and the leaves, played at pitches that read as speech.
+	 */
+	val NYMPH_AMBIENT: SoundEvent = register("entity.nymph.ambient")
+	val NYMPH_SPEAK: SoundEvent = register("entity.nymph.speak")
+
+	/** Being told once, and then not being told again. */
+	val NYMPH_WARN: SoundEvent = register("entity.nymph.warn")
+	val NYMPH_WRATH: SoundEvent = register("entity.nymph.wrath")
+
+	/** A flower accepted, and whatever she gives back for it. */
+	val NYMPH_GIFT: SoundEvent = register("entity.nymph.gift")
+
+	val NYMPH_HURT: SoundEvent = register("entity.nymph.hurt")
+	val NYMPH_DEATH: SoundEvent = register("entity.nymph.death")
+
 	private fun register(path: String): SoundEvent {
 		val id = VanguardSpirits.id(path)
 		return Registry.register(BuiltInRegistries.SOUND_EVENT, id, SoundEvent.createVariableRangeEvent(id))

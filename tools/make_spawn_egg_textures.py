@@ -91,6 +91,23 @@ QUILL = ramp("#16181e", "#22252d", "#2e323d", "#3d4352", "#4a5163", "#5b6377")
 AMBER = ramp("#5e3d12", "#7a4f18", "#96601f", "#b07426", "#c98c3a", "#dda757")
 WHITE = ramp("#c9d2dd", "#dde4ec", "#eef3f8", "#ffffff", "#ffffff", "#ffffff")
 
+# The Nymph's three, taken straight off her entity sheet rather than picked to
+# look well beside each other -- an egg is the first thing a player sees of a
+# mob, and one drawn in colours the mob does not have is a small lie. The
+# ramps are `tools/make_nymph_texture.py`'s own, extended by one step at each
+# end because these eggs are shaded over six tones and she is drawn in five.
+BIRCH = ramp("#26331f", "#314232", "#60735c", "#a5a88f", "#d9d2ba", "#fcf1dc")
+ALLIUM = ramp("#2c1f47", "#3f2d66", "#6d479e", "#a567d6", "#d093ed", "#f0d4fa")
+FROND = ramp("#0a2209", "#10330f", "#215419", "#3e7a22", "#6da635", "#8fc24e")
+# Her eyes are pale green on the entity sheet, and they must not be here.
+#
+# The other three eggs put white eyes on a dark body; hers is the only pale one
+# in the set, so the same trick inverts -- a light mark on light birch vanished
+# entirely at sixteen pixels while looking perfectly correct in the palette.
+# The egg is an icon rather than a portrait, and what has to survive is the
+# *contrast*, not the hue.
+LEAFLIGHT = ramp("#12200a", "#1b2e10", "#274018", "#345521", "#436b2b", "#547f36")
+
 
 def shade_of(x, y, cx, cy, rx, ry):
     """Ramp position 0..1 for a pixel, from an ellipsoid lit by LIGHT."""
@@ -220,6 +237,35 @@ MOURNER_WINGS = (
 )
 
 
+# ------------------------------------------------------------------- nymph
+
+# p = the allium crown and the hair falling either side of it, l = the leaf
+# sash, W = her eyes.
+#
+# The hair is what makes this one work. Without the two columns running down
+# the sides she is a pale egg with a purple hat, and pale eggs at sixteen
+# pixels all look alike -- the vertical break is the only thing that says the
+# silhouette underneath is a tall figure rather than a lump.
+NYMPH_OVERLAY = [
+    "................",
+    "................",
+    "................",
+    "....pppppppp....",
+    "...pppppppppp...",
+    "...p........p...",
+    "..p..W....W..p..",
+    "..p..........p..",
+    "..p..........p..",
+    "....llllllll....",
+    "...ll.llll.ll...",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+]
+
+
 def chunk(tag, data):
     body = tag + data
     return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
@@ -252,4 +298,8 @@ write(
 write(
     os.path.join(OUT, "mourner_spawn_egg.png"),
     bake(MASK_SMALL, MOURNER_OVERLAY, {".": CROW, "A": AMBER, "q": QUILL}, MOURNER_WINGS),
+)
+write(
+    os.path.join(OUT, "nymph_spawn_egg.png"),
+    bake(MASK_STD, NYMPH_OVERLAY, {".": BIRCH, "p": ALLIUM, "l": FROND, "W": LEAFLIGHT}),
 )
