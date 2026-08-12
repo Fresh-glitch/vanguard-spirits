@@ -49,7 +49,10 @@ class ModBlockTagProvider(
 
 		// Looked up from the registry rather than rebuilt from a path string, so
 		// renaming a block cannot quietly leave this pointing at nothing.
-		listOf(ModBlocks.MURAL, ModBlocks.GOLDEN_CHEST, ModBlocks.BINDING_ALTAR).forEach { block ->
+		// The Epitaph is here for mining *speed* only. It never drops -- its loot
+		// table is deliberately empty -- so unlike every other block on this list
+		// the tag is not what stands between it and dropping nothing.
+		listOf(ModBlocks.MURAL, ModBlocks.GOLDEN_CHEST, ModBlocks.BINDING_ALTAR, ModBlocks.EPITAPH).forEach { block ->
 			pickaxe.add(BuiltInRegistries.BLOCK.getResourceKey(block).orElseThrow())
 		}
 

@@ -3,6 +3,7 @@ package io.github.freshglitch.vanguardspirits
 import io.github.freshglitch.vanguardspirits.charm.Attunement
 import io.github.freshglitch.vanguardspirits.charm.CharmTicker
 import io.github.freshglitch.vanguardspirits.charm.Deflection
+import io.github.freshglitch.vanguardspirits.item.EpitaphPlacement
 import io.github.freshglitch.vanguardspirits.lore.MuralCodex
 import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
 import io.github.freshglitch.vanguardspirits.registry.ModBlocks
@@ -22,6 +23,7 @@ import io.github.freshglitch.vanguardspirits.worldgen.RuinAmbience
 import io.github.freshglitch.vanguardspirits.worldgen.RuinBeacon
 import io.github.freshglitch.vanguardspirits.worldgen.RuinHollow
 import io.github.freshglitch.vanguardspirits.worldgen.RuinSeal
+import io.github.freshglitch.vanguardspirits.worldgen.RuinSettled
 import io.github.freshglitch.vanguardspirits.worldgen.RuinVigil
 import net.fabricmc.api.ModInitializer
 import net.minecraft.resources.Identifier
@@ -55,6 +57,7 @@ object VanguardSpirits : ModInitializer {
 		MuralCodex.register()
 		ModTriggers.register()
 		ModNetworking.register()
+		EpitaphPlacement.register()
 		CharmTicker.register()
 		Deflection.register()
 		RuinAmbience.register()
@@ -62,6 +65,7 @@ object VanguardSpirits : ModInitializer {
 		RuinVigil.register()
 		RuinSeal.register()
 		RuinHollow.register()
+		RuinSettled.register()
 
 		LOGGER.info("Vanguard Spirits awakened with {} items.", ModItems.ALL.size)
 	}

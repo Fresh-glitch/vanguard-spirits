@@ -5,12 +5,17 @@ import io.github.freshglitch.vanguardspirits.registry.ModEntities
 import io.github.freshglitch.vanguardspirits.registry.ModParticles
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import io.github.freshglitch.vanguardspirits.worldgen.RuinHollow
+import io.github.freshglitch.vanguardspirits.worldgen.RuinSettled
 import net.minecraft.core.BlockPos
 import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.sounds.SoundSource
 import net.minecraft.util.RandomSource
 import net.minecraft.world.entity.EntitySpawnReason
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
+import net.minecraft.world.level.storage.loot.LootParams
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.block.state.StateDefinition
@@ -63,7 +68,34 @@ class GraveBlock(properties: Properties) : Block(properties) {
 		if (movedByPiston) return
 		if (!state.getValue(OCCUPIED)) return
 
+		// Somebody put their name in the ledger and the ground went quiet. There
+		// is nobody left to come up, so opening one of these is just digging.
+		if (RuinSettled.isSettled(level, pos)) return
+
 		rise(level, pos)
+	}
+
+	/**
+	 * A settled grave is turned earth and nothing else.
+	 *
+	 * Coarse dirt rather than the plain dirt an unsettled one gives, because the
+	 * difference should be visible in the hand: this ground has been opened and
+	 * closed and will not grow anything back. It is also the one signal a player
+	 * gets that settling actually reached the graves, rather than only the
+	 * stone they carved.
+	 *
+	 * Overridden here rather than expressed in the loot table, because whether a
+	 * ruin is settled is a chunk attachment and a data-driven table has no way to
+	 * ask about one.
+	 */
+	override fun getDrops(state: BlockState, builder: LootParams.Builder): List<ItemStack> {
+		val origin = builder.getOptionalParameter(LootContextParams.ORIGIN)
+			?: return super.getDrops(state, builder)
+
+		val pos = BlockPos.containing(origin)
+		if (!RuinSettled.isSettled(builder.level, pos)) return super.getDrops(state, builder)
+
+		return listOf(ItemStack(Items.COARSE_DIRT))
 	}
 
 	/**
@@ -101,6 +133,10 @@ class GraveBlock(properties: Properties) : Block(properties) {
 		if (!level.isDarkOutside) return
 		if (random.nextFloat() >= RISE_CHANCE) return
 		if (!RuinHollow.isHollowed(level, pos)) return
+
+		// A fifth gate, and the only one that can be closed on purpose. Settling
+		// is what ends the consequence hollowing started -- see [RuinSettled].
+		if (RuinSettled.isSettled(level, pos)) return
 
 		val crowd = level.getEntitiesOfClass(
 			Remnant::class.java,

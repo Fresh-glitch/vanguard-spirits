@@ -16,6 +16,7 @@ import net.minecraft.world.InteractionHand
 import net.minecraft.world.InteractionResult
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EquipmentSlot
+import net.minecraft.world.entity.ExperienceOrb
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.item.Item
@@ -49,12 +50,9 @@ class EchoOfKinshipItem(props: Item.Properties) : Item(props) {
 		// Let the client predict the swing; the server owns the actual change.
 		if (level.isClientSide) return InteractionResult.SUCCESS
 
-		if (!Attunement.raise(player)) {
-			player.sendOverlayMessage(
-				Component.translatable(MAXED_KEY).withStyle(ChatFormatting.GRAY),
-			)
-			return InteractionResult.FAIL
-		}
+		// Nothing left to deepen. The echo is spent for what it is instead of
+		// refused -- see [release].
+		if (!Attunement.raise(player)) return release(level, player, hand)
 
 		player.getItemInHand(hand).consume(1, player)
 		level.playSound(
@@ -74,9 +72,67 @@ class EchoOfKinshipItem(props: Item.Properties) : Item(props) {
 		return InteractionResult.SUCCESS
 	}
 
+	/**
+	 * What an Echo is worth once there is no attunement left to buy.
+	 *
+	 * A player who has taken four ruins has everything an Echo was for, and every
+	 * Sentinel after that dropped the rarest item in the mod into a pocket where
+	 * it did nothing at all. It gives up what it is holding instead.
+	 *
+	 * **No confirmation, deliberately.** Spending something usually wants a guard
+	 * against a fumbled click, and here there is nothing to guard: at the cap the
+	 * Echo has no other use, so there is no better thing the player could have
+	 * done with it and no way for this to be the wrong outcome. A prompt would be
+	 * asking them to confirm they want the only thing on offer.
+	 *
+	 * Awarded as orbs rather than straight to the bar. [ExperienceOrb.award]
+	 * splits the amount into several, so it arrives as a scatter and a run of
+	 * pickup chimes -- which is what makes it read as a lot, where the same number
+	 * added silently reads as nothing having happened.
+	 */
+	private fun release(level: Level, player: Player, hand: InteractionHand): InteractionResult {
+		if (level !is ServerLevel) return InteractionResult.FAIL
+
+		player.getItemInHand(hand).consume(1, player)
+		ExperienceOrb.award(level, player.position(), SPENT_XP)
+
+		// Its own voice, the one a dropped Echo calls with, rather than the
+		// beacon note that marks attunement deepening. Nothing deepened here.
+		level.playSound(
+			null,
+			player.x,
+			player.y,
+			player.z,
+			ModSounds.KINSHIP_RELEASE,
+			SoundSource.PLAYERS,
+			0.8f,
+			1.0f,
+		)
+		player.sendOverlayMessage(
+			Component.translatable(SPENT_KEY, SPENT_XP).withStyle(ChatFormatting.AQUA),
+		)
+		return InteractionResult.SUCCESS
+	}
+
 	companion object {
 		const val RAISED_KEY: String = "message.vanguard-spirits.attunement.raised"
-		const val MAXED_KEY: String = "message.vanguard-spirits.attunement.maxed"
+		const val SPENT_KEY: String = "message.vanguard-spirits.attunement.spent"
+
+		/**
+		 * Experience from an Echo that had nowhere left to go.
+		 *
+		 * Exactly what a *respawned* Ender Dragon gives -- `EnderDragon.tickDeath`
+		 * awards 12000 the first time and 500 after that, gated on
+		 * `hasPreviouslyKilledDragon`. Anchoring to a real vanilla number rather
+		 * than an invented one is the whole point: it is defensible in a sentence
+		 * next to the Wither's 50, which is `bipush 50` in its constructor and the
+		 * figure this will always be compared against.
+		 *
+		 * Generous, and safely so. Sentinels do not respawn and there is one ruin
+		 * per structure, so the supply is bounded by how much of the world a
+		 * player has actually walked -- there is no farm to balance against.
+		 */
+		private const val SPENT_XP: Int = 500
 
 		/** Whether this stack still carries the mark a Sentinel put on it. */
 		@JvmStatic

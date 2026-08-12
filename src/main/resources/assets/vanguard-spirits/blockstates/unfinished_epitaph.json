@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": {"model": "vanguard-spirits:block/unfinished_epitaph"},
+    "facing=south": {"model": "vanguard-spirits:block/unfinished_epitaph", "y": 180},
+    "facing=west": {"model": "vanguard-spirits:block/unfinished_epitaph", "y": 270},
+    "facing=east": {"model": "vanguard-spirits:block/unfinished_epitaph", "y": 90}
+  }
+}

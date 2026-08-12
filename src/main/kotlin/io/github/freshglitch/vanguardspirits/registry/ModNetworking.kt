@@ -1,5 +1,7 @@
 package io.github.freshglitch.vanguardspirits.registry
 
+import io.github.freshglitch.vanguardspirits.item.EpitaphConfirm
+import io.github.freshglitch.vanguardspirits.item.EpitaphPrompt
 import io.github.freshglitch.vanguardspirits.lore.MuralOpen
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 
@@ -14,5 +16,10 @@ object ModNetworking {
 
 	fun register() {
 		PayloadTypeRegistry.clientboundPlay().register(MuralOpen.TYPE, MuralOpen.CODEC)
+		PayloadTypeRegistry.clientboundPlay().register(EpitaphPrompt.TYPE, EpitaphPrompt.CODEC)
+
+		// The only thing this mod asks a client to tell it. Registered serverbound
+		// so the server will decode it; the sender lives in the client source set.
+		PayloadTypeRegistry.serverboundPlay().register(EpitaphConfirm.TYPE, EpitaphConfirm.CODEC)
 	}
 }
