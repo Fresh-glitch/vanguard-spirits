@@ -436,6 +436,43 @@ not explain. They are listed in the order they will bite.
   shells, the vault. Note that *untouched world rock* counts: the test is
   whether there is material behind the face, not whether the structure wrote it.
   A one-block building wall backing onto the outdoors is the honest exception.
+- **`findNearestMapStructure`'s radius is in *grid rings*, not chunks and not
+  blocks.** `ChunkGenerator.getNearestGeneratedStructure` reads
+  `RandomSpreadStructurePlacement.spacing()` and walks candidates at
+  `base + spacing * ring`, with `ring` running `-radius..+radius` on both axes —
+  so the argument counts cells of the placement grid, each `spacing` chunks
+  wide, and the work done is `(2 * radius + 1)` squared. For the Guarded Ruin's
+  spacing of 24 that is a **384 block** step per ring, so a radius that reads
+  like "64 chunks" is really a twenty four *thousand* block sweep. Four rings
+  covers 1,536 blocks and is ample.
+  **Narrowing it does not make the search faster**, which is worth knowing
+  before spending a session on it: cold ground measured 443/192/194 ms at 64
+  rings and 231/160 ms at 4, while explored ground was 0-1 ms at both. The loop
+  keeps the nearest hit so far and only calls the expensive
+  `getStructureGeneratingAt` on cells closer than it, so everything outside the
+  first hit's ring is pruned by a distance compare — walking 16,641 cells rather
+  than 81 is nearly free because 16,560 are never examined. The cost is
+  examining the few candidates in the first ring or two of unassessed ground,
+  which for us is `GuardedRuinsStructure`'s own column sampling. Set the radius
+  for *reach* and for bounding the found-nothing case; do not expect throughput
+  from it.
+  The way the unit was caught is the transferable part. The constant had been
+  written down as "1024 blocks", then tightened to "512 blocks", and a playtest
+  returned a hit at **657 blocks** — an answer the documented radius made
+  impossible. A number that is merely large is easy to rationalise; one that is
+  *outside the stated bound* cannot be, and it is the only reason the unit got
+  questioned at all. **When an instrument returns something the model forbids,
+  that is the model failing, not the instrument** — and it is worth more than
+  ten plausible readings. Both wrong figures had survived being written into a
+  doc comment, twice, with confident arithmetic either side of them.
+- **`skipKnownStructures` only skips a structure once something has asked about
+  it.** The first `findNearestMapStructure` at a ruin returns *that ruin*, every
+  time — measured at three separate sites, all about 11 blocks out — and a second
+  call a moment later returns one hundreds of blocks away. So the flag cannot
+  mean "somewhere you have not been" on a cold cache, and anything relying on it
+  needs to ask twice and sanity check the answer against the origin. Note which
+  half is expensive: finding the ruin under your feet is 0 ms, and the retry that
+  has to travel past every known ruin is the one that costs 200–450 ms.
 - **`ProtoChunk.setBlockState` does not create block entities**, so every copy of
   a structure already in a world was written without one. That matters when a
   block *gains* an entity in an update: nothing needs migrating, because
@@ -509,6 +546,24 @@ visible from logs — each needed a screenshot to diagnose.
   an undocumented `rotation: [0, 180, 0]` — and the altar's charm came out
   exactly backwards from a derivation that checked out line by line. Same trap as
   the Blockbench bone signs, same answer: put it in the world and look at it.
+- **Drawing text on a block: the call is `SubmitNodeCollector.submitText(pose,
+  x, y, FormattedCharSequence, dropShadow, Font.DisplayMode, light, colour,
+  backdrop, outline)`**, with the `Font` taken from
+  `BlockEntityRendererProvider.Context.font()`. The mode to use is
+  `Font.DisplayMode.POLYGON_OFFSET`, which is what stops glyphs z-fighting the
+  face behind them. The class to copy is **`AbstractSignRenderer`** — there is no
+  `SignRenderer` in 26.2, and javap on the guessed name returns nothing, which
+  reads exactly like *signs do not render text*.
+  Written down because the first attempt at this **drew nothing at all**, and
+  the call shape was verified against vanilla's bytecode afterwards and found
+  identical — so if this happens again the API usage is *not* the suspect. Look
+  at whether the render state actually reached the client, and at the pose. Note
+  the diagnostic trap: a `submit` that early-returns on absent state is
+  indistinguishable from a renderer that was never registered, since both draw
+  nothing, so probe with a log line rather than another look at the screen.
+  And size the surface first. A player name needs about a plank and a half,
+  which is why signs are that size; six pixels of a grave marker's face will
+  never hold one, and no amount of scaling fixes that.
 - **A `BlockEntityRenderer` composes with the block model; it does not replace
   it.** Only `BaseEntityBlock` forces `RenderShape.INVISIBLE`. Implementing
   `EntityBlock` on a plain `Block` leaves the shape MODEL, so the JSON model
@@ -663,6 +718,13 @@ transcription of Blockbench's Java export, never hand-authored.
   through the torso and they vanish — which reads as the model breaking, not as
   a wrong sign. Four animations in this mod shipped inverted for exactly this
   reason, all of them commented "out" or "wide" while rotating in.
+- **`place_cube` with explicit face UVs does not bind the texture**, even when
+  the call names one. The cube renders in the untextured pink, while other cubes
+  placed in the *same call* with `faces: true` come out correctly — so a mixed
+  model looks half broken and the obvious suspect is the UV numbers rather than
+  the binding. Follow up with `apply_texture` on that cube; the UVs survive it,
+  which is worth reading back rather than assuming, since an applier that reset
+  them would say nothing.
 - **`create_texture` with width/height does not resize the bitmap.** The texture
   stays 16x16 while `Project.texture_width` is whatever was asked for, so UVs
   spanning 128 fall off a 16px canvas and almost every face renders transparent
@@ -1016,6 +1078,55 @@ clientClasses` takes a few seconds and catches every wrong signature.
 
 Changing a plugin manifest requires **restarting Claude Code**; LSP configs are
 read at session start.
+
+## concept/ — where an idea goes first
+
+`concept/` in the project root is untracked scratch space (it is in
+`.gitignore`, and so is everything under it). **Anything new gets worked out
+there before it is built**: sprite drafts, a mechanic written up in prose, a
+contact sheet, a script that exists to answer one question and then dies.
+
+Untracked on purpose. The point is to be free to be wrong in there, and a
+half-finished design sitting in the history reads like a decision that was made.
+
+It is not a detour — it is where the cheap version of every expensive mistake in
+this file would have been caught. The Mourner's Feather drafts that read as a
+lozenge on a stick, the charm depths that had to be checked against what an
+amplifier actually does, the stair arithmetic that found two bugs before a world
+existed: all of that is concept work, and all of it is cheaper than a playtest.
+
+When a draft survives it **moves out** and is committed where it belongs —
+generators to `tools/`, art to `src/main/resources/assets/vanguard-spirits/`,
+code to `src/`. Nothing tracked may reference a path under `concept/`, since no
+other checkout has one.
+
+## Releases
+
+**Write the changelog entry as each change lands, not the whole release at the
+end.** A release is usually the last thing in a long session, which is exactly
+when the session has been compacted and the early work is no longer in context —
+so the entry gets reconstructed from a summary rather than recalled. That is
+where invented details come from: a number that was measured at one value and is
+written down as another, a bug described by the first theory about it rather than
+the cause that was actually found, a fix credited to the wrong file.
+
+The failure is quiet, too. A changelog is prose, so nothing type checks it and
+nothing fails to compile. It ships, and it is the one artefact players read.
+
+An entry written the moment a change is finished costs nothing extra — the
+reasoning is already in the working memory that produced the code — and by the
+end of the session the changelog is a matter of ordering entries rather than
+remembering a day's work.
+
+The same argument applies to anything else written from memory at the end of a
+long session: **the CLAUDE.md entry for a lesson goes in when the lesson is
+learned.** This session moved a number from 64 to 32 on the strength of five
+measured search distances; a day later those five numbers are gone and only the
+conclusion is left, which is the half that cannot be checked.
+
+Concretely: append to `branding/changelog-<version>-modrinth.md` and its
+CurseForge twin as the work happens, and only do the version bump, the jar pair
+and the commit at the end.
 
 ## Conventions
 

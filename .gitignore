@@ -51,3 +51,10 @@ replay_*.log
 # Python bytecode from the generators in tools/
 __pycache__/
 *.pyc
+
+# Scratch space for working an idea out before it becomes a real addition --
+# sprite drafts, mechanics written up in prose, throwaway generators. Untracked
+# on purpose: the point is to be free to be wrong in here, and a half-finished
+# design in the history reads like a decision that was made. What survives moves
+# out to tools/, src/ or resources/ and is committed there.
+concept/
