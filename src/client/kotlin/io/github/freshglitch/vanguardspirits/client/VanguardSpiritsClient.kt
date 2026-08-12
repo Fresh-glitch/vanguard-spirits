@@ -16,6 +16,8 @@ import io.github.freshglitch.vanguardspirits.client.render.StoneSentinelRenderer
 import io.github.freshglitch.vanguardspirits.client.screen.BindingAltarScreen
 import io.github.freshglitch.vanguardspirits.client.screen.GoldenChestScreen
 import io.github.freshglitch.vanguardspirits.client.screen.MuralScreen
+import io.github.freshglitch.vanguardspirits.item.EpitaphConfirm
+import io.github.freshglitch.vanguardspirits.item.EpitaphPrompt
 import io.github.freshglitch.vanguardspirits.lore.MuralOpen
 import io.github.freshglitch.vanguardspirits.registry.ModBlockEntities
 import io.github.freshglitch.vanguardspirits.registry.ModEntities
@@ -26,6 +28,8 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.fabricmc.fabric.api.client.particle.v1.ParticleProviderRegistry
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry
 import net.minecraft.client.gui.screens.MenuScreens
+import net.minecraft.client.gui.screens.ConfirmScreen
+import net.minecraft.network.chat.Component
 import net.fabricmc.fabric.api.client.rendering.v1.ModelLayerRegistry
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers
 
@@ -51,6 +55,30 @@ object VanguardSpiritsClient : ClientModInitializer {
 		EntityRendererRegistry.register(ModEntities.MOURNER, ::MournerRenderer)
 		MenuScreens.register(ModMenus.GOLDEN_CHEST, ::GoldenChestScreen)
 		MenuScreens.register(ModMenus.BINDING_ALTAR, ::BindingAltarScreen)
+
+		// Setting an Epitaph down cannot be undone, so the server holds the
+		// placement and asks first. The answer is one bit and nothing else -- the
+		// position stays server side, where it cannot be aimed.
+		ClientPlayNetworking.registerGlobalReceiver(EpitaphPrompt.TYPE) { payload, context ->
+			context.client().execute {
+				val body = EpitaphPrompt.messageKey(payload.ground)
+
+				// Captured so the callback can dismiss it. `ConfirmScreen` does not
+				// close itself, and `setScreenAndShow` will not take null -- the
+				// route back to no screen at all is `Screen.onClose`, which is
+				// three bytecodes wrapping `minecraft.gui.setScreen(null)`.
+				var dialog: ConfirmScreen? = null
+				dialog = ConfirmScreen(
+					{ yes ->
+						if (yes) ClientPlayNetworking.send(EpitaphConfirm)
+						dialog?.onClose()
+					},
+					Component.translatable(EpitaphPrompt.TITLE_KEY),
+					Component.translatable(body),
+				)
+				context.client().setScreenAndShow(dialog)
+			}
+		}
 
 		// The server decides a mural has been read and asks for the screen. The
 		// handler runs on the network thread, so the actual open is handed to

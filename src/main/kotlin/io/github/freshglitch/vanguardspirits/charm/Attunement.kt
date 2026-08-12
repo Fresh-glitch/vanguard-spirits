@@ -21,7 +21,14 @@ object Attunement {
 	/** What every player starts with. */
 	const val BASE: Int = 1
 
-	/** Ceiling, so Echoes of Kinship stop being useful at some point. */
+	/**
+	 * Ceiling on how many charms can be live at once.
+	 *
+	 * Not a ceiling on how many Echoes are worth having: past this one is spent
+	 * for experience instead of refused, so the drop never becomes dead weight.
+	 * See [EchoOfKinshipItem.release][
+	 * io.github.freshglitch.vanguardspirits.item.EchoOfKinshipItem].
+	 */
 	const val MAX: Int = 4
 
 	val TYPE: AttachmentType<Int> = AttachmentRegistry.create(VanguardSpirits.id("attunement")) { builder ->

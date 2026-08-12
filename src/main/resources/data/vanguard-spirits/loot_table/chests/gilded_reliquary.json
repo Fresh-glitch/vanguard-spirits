@@ -13,6 +13,21 @@
           "name": "vanguard-spirits:fractured_memory"
         }
       ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "vanguard-spirits:unfinished_epitaph",
+          "conditions": [
+            {
+              "condition": "minecraft:random_chance",
+              "chance": 0.01
+            }
+          ]
+        }
+      ]
     }
   ]
 }

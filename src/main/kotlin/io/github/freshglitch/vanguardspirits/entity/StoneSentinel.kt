@@ -60,6 +60,18 @@ import net.minecraft.world.level.storage.ValueOutput
  */
 class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster(type, level), RuinDefender {
 
+	init {
+		// `Monster`'s constructor sets this to 5 -- `iconst_5`, straight into
+		// `xpReward` -- and nothing here had ever overridden it, so the boss the
+		// whole mod is gated behind was paying out exactly what a zombie does.
+		//
+		// Fifty, which is what the Wither gives (`bipush 50` in its own
+		// constructor). Matching it rather than beating it is the point: this is
+		// a mid-game boss guarding one structure, not an end-game one, and the
+		// number will be read next to vanilla's whatever it is set to.
+		xpReward = XP_REWARD
+	}
+
 	/**
 	 * Never turns on the other things guarding this place.
 	 *
@@ -1467,6 +1479,9 @@ class StoneSentinel(type: EntityType<out StoneSentinel>, level: Level) : Monster
 	}
 
 	companion object {
+		/** Experience for putting one down. The Wither's own figure. */
+		private const val XP_REWARD = 50
+
 		private val DATA_DORMANT: EntityDataAccessor<Boolean> =
 			SynchedEntityData.defineId(StoneSentinel::class.java, EntityDataSerializers.BOOLEAN)
 		private val DATA_WAKE: EntityDataAccessor<Int> =

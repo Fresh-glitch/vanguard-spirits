@@ -1,11 +1,13 @@
 package io.github.freshglitch.vanguardspirits.client.datagen
 
 import io.github.freshglitch.vanguardspirits.block.BindingAltarBlock
+import io.github.freshglitch.vanguardspirits.block.EpitaphBlock
 import io.github.freshglitch.vanguardspirits.block.entity.GoldenChestBlockEntity
 import io.github.freshglitch.vanguardspirits.client.CharmTooltip
 import io.github.freshglitch.vanguardspirits.client.screen.BindingAltarScreen
 import io.github.freshglitch.vanguardspirits.item.CharmItem
 import io.github.freshglitch.vanguardspirits.item.EchoOfKinshipItem
+import io.github.freshglitch.vanguardspirits.item.EpitaphPrompt
 import io.github.freshglitch.vanguardspirits.lore.MuralLore
 import io.github.freshglitch.vanguardspirits.registry.ModBlocks
 import io.github.freshglitch.vanguardspirits.registry.ModEntities
@@ -63,12 +65,37 @@ class ModEnglishProvider(
 			ModItems.loreKey("mourner_feather"),
 			"It let this go rather than let you closer.",
 		)
+		// The eighth passage's author never got a stone of their own, because
+		// they were the one who dug all the others.
+		builder.add(
+			ModItems.loreKey("unfinished_epitaph"),
+			"Whoever cut this had nobody left to finish it.",
+		)
+		builder.add(EpitaphPrompt.TITLE_KEY, "Set the Epitaph down?")
+		// Both say the same last thing, because that is the part being confirmed.
+		// The difference above it is whether anything is being ended.
+		builder.add(
+			EpitaphPrompt.IN_RUIN_KEY,
+			"The graves here will go quiet for good — nothing will rise again, " +
+				"and there will be no more memories to take. You cannot pick the stone back up.",
+		)
+		builder.add(
+			EpitaphPrompt.SETTLED_KEY,
+			"This ground is already quiet — a stone stands here and the graves are done rising. " +
+				"Another will change nothing. You cannot pick it back up.",
+		)
+		builder.add(
+			EpitaphPrompt.ELSEWHERE_KEY,
+			"There is no graveyard here, so nothing will settle and nothing will change. " +
+				"It will stand as a marker only. You cannot pick the stone back up.",
+		)
 
 		builder.add(ModBlocks.GOLDEN_CHEST, "Gilded Reliquary")
 		builder.add(GoldenChestBlockEntity.NAME_KEY, "Gilded Reliquary")
 		builder.add(ModBlocks.GRAVE, "Grave")
 		builder.add(ModBlocks.MURAL, "Deepslate Mural")
 		builder.add(ModBlocks.BINDING_ALTAR, "Binding Altar")
+		builder.add(ModBlocks.EPITAPH, "Unfinished Epitaph")
 		builder.add(BindingAltarBlock.TITLE_KEY, "Binding Altar")
 		builder.add(BindingAltarScreen.PRICE_KEY, "%s more Fractured Memories")
 		builder.add(BindingAltarScreen.READY_KEY, "Bind to %s")
@@ -134,7 +161,9 @@ class ModEnglishProvider(
 		builder.add("effect.vanguard-spirits.deflection", "Deflection")
 
 		builder.add(EchoOfKinshipItem.RAISED_KEY, "Attunement deepens — %s of %s")
-		builder.add(EchoOfKinshipItem.MAXED_KEY, "You can hold no deeper echo.")
+		builder.add(EchoOfKinshipItem.SPENT_KEY, "The echo lets go — %s experience")
+		builder.add(EpitaphBlock.READS_KEY, "It reads: %s")
+		builder.add(EpitaphBlock.SETTLED_KEY, "The ground goes quiet.")
 
 		// The mural screen's footer. Two forms so a single-page passage does not
 		// carry a pointless "1/1".
