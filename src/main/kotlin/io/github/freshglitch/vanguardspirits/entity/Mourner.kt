@@ -1,8 +1,11 @@
 package io.github.freshglitch.vanguardspirits.entity
 
 import io.github.freshglitch.vanguardspirits.registry.ModItems
+import io.github.freshglitch.vanguardspirits.registry.ModParticles
 import io.github.freshglitch.vanguardspirits.registry.ModSounds
 import io.github.freshglitch.vanguardspirits.worldgen.RuinVigil
+import io.github.freshglitch.vanguardspirits.worldgen.Ruins
+import kotlin.math.sqrt
 import net.minecraft.core.BlockPos
 import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.network.syncher.EntityDataAccessor
@@ -28,6 +31,7 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal
 import net.minecraft.world.entity.ai.goal.TemptGoal
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal
 import net.minecraft.world.entity.player.Player
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.storage.ValueInput
 import net.minecraft.world.level.storage.ValueOutput
@@ -75,6 +79,28 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 	 * cooldown, and the worst a reload can buy is one feather early.
 	 */
 	private var shedCooldown = 0
+
+	/**
+	 * The ruin it is pointing at, and how long it has left to point.
+	 *
+	 * Not saved either. A run lasts eight seconds and exists to be watched; one
+	 * that resumed after a reload would be a bird flying off for no reason the
+	 * player was present to see, and the memory that bought it is long spent.
+	 */
+	private var guideTo: BlockPos? = null
+	private var guideTicks = 0
+
+	/**
+	 * Flying back from a pointing run.
+	 *
+	 * A separate leg rather than just handing straight back to the circle, and
+	 * the reason is arithmetic. The orbit steers proportionally with no ceiling
+	 * on the result, so it settles at `distance * TURN * DRAG / (1 - DRAG)` --
+	 * about a third of the distance, per tick. At the half block it lags by while
+	 * patrolling that is a gentle 0.14, and at the fifty six blocks a run ends on
+	 * it is nearly twenty blocks a tick. The bird did not drift home, it teleported.
+	 */
+	private var returning = false
 
 	/**
 	 * What an unanchored bird does with itself.
@@ -143,6 +169,17 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 
 		val home = anchor ?: return
 
+		// Above both of the below: a bird that has been shown a memory has
+		// somewhere to be, and neither the branch nor the circle outranks that.
+		if (guideTicks > 0) {
+			guideStep(level, home)
+			return
+		}
+		if (returning) {
+			returnStep(home)
+			return
+		}
+
 		// Perching takes priority over the circle entirely: a bird heading for a
 		// branch has stopped patrolling.
 		if (perch != null) {
@@ -185,13 +222,29 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 		// Steer toward the point rather than snapping to it, so the turn has
 		// some weight and the bird banks into the circle instead of tracking it
 		// like a cursor.
-		val steer = deltaMovement
+		var steer = deltaMovement
 			.add(
 				(target.x - x) * TURN,
 				(target.y - y) * CLIMB,
 				(target.z - z) * TURN,
 			)
 			.scale(DRAG)
+
+		// A ceiling on a controller that never had one.
+		//
+		// This settles at `distance * TURN * DRAG / (1 - DRAG)`, about a third of
+		// the distance per tick, which is a gentle 0.14 at the half block it lags
+		// by while patrolling and complete nonsense anywhere else. Every case
+		// where a Mourner ends up far from its circle -- a guide run, a deep
+		// perch, a startled climb, a reload dropping it somewhere odd -- came out
+		// as a jump rather than a flight.
+		//
+		// Set well above anything the patrol itself asks for, so cruising is
+		// untouched and only the pathological cases are clamped. A bolt still
+		// runs at eight times cruising speed; it just stays a bird.
+		if (steer.lengthSqr() > ORBIT_MAX_SPEED * ORBIT_MAX_SPEED) {
+			steer = steer.normalize().scale(ORBIT_MAX_SPEED)
+		}
 		deltaMovement = steer
 
 		if (steer.horizontalDistanceSqr() > 1.0e-4) {
@@ -202,6 +255,165 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 	}
 
 	private data class Vec3Target(val x: Double, val y: Double, val z: Double)
+
+	// ----------------------------------------------------------------- pointing
+
+	/**
+	 * Sets it off along the bearing of the ruin it was asked about.
+	 *
+	 * ## Why it points instead of leading
+	 *
+	 * The obvious version of this feature is an escort, and it cannot work.
+	 * Ruins spread on a 24 chunk grid, so the next one is several hundred blocks
+	 * off; a bird that actually flew there would outrun the player inside a
+	 * minute and stop ticking the moment it left their loaded chunks. What is
+	 * left is worth more anyway -- it gives a **direction**, and the walk stays
+	 * the player's.
+	 *
+	 * So the run is a fixed length of *time*, not a distance to anything. It
+	 * climbs as it goes, both because that is what a bird setting off does and
+	 * because the line has to clear whatever it is heading over to be read from
+	 * the ground.
+	 */
+	private fun guideStep(level: ServerLevel, home: BlockPos) {
+		val ruin = guideTo
+		guideTicks--
+		if (ruin == null || guideTicks <= 0) {
+			guideTo = null
+			guideTicks = 0
+			returning = true
+			return
+		}
+
+		val dx = (ruin.x - home.x).toDouble()
+		val dz = (ruin.z - home.z).toDouble()
+		val span = sqrt(dx * dx + dz * dz)
+		if (span < 1.0e-3) {
+			guideTo = null
+			guideTicks = 0
+			returning = true
+			return
+		}
+
+		val gone = (GUIDE_TICKS - guideTicks) * GUIDE_SPEED
+		val climb = GUIDE_CLIMB * Mth.clamp(gone / GUIDE_CLIMB_OVER, 0.0, 1.0)
+
+		val target = Vec3Target(
+			home.x + 0.5 + (dx / span) * gone,
+			home.y + climb,
+			home.z + 0.5 + (dz / span) * gone,
+		)
+
+		// Pulled harder than the orbit steers. This is a bird going somewhere,
+		// and the lazy bank that suits a patrol reads as indecision here.
+		deltaMovement = deltaMovement
+			.add(
+				(target.x - x) * GUIDE_TURN,
+				(target.y - y) * GUIDE_TURN,
+				(target.z - z) * GUIDE_TURN,
+			)
+			.scale(DRAG)
+
+		val steer = deltaMovement
+		if (steer.horizontalDistanceSqr() > 1.0e-4) {
+			yRot = (-Mth.atan2(steer.x, steer.z) * Mth.RAD_TO_DEG).toFloat()
+			yBodyRot = yRot
+			yHeadRot = yRot
+		}
+
+		// The bird is a dot at this range; the trail is what stays readable.
+		if (tickCount % GUIDE_TRAIL_EVERY == 0) {
+			level.sendParticles(ModParticles.MEMORY_MOTE, x, y, z, 1, 0.08, 0.08, 0.08, 0.0)
+		}
+	}
+
+	/**
+	 * The long glide back to the circle.
+	 *
+	 * Two things make it read as flying rather than snapping. It is **speed
+	 * limited**, which the orbit is not -- see [returning] for why that matters
+	 * at this range. And it aims at the point on the circle the bird is going to
+	 * *join*, keeping [orbit] turning the whole way, so the patrol picks up
+	 * exactly where the approach left off. Flying to a frozen spot and then
+	 * starting the circle from it would put a visible kink in the path at the
+	 * one moment the player is watching the bird come home.
+	 */
+	private fun returnStep(home: BlockPos) {
+		orbit += ORBIT_STEP
+
+		val tx = home.x + 0.5 + Mth.cos(orbit.toDouble()) * ORBIT_RADIUS
+		val ty = home.y.toDouble()
+		val tz = home.z + 0.5 + Mth.sin(orbit.toDouble()) * ORBIT_RADIUS
+
+		val dx = tx - x
+		val dy = ty - y
+		val dz = tz - z
+
+		// Near enough that the orbit's own steer is gentle again.
+		if (dx * dx + dy * dy + dz * dz < RETURN_HANDOFF_SQ) {
+			returning = false
+			return
+		}
+
+		var flight = deltaMovement
+			.add(dx * RETURN_TURN, dy * RETURN_TURN, dz * RETURN_TURN)
+			.scale(DRAG)
+
+		if (flight.lengthSqr() > RETURN_SPEED * RETURN_SPEED) {
+			flight = flight.normalize().scale(RETURN_SPEED)
+		}
+		deltaMovement = flight
+
+		if (flight.horizontalDistanceSqr() > 1.0e-4) {
+			yRot = (-Mth.atan2(flight.x, flight.z) * Mth.RAD_TO_DEG).toFloat()
+			yBodyRot = yRot
+			yHeadRot = yRot
+		}
+	}
+
+	/**
+	 * Shown a piece of the past, it goes looking for where more of it is.
+	 *
+	 * Only a sentry answers. A bird on foot keeps no watch and has no circle to
+	 * break from or come back to, and [anchor] is also the point every bearing is
+	 * measured from -- without one there is nothing to measure.
+	 */
+	private fun showTheWay(player: Player, held: ItemStack): InteractionResult {
+		val home = anchor ?: return InteractionResult.PASS
+
+		val level = level()
+		if (level !is ServerLevel) return InteractionResult.SUCCESS
+
+		// Already flying one. A second memory would buy a second search for a
+		// bearing it is in the middle of showing.
+		if (guideTicks > 0) return InteractionResult.PASS
+
+		val ruin = Ruins.nearestUnvisited(level, home)
+		if (ruin == null) {
+			// Nothing out there within reach. The memory stays in hand: charging
+			// for an answer the bird did not have would read as the feature being
+			// broken rather than as there being nowhere left to send them.
+			playSound(ModSounds.MOURNER_HURT, 0.5f, 1.3f)
+			return InteractionResult.CONSUME
+		}
+
+		if (!player.hasInfiniteMaterials()) held.shrink(1)
+
+		guideTo = ruin
+		guideTicks = GUIDE_TICKS
+		// One shown a memory while still gliding back from the last run sets off
+		// again from wherever it is, rather than finishing a trip nobody wants.
+		returning = false
+
+		// Off the branch, if it was on one. Left set, roostStep would keep
+		// pulling it back down onto a seat it has no further interest in.
+		perch = null
+		roost = 0
+		isPerched = false
+
+		playSound(ModSounds.MOURNER_CALL, 1.2f, 0.9f)
+		return InteractionResult.SUCCESS
+	}
 
 	// ---------------------------------------------------------------- perching
 
@@ -301,6 +513,21 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 		roost = 0
 		isPerched = false
 
+		// A bird whose roost simply ran out climbs back to the circle under the
+		// same speed limit a guide comes home under, and for the same reason: a
+		// seat can be twenty two blocks below the flight line, and the orbit has
+		// turned several times while it sat, so the point it is rejoining may be
+		// most of a diameter away. Handed straight back, that is thirty odd
+		// blocks of error and the orbit's uncapped steer covers it in three
+		// ticks. This is the perching half of the snap the guide runs exposed --
+		// older than either, and only visible once somebody watched a bird leave
+		// a tree rather than a ruin.
+		//
+		// A startled one is left to the orbit on purpose. Bolting is what that
+		// hard steer is *for*, and [ORBIT_MAX_SPEED] now keeps it this side of a
+		// teleport.
+		if (!startled) returning = true
+
 		if (!startled || shedCooldown > 0) return
 		if (random.nextFloat() >= SHED_CHANCE) return
 
@@ -330,6 +557,17 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 		val hurt = super.hurtServer(level, source, amount)
 		if (hurt && isAlive) {
 			alarm = ALARM_TICKS
+
+			// A bird being shot at has stopped running anyone's errand. Without
+			// this the guide branch outranks the alarm and it would fly its
+			// bearing out placidly with arrows in it.
+			//
+			// The measured glide home goes too: bolting is the orbit's job, and
+			// it does that by steering hard from wherever the bird happens to be.
+			guideTo = null
+			guideTicks = 0
+			returning = false
+
 			takeOff(level, startled = true)
 		}
 		return hurt
@@ -381,6 +619,11 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 	 */
 	override fun mobInteract(player: Player, hand: InteractionHand): InteractionResult {
 		val held = player.getItemInHand(hand)
+
+		// Feeding is a verb players already try on a bird, which is the whole
+		// reason this hangs off the hand rather than off a block or a key.
+		if (held.`is`(ModItems.FRACTURED_MEMORY)) return showTheWay(player, held)
+
 		if (!held.`is`(ItemTags.PARROT_FOOD)) return super.mobInteract(player, hand)
 
 		// Nothing to mend. Passing rather than eating leaves the seeds in hand,
@@ -452,6 +695,16 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 		private const val CLIMB = 0.05
 		private const val DRAG = 0.91
 
+		/**
+		 * Hard ceiling on the orbit's steer -- about twenty four blocks a second.
+		 *
+		 * Cruising asks for 0.14 and a startled climb for around 3.0 uncapped, so
+		 * this leaves the patrol untouched and clips only the bolt. Chosen well
+		 * clear of anything the circle itself produces, because the job here is
+		 * to stop a jump, not to retune flight that already looks right.
+		 */
+		private const val ORBIT_MAX_SPEED = 1.2
+
 		/** Two anchors closer than this are the same ruin. */
 		private val DATA_PERCHED: EntityDataAccessor<Boolean> =
 			SynchedEntityData.defineId(Mourner::class.java, EntityDataSerializers.BOOLEAN)
@@ -476,6 +729,51 @@ class Mourner(type: EntityType<out Mourner>, level: Level) : PathfinderMob(type,
 		private const val STOOP_RANGE = 26.0
 		private const val STOOP_TIGHTEN = 2.5
 		private const val STOOP_DROP = 4.0
+
+		// ---- pointing the way ----
+
+		/**
+		 * How long a pointing run lasts. Eight seconds.
+		 *
+		 * Long enough to watch a bird pick a direction and commit to it, short
+		 * enough that the player is not standing still waiting for it to finish.
+		 */
+		private const val GUIDE_TICKS = 160
+
+		/**
+		 * Blocks along the bearing per tick -- about 56 over the whole run.
+		 *
+		 * Deliberately inside the Mourner's `clientTrackingRange(16)`, which is
+		 * chunks rather than blocks and so is not remotely the binding limit. The
+		 * real one is eyesight: past sixty blocks or so the bird is a speck and
+		 * the trail is doing all the work anyway.
+		 */
+		private const val GUIDE_SPEED = 0.35
+
+		/** How far it climbs over the run, and how much of the run it takes. */
+		private const val GUIDE_CLIMB = 9.0
+		private const val GUIDE_CLIMB_OVER = 20.0
+
+		/** Steering weight while pointing. Several times the orbit's [TURN]. */
+		private const val GUIDE_TURN = 0.12
+
+		/** Ticks between motes on the trail. */
+		private const val GUIDE_TRAIL_EVERY = 2
+
+		/**
+		 * Ceiling on the flight home -- ten blocks a second.
+		 *
+		 * Faster than the circle's own 0.14 a tick, because a bird coming back
+		 * from somewhere is not sightseeing, and slow enough to be a bird. The
+		 * whole fifty six blocks takes a little under six seconds.
+		 */
+		private const val RETURN_SPEED = 0.5
+
+		/** Steering weight on the way back. Between the orbit's and the run's. */
+		private const val RETURN_TURN = 0.06
+
+		/** Two blocks from the joining point, where the orbit is gentle again. */
+		private const val RETURN_HANDOFF_SQ = 4.0
 
 		// ---- perching ----
 

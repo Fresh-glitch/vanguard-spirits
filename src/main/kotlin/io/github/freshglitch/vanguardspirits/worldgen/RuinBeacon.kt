@@ -111,5 +111,19 @@ object RuinBeacon {
 
 	private const val FLOCK = 3
 
-	private const val WATCH_RADIUS = 32.0
+	/**
+	 * How far from the anchor to count birds that already belong to this ruin.
+	 *
+	 * Wider than the circle needs, because a Mourner shown a Fractured Memory
+	 * leaves it -- a pointing run carries one about fifty six blocks out. At the
+	 * old thirty two this box lost sight of it, decided the flock was short, and
+	 * spawned a replacement that stayed once the guide came home. Feeding birds
+	 * would have grown the flock a little at a time, which is the sort of thing
+	 * nobody notices until a ruin has nine of them.
+	 *
+	 * Safe to widen: the filter also asks [Mourner.anchoredNear], so a
+	 * neighbouring ruin's birds are excluded by their own anchor no matter how
+	 * far this box reaches.
+	 */
+	private const val WATCH_RADIUS = 96.0
 }
