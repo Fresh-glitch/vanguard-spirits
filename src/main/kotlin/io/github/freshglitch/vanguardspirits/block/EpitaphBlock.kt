@@ -168,17 +168,36 @@ class EpitaphBlock(properties: Properties) : Block(properties), EntityBlock {
 		const val READS_KEY: String = "message.vanguard-spirits.epitaph.reads"
 		const val SETTLED_KEY: String = "message.vanguard-spirits.epitaph.settled"
 
-		// Matches concept/epitaph.bbmodel: plinth, shaft, cap.
+		// The same five boxes as `models/block/unfinished_epitaph.json`, in the
+		// same order: plinth, body, arch1, arch2, arch3. Both are transcriptions
+		// of `blockbench/unfinished_epitaph.bbmodel`, which is the source. Keep
+		// them in step -- a mismatch shows up as a marker you can walk through,
+		// or one you bump into a pixel early.
+		//
+		// Widths bottom-up are 10, 8, 7, 6, 4: an arch tapering over three steps.
+		// Two earlier versions did not read as one. The first capped a 6 wide
+		// shaft with a 4 wide block, which is a squared shoulder. The second
+		// copied the item sprite's rows exactly -- 12, 10, 8, 6, 4 -- and looked
+		// no different in game, because that sprite spends only two of its
+		// fourteen rows on the dome, and two sixteenths of a block is a step
+		// however many steps are cut into it. Matching the numbers was not the
+		// same as matching the shape; it took building it in Blockbench and
+		// looking at it to get an arch that reads as one.
 		private val SHAPE_NS: VoxelShape = Shapes.or(
-			Block.box(4.0, 0.0, 6.0, 12.0, 2.0, 10.0),
-			Block.box(5.0, 2.0, 7.0, 11.0, 12.0, 9.0),
-			Block.box(6.0, 12.0, 7.0, 10.0, 14.0, 9.0),
+			Block.box(3.0, 0.0, 6.0, 13.0, 2.0, 10.0),
+			Block.box(4.0, 2.0, 7.0, 12.0, 12.0, 9.0),
+			Block.box(4.5, 12.0, 7.0, 11.5, 13.0, 9.0),
+			Block.box(5.0, 13.0, 7.0, 11.0, 14.0, 9.0),
+			Block.box(6.0, 14.0, 7.0, 10.0, 15.0, 9.0),
 		)
 
+		// The same solid turned a quarter: x and z swap about the block centre.
 		private val SHAPE_EW: VoxelShape = Shapes.or(
-			Block.box(6.0, 0.0, 4.0, 10.0, 2.0, 12.0),
-			Block.box(7.0, 2.0, 5.0, 9.0, 12.0, 11.0),
-			Block.box(7.0, 12.0, 6.0, 9.0, 14.0, 10.0),
+			Block.box(6.0, 0.0, 3.0, 10.0, 2.0, 13.0),
+			Block.box(7.0, 2.0, 4.0, 9.0, 12.0, 12.0),
+			Block.box(7.0, 12.0, 4.5, 9.0, 13.0, 11.5),
+			Block.box(7.0, 13.0, 5.0, 9.0, 14.0, 11.0),
+			Block.box(7.0, 14.0, 6.0, 9.0, 15.0, 10.0),
 		)
 	}
 }
