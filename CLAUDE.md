@@ -1474,6 +1474,6 @@ and the commit at the end.
 ## Conventions
 
 - Tabs for indentation in Kotlin, matching the template.
-- Commit messages: imperative subject, body explaining *why*, and
-  `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
-- Remote is a private repo: <https://github.com/Fresh-glitch/vanguard-spirits>
+- Commit messages: imperative subject, body explaining *why*. No Claude trailer or name (the
+  user-wide rules in `~/.claude/CLAUDE.md`, since 2026-10-07).
+- Remote is a public repo: <https://github.com/Fresh-glitch/vanguard-spirits>
